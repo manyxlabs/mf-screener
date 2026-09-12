@@ -132,7 +132,7 @@ Every run is recorded in the `ingest_log` table and surfaced on the dashboard, a
 **After pulling work that adds a metric, run `make metrics` before starting the app.**
 Snapshot columns are added to `scheme_metrics_snapshot` by the pipeline, not by a schema migration, so a store built before a new metric landed does not have its column.
 `/columns` still declares it, and `/screen` then fails with a DuckDB `BinderException` naming the missing column rather than degrading, because the whitelist and the table have to agree for the parameterised SQL to be safe.
-A rebuild over the full lake takes around two and a half hours on a laptop - measured at roughly 250 schemes a minute across 36,917 of them - so start it when you can leave it; `make data-refresh` includes it.
+A rebuild over the full lake takes roughly 40 minutes, and longer if the machine is busy: two runs over 36,917 schemes on 2026-09-12 took 40m29s and 52m42s, the second while a test suite was running. Progress is not linear - the daily-NAV drawdown pass runs first and the per-scheme rate roughly triples once it is done, so an estimate taken in the first few minutes will be far too pessimistic. `make data-refresh` includes it.
 
 **One writer at a time.** DuckDB allows a single process to hold the database file for writing. The API serves read-only, so it does not block anything, but a running API still needs to let go before a CLI write. Either stop it, or trigger the step through the API itself:
 
