@@ -14,10 +14,21 @@ export function MetricHeader({ spec, name }: { spec?: MetricSpec; name: string }
       : spec.direction === "lower_is_better"
         ? "Better: lower"
         : "Neither direction is better";
+  // The plain label leads and the technical one stays underneath it, never replaced:
+  // a reader who does not know the term needs the first, and one who does needs to
+  // find the column they came for.
+  const plain = spec.plain_label || spec.label;
+  const showTechnical = plain !== spec.label;
   return (
-    <InfoTooltip label={<span className="underline decoration-dotted">{spec.label}</span>}>
-      <span className="block font-semibold text-ink-900">{spec.label}</span>
-      <span className="mt-1 block">{spec.definition}</span>
+    <InfoTooltip label={<span className="underline decoration-dotted">{plain}</span>}>
+      <span className="block font-semibold text-ink-900">{plain}</span>
+      {showTechnical ? (
+        <span className="mt-0.5 block text-[11px] uppercase tracking-wide text-ink-500">
+          {spec.label}
+        </span>
+      ) : null}
+      {spec.plain_definition ? <span className="mt-1 block">{spec.plain_definition}</span> : null}
+      <span className="mt-1 block text-ink-500">{spec.definition}</span>
       <span className="mt-1.5 block text-ink-500">
         Frequency: {spec.frequency} · Period: {spec.period} · {desirable}
       </span>

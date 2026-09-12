@@ -9,6 +9,7 @@ function spec(
   direction: MetricSpec["direction"],
   definition: string,
   caveat: string,
+  group: string,
 ): MetricSpec {
   return {
     name,
@@ -19,6 +20,11 @@ function spec(
     caveat,
     period: "whole stored history",
     frequency: name === "worst_fall" || name === "worst_fall_recovery_days" ? "daily" : "monthly",
+    // These five were written in plain language to begin with, so the beginner-facing
+    // fields the catalogue carries are the same strings rather than a second wording.
+    plain_label: label,
+    plain_definition: definition,
+    group,
   };
 }
 
@@ -32,6 +38,7 @@ export const DERIVED_SPECS: Record<string, MetricSpec> = {
     "higher_is_better",
     "Deepest peak-to-trough fall in daily NAV over the whole stored history.",
     "Carried as a negative number, so a smaller fall is the higher value. It covers the fund's own history only, which for a young fund may contain no correction at all.",
+    "Drawdown",
   ),
   worst_fall_recovery_days: spec(
     "worst_fall_recovery_days",
@@ -40,6 +47,7 @@ export const DERIVED_SPECS: Record<string, MetricSpec> = {
     "lower_is_better",
     "Calendar days from the pre-fall high to the day that high was regained.",
     "Blank when the fund has not yet regained that high, which is worse than any number here, not better.",
+    "Drawdown",
   ),
   up_capture: spec(
     "up_capture",
@@ -48,6 +56,7 @@ export const DERIVED_SPECS: Record<string, MetricSpec> = {
     "higher_is_better",
     "Compounded fund return over the months its sub-category rose, divided by the sub-category's own return over those months.",
     "Measured against the equal-weighted peer return, not a benchmark index.",
+    "Risk",
   ),
   down_capture: spec(
     "down_capture",
@@ -56,6 +65,7 @@ export const DERIVED_SPECS: Record<string, MetricSpec> = {
     "lower_is_better",
     "The same ratio over the months the sub-category fell. Below 1 means the fund fell less than its peers.",
     "A fund can score well here simply by holding cash, which costs it on the up side.",
+    "Risk",
   ),
   calendar_years_beaten_pct: spec(
     "calendar_years_beaten_pct",
@@ -64,6 +74,7 @@ export const DERIVED_SPECS: Record<string, MetricSpec> = {
     "higher_is_better",
     "Share of complete and partial calendar years in which the fund beat its sub-category.",
     "A young fund is judged on very few years, so read it beside the fund's age.",
+    "Vs similar funds",
   ),
 };
 

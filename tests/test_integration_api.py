@@ -426,6 +426,50 @@ def test_rolling_windows_are_published_for_one_three_five_and_ten_years(client):
     assert "fund_minus_category_1y" not in names
 
 
+def test_every_metric_carries_plain_english_metadata():
+    """The guard that stops the next metric shipping as jargon only."""
+    from mf_api.columns import NUMERIC_BY_NAME
+
+    groups = {
+        "Returns",
+        "Rolling returns",
+        "Vs similar funds",
+        "Vs index",
+        "Risk",
+        "Drawdown",
+        "Costs & terms",
+        "Size",
+        "Rank stability",
+        "Fund basics",
+    }
+    for name, spec in NUMERIC_BY_NAME.items():
+        assert spec.plain_label.strip(), f"{name} has no plain_label"
+        assert spec.plain_definition.strip(), f"{name} has no plain_definition"
+        assert spec.group in groups, f"{name} has group {spec.group!r}"
+
+
+def test_starter_columns_are_all_selectable():
+    from mf_api.columns import SELECTABLE, STARTER_COLUMNS
+
+    assert set(STARTER_COLUMNS) <= SELECTABLE
+    # Omit it and every blank cell loses the explanation this project exists to give.
+    assert "missing_reasons" in STARTER_COLUMNS
+
+
+def test_columns_endpoint_serves_the_starter_set_and_the_plain_fields(client):
+    from mf_api.columns import DEFAULT_COLUMNS
+
+    payload = client.get("/columns").json()
+
+    assert payload["starter"][:2] == ["scheme_name", "scheme_code"]
+    assert "cagr_5y" in payload["starter"]
+    assert payload["default"] == list(DEFAULT_COLUMNS)
+    for metric in payload["metrics"]:
+        assert metric["plain_label"]
+        assert metric["plain_definition"]
+        assert metric["group"]
+
+
 def test_behaviour_names_drawdown_episodes_with_their_recovery(client):
     payload = client.get("/schemes/S01/behaviour").json()
 

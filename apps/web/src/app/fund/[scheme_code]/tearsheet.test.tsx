@@ -42,6 +42,9 @@ const spec = (name: string, unit: string): MetricSpec => ({
   frequency: "monthly",
   direction: "higher_is_better",
   caveat: "",
+  plain_label: name,
+  plain_definition: "d",
+  group: "Returns",
 });
 
 const specs: Record<string, MetricSpec> = {
