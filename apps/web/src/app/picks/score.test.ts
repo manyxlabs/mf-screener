@@ -51,4 +51,10 @@ describe("scoreBreakdown", () => {
     const text = scoreBreakdown(score());
     expect(text).toContain("risk_adjusted_return: 30.0 of 30 pts (100th percentile)");
   });
+
+  // A percentile is only as meaningful as the group it is measured in, so the group
+  // is named on the score itself rather than left to be looked up.
+  it("names the peer group the percentiles are measured against", () => {
+    expect(scoreBreakdown(score())).toContain("Ranked against 5 funds in Mid Cap Fund");
+  });
 });
