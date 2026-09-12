@@ -126,6 +126,7 @@ _LOCAL_REASON_MODULES: Final[tuple[str, ...]] = (
     "mf_analytics.pipeline",
     "mf_analytics.scoring",
     "mf_analytics.enrich.attributes",
+    "mf_analytics.enrich.holdings",
 )
 
 

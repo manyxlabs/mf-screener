@@ -87,6 +87,10 @@ class Settings(BaseSettings):
     # contact (HTTP 522) - see docs/data-policy.md - so this is the assumed shape,
     # overridable once the source is confirmed to answer.
     mf_attributes_source_url: str = "https://mfdata.in/api/v1"
+    # T3.3: base URL of the holdings enrichment source. Re-probed 2026-09-12 and still
+    # HTTP 522, so nothing fetches from it - `enrich/holdings.py`'s adapter is dormant
+    # and holdings arrive only through `make holdings-import`.
+    mf_holdings_source_url: str = "https://mfdata.in/api/v1"
 
     mf_api_host: str = "127.0.0.1"
     mf_api_port: int = 8000
