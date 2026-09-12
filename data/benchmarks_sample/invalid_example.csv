@@ -1,0 +1,5 @@
+date,benchmark_id,benchmark_name,total_return_index
+2024-01-31,SP500_TR_USD,S&P 500 Total Return,10000.00
+2024-01-31,SP500_TR_USD,S&P 500 Total Return,10120.00
+not-a-date,SP500_TR_USD,S&P 500 Total Return,10240.00
+2024-03-31,SP500_TR_USD,S&P 500 Total Return,-5.00
