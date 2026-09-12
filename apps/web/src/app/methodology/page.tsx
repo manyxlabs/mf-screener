@@ -1,4 +1,5 @@
 import { formatPercent } from "@mf/shared";
+import Link from "next/link";
 import { Formula } from "@/components/formula";
 import { Card } from "@/components/ui";
 import { getMetadata, getMethodology } from "@/lib/api";
@@ -43,6 +44,14 @@ export default async function MethodologyPage() {
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Methodology</h1>
         <p className="mt-1 max-w-3xl text-sm text-ink-500">{methodology.disclaimer}</p>
+        <p className="mt-1 text-sm text-ink-700">
+          New to these terms? Start with the{" "}
+          <Link className="text-accent-600 underline" href="/glossary">
+            glossary
+          </Link>
+          , which says what each number means in plain language. This page is the exact statement of
+          how each one is computed, and when it is refused rather than computed.
+        </p>
         <p className="mt-1 text-xs text-ink-500">
           Version {methodology.version} · metrics computed as of{" "}
           {metadata.coverage.metrics_as_of ?? "-"} · NAV coverage{" "}
@@ -194,8 +203,11 @@ export default async function MethodologyPage() {
             {methodology.metric_catalog.map((metric) => (
               <tr key={metric.name} className="border-t border-ink-100 align-top">
                 <td className="py-1.5 pr-3">
-                  <div>{metric.label}</div>
-                  <div className="font-mono text-[11px] text-ink-500">{metric.name}</div>
+                  <Link href={`/glossary#metric-${metric.name}`} className="hover:underline">
+                    <div>{metric.plain_label || metric.label}</div>
+                    <div className="text-[11px] text-ink-500">{metric.label}</div>
+                    <div className="font-mono text-[11px] text-ink-500">{metric.name}</div>
+                  </Link>
                 </td>
                 <td className="pr-3">{metric.definition}</td>
                 <td className="pr-3 whitespace-nowrap">{metric.direction.replaceAll("_", " ")}</td>

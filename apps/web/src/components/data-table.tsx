@@ -6,21 +6,26 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { MetricHeader, MetricValue } from "./metric-cell";
 
+// The non-metric columns. Metric headers get their plain label from the API's
+// catalogue; these have no spec, so their wording lives here.
 const TEXT_LABELS: Record<string, string> = {
   scheme_code: "Code",
   scheme_name: "Fund",
-  amc: "AMC",
+  amc: "Fund house",
   clean_category: "Category",
-  clean_sub_category: "Sub-category",
+  clean_sub_category: "Fund type",
   clean_plan: "Plan",
   clean_option: "Option",
-  benchmark_id: "Benchmark",
+  benchmark_id: "Measured against",
   is_active: "Active",
   first_nav_date: "First NAV",
   last_nav_date: "Last NAV",
   latest_nav_date: "NAV date",
   aum_quarter: "AUM quarter",
-  data_quality_flags: "Flags",
+  cap_band: "Company size focus",
+  style: "Investing style",
+  riskometer: "SEBI risk label",
+  data_quality_flags: "Data warnings",
 };
 
 const HIDDEN_COLUMNS = new Set(["missing_reasons"]);
