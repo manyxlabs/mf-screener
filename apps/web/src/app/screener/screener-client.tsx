@@ -10,6 +10,7 @@ import { Button, Card, inputClass } from "@/components/ui";
 import { API_BASE, exportCsvUrl, getScreen } from "@/lib/api";
 import {
   DEFAULT_FILTERS,
+  describeSort,
   presetToFilters,
   toQueryString,
   toggleSort,
@@ -90,6 +91,10 @@ export function ScreenerClient({
   const [saved, setSaved] = useState<SavedScreen[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [searchDraft, setSearchDraft] = useState(filters.search);
+  const sortDescription = useMemo(
+    () => describeSort(filters.sort, (c) => metrics[c]?.plain_label || metrics[c]?.label),
+    [filters.sort, metrics],
+  );
 
   useEffect(() => setSaved(loadSavedScreens()), []);
 
@@ -231,7 +236,7 @@ export function ScreenerClient({
           {loading
             ? "Loading..."
             : `${data?.total ?? 0} ${data?.total === 1 ? "fund matches" : "funds match"}`}{" "}
-          · sorted by {filters.sort.replaceAll(",", ", ")}
+          · <span title={filters.sort}>sorted by {sortDescription}</span>
         </span>
         {selected.size ? (
           <a

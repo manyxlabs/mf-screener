@@ -12,6 +12,9 @@ const excessSpec: MetricSpec = {
   frequency: "monthly",
   direction: "higher_is_better",
   caveat: "c",
+  plain_label: "Ahead of / behind similar funds (5Y)",
+  plain_definition: "p",
+  group: "Vs similar funds",
 };
 
 const cagrSpec: MetricSpec = { ...excessSpec, name: "cagr_5y", label: "CAGR 5Y", unit: "percent" };

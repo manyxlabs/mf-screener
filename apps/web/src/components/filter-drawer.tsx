@@ -3,7 +3,7 @@
 import type { Facets, MetricSpec } from "@mf/shared";
 import { useState } from "react";
 import type { ScreenFilters } from "@/lib/screen-query";
-import { Button, Field, inputClass } from "./ui";
+import { Button, Field, PercentInput, inputClass } from "./ui";
 
 const FILTERABLE_GROUPS: { title: string; metrics: string[] }[] = [
   { title: "Trailing returns", metrics: ["cagr_1y", "cagr_3y", "cagr_5y", "cagr_10y"] },
@@ -269,35 +269,59 @@ export function FilterDrawer({
             {group.metrics.map((name) => {
               const spec = metrics[name];
               if (!spec) return null;
-              const hint =
-                spec.unit === "percent" || spec.unit === "percentage_points"
-                  ? "as a decimal, e.g. 0.12 for 12%"
-                  : spec.unit === "inr_crore"
-                    ? "in crore"
+              // A % suffix inside the field says what a hint used to have to.
+              const isPercent = spec.unit === "percent" || spec.unit === "percentage_points";
+              const hint = isPercent
+                ? ""
+                : spec.unit === "inr_crore"
+                  ? "in crore"
+                  : spec.unit === "ratio"
+                    ? "a plain number"
                     : "";
+              const fieldLabel = spec.plain_label || spec.label;
               return (
                 <div key={name} className="grid grid-cols-[1fr_auto_auto] items-end gap-2">
-                  <Field label={spec.label}>
+                  <Field label={fieldLabel}>
                     <span className="text-[11px] text-ink-500">{hint}</span>
                   </Field>
-                  <input
-                    className={`${inputClass} w-24`}
-                    type="number"
-                    step="any"
-                    placeholder="min"
-                    aria-label={`${spec.label} minimum`}
-                    value={filters.ranges[`${name}_min`] ?? ""}
-                    onChange={(e) => setRange(`${name}_min`, e.target.value)}
-                  />
-                  <input
-                    className={`${inputClass} w-24`}
-                    type="number"
-                    step="any"
-                    placeholder="max"
-                    aria-label={`${spec.label} maximum`}
-                    value={filters.ranges[`${name}_max`] ?? ""}
-                    onChange={(e) => setRange(`${name}_max`, e.target.value)}
-                  />
+                  {isPercent ? (
+                    <PercentInput
+                      className="w-24"
+                      placeholder="min"
+                      ariaLabel={`${fieldLabel} minimum, in percent`}
+                      value={filters.ranges[`${name}_min`]}
+                      onChange={(decimal) => setRange(`${name}_min`, decimal)}
+                    />
+                  ) : (
+                    <input
+                      className={`${inputClass} w-24`}
+                      type="number"
+                      step="any"
+                      placeholder="min"
+                      aria-label={`${fieldLabel} minimum`}
+                      value={filters.ranges[`${name}_min`] ?? ""}
+                      onChange={(e) => setRange(`${name}_min`, e.target.value)}
+                    />
+                  )}
+                  {isPercent ? (
+                    <PercentInput
+                      className="w-24"
+                      placeholder="max"
+                      ariaLabel={`${fieldLabel} maximum, in percent`}
+                      value={filters.ranges[`${name}_max`]}
+                      onChange={(decimal) => setRange(`${name}_max`, decimal)}
+                    />
+                  ) : (
+                    <input
+                      className={`${inputClass} w-24`}
+                      type="number"
+                      step="any"
+                      placeholder="max"
+                      aria-label={`${fieldLabel} maximum`}
+                      value={filters.ranges[`${name}_max`] ?? ""}
+                      onChange={(e) => setRange(`${name}_max`, e.target.value)}
+                    />
+                  )}
                 </div>
               );
             })}

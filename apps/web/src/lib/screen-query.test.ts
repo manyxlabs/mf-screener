@@ -2,6 +2,7 @@ import type { Preset } from "@mf/shared";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_FILTERS,
+  describeSort,
   presetToFilters,
   sortDirection,
   toQueryString,
@@ -109,5 +110,36 @@ describe("presetToFilters", () => {
     const filters = presetToFilters(preset);
     filters.ranges["fund_age_years_min"] = 10;
     expect(preset.filters.ranges["fund_age_years_min"]).toBe(7);
+  });
+});
+
+describe("describeSort", () => {
+  const labels: Record<string, string> = {
+    rolling_5y_median: "Typical 5-year outcome",
+    expense_ratio: "Annual fee, already deducted from returns",
+  };
+  const labelOf = (c: string) => labels[c];
+
+  it("reads a single sort as a sentence rather than a column key", () => {
+    expect(describeSort("rolling_5y_median:desc", labelOf)).toBe(
+      "Typical 5-year outcome, highest first",
+    );
+  });
+
+  it("names the direction the right way round for an ascending sort", () => {
+    expect(describeSort("expense_ratio:asc", labelOf)).toBe(
+      "Annual fee, already deducted from returns, lowest first",
+    );
+  });
+
+  it("joins a secondary sort in the order it is applied", () => {
+    expect(describeSort("rolling_5y_median:desc,expense_ratio:asc", labelOf)).toBe(
+      "Typical 5-year outcome, highest first, then Annual fee, already deducted from returns, lowest first",
+    );
+  });
+
+  // Degrading to the raw token keeps an unknown column readable rather than blank.
+  it("falls back to the raw token for a column the catalogue does not carry", () => {
+    expect(describeSort("mystery_column:desc", labelOf)).toBe("mystery_column:desc");
   });
 });

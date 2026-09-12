@@ -44,6 +44,33 @@ AAUM_LABEL: Final = "Scheme AAUM (Quarterly Average, ₹ Cr)"
 
 Direction = Literal["higher_is_better", "lower_is_better", "context"]
 
+# Buckets for grouping the catalog in the picker, the glossary and the methodology
+# table. Closed set: the integration test rejects anything outside it.
+Group = Literal[
+    "Returns",
+    "Rolling returns",
+    "Vs similar funds",
+    "Vs index",
+    "Risk",
+    "Drawdown",
+    "Costs & terms",
+    "Size",
+    "Rank stability",
+    "Fund basics",
+]
+
+# LANGUAGE GUARDRAILS for every `plain_label` and `plain_definition` below, and for
+# every metric added after them.
+#
+# Banned words: "best", "top", "safe", "should", "recommended", "winner".
+# No verb that instructs the reader. A plain label says what the number IS; it never
+# says what to do about it. "Similar funds" stands in for "peers" and "sub-category"
+# in plain text - the technical `label` and `definition` keep the precise term, and
+# are never softened to match.
+# `direction` stays as it is: "better: higher/lower" is a property of the metric, not
+# advice about any fund.
+# Nothing this project outputs is advice. That invariant outranks readability.
+
 
 class ColumnSpec:
     __slots__ = (
@@ -51,9 +78,12 @@ class ColumnSpec:
         "definition",
         "direction",
         "frequency",
+        "group",
         "label",
         "name",
         "period",
+        "plain_definition",
+        "plain_label",
         "unit",
     )
 
@@ -67,6 +97,10 @@ class ColumnSpec:
         frequency: str,
         direction: Direction,
         caveat: str,
+        *,
+        plain_label: str = "",
+        plain_definition: str = "",
+        group: Group | str = "",
     ) -> None:
         self.name = name
         self.label = label
@@ -76,6 +110,9 @@ class ColumnSpec:
         self.frequency = frequency
         self.direction = direction
         self.caveat = caveat
+        self.plain_label = plain_label
+        self.plain_definition = plain_definition
+        self.group = group
 
     def as_dict(self) -> dict[str, str]:
         return {s: getattr(self, s) for s in self.__slots__}
@@ -91,6 +128,11 @@ def _cagr(h: int) -> ColumnSpec:
         "monthly",
         "higher_is_better",
         "Past return. It says nothing about future return, and it ignores risk taken.",
+        plain_label=f"Past return per year ({h}Y)",
+        plain_definition=(
+            f"What a lump sum put in {h} years ago grew by, averaged out to a per-year figure."
+        ),
+        group="Returns",
     )
 
 
@@ -107,6 +149,11 @@ def _sip_xirr(h: int) -> ColumnSpec:
         "Not the same number as trailing CAGR: it reflects the timing of monthly "
         "contributions, not a single lump sum in and out. Blank below 12 contributions "
         "or when no annualised rate prices the cash flows to zero.",
+        plain_label=f"Past return per year, monthly SIP ({h}Y)",
+        plain_definition=(
+            f"What the same amount paid in every month for {h} years grew by, as a per-year figure."
+        ),
+        group="Returns",
     )
 
 
@@ -120,10 +167,25 @@ def _rolling_sip_xirr(h: int) -> ColumnSpec:
         "monthly",
         "higher_is_better",
         "Overlapping windows are correlated, so this is not a sample of independent outcomes.",
+        plain_label=f"Typical {h}-year outcome, monthly SIP",
+        plain_definition=(
+            f"The middle result across every {h}-year stretch in which someone paid in monthly, "
+            "so the start month matters less."
+        ),
+        group="Rolling returns",
     )
 
 
-def _rolling(h: int, stat: str, label: str, direction: Direction, caveat: str) -> ColumnSpec:
+def _rolling(
+    h: int,
+    stat: str,
+    label: str,
+    direction: Direction,
+    caveat: str,
+    *,
+    plain_label: str,
+    plain_definition: str,
+) -> ColumnSpec:
     return ColumnSpec(
         f"rolling_{h}y_{stat}",
         f"Rolling {h}Y {label}",
@@ -133,6 +195,9 @@ def _rolling(h: int, stat: str, label: str, direction: Direction, caveat: str) -
         "monthly",
         direction,
         caveat,
+        plain_label=plain_label,
+        plain_definition=plain_definition,
+        group="Rolling returns",
     )
 
 
@@ -150,6 +215,10 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "mean",
                 "higher_is_better",
                 "Overlapping windows are correlated, so this is not a sample of independent outcomes.",
+                plain_label=f"Average {h}-year outcome",
+                plain_definition=(
+                    f"The per-year return averaged across every {h}-year stretch in the fund's history."
+                ),
             ),
             _rolling(
                 h,
@@ -157,6 +226,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "median",
                 "higher_is_better",
                 "Less sensitive to one exceptional market phase than the mean.",
+                plain_label=f"Typical {h}-year outcome",
+                plain_definition=(
+                    f"The middle result across every {h}-year stretch, so one unusual period does "
+                    "not pull it around."
+                ),
             ),
             _rolling(
                 h,
@@ -164,6 +238,10 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "minimum",
                 "higher_is_better",
                 "The single worst window in the available history - not a floor on future outcomes.",
+                plain_label=f"Worst {h}-year stretch on record",
+                plain_definition=(
+                    f"The lowest per-year return of any {h}-year stretch the fund has lived through."
+                ),
             ),
             _rolling(
                 h,
@@ -171,6 +249,10 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "maximum",
                 "context",
                 "The best window. Useful for range, useless as an expectation.",
+                plain_label=f"Strongest {h}-year stretch on record",
+                plain_definition=(
+                    f"The highest per-year return of any {h}-year stretch the fund has lived through."
+                ),
             ),
             _rolling(
                 h,
@@ -178,6 +260,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "dispersion",
                 "lower_is_better",
                 "Standard deviation across overlapping windows; windows share months, so it understates independence.",
+                plain_label="How much the outcome depended on start date",
+                plain_definition=(
+                    f"How far apart the {h}-year results were, depending on the month someone "
+                    "happened to start."
+                ),
             ),
             _rolling(
                 h,
@@ -185,6 +272,10 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "positive %",
                 "higher_is_better",
                 "Share of windows with a return above zero, not above inflation.",
+                plain_label=f"How often {h} years ended in profit",
+                plain_definition=(
+                    f"The share of {h}-year stretches that finished above what was put in."
+                ),
             ),
             _rolling(
                 h,
@@ -192,6 +283,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "beat sub-category %",
                 "higher_is_better",
                 "Compared against the equal-weighted peer index, which is itself survivorship-affected.",
+                plain_label="How often it beat similar funds",
+                plain_definition=(
+                    f"The share of {h}-year stretches in which it ended ahead of the average "
+                    "similar fund."
+                ),
             ),
             _rolling(
                 h,
@@ -199,6 +295,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "beat benchmark %",
                 "higher_is_better",
                 "Only as good as the mapped benchmark series.",
+                plain_label="How often it beat its index",
+                plain_definition=(
+                    f"The share of {h}-year stretches in which it ended ahead of the index it is "
+                    "measured against."
+                ),
             ),
         )
     ),
@@ -217,6 +318,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "higher_is_better",
                 _PEER_CAPTURE_CAVEAT,
+                plain_label="Share of similar funds' good months captured",
+                plain_definition=(
+                    "How much of the gain similar funds made in their rising months this fund made too."
+                ),
+                group="Vs similar funds",
             ),
             ColumnSpec(
                 f"downside_capture_{h}y",
@@ -230,6 +336,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "lower_is_better",
                 "Below 1 means the fund lost less than peers when they fell, the "
                 "desirable direction. " + _PEER_CAPTURE_CAVEAT,
+                plain_label="Share of similar funds' bad months taken on",
+                plain_definition=(
+                    "How much of the loss similar funds took in their falling months this fund took too."
+                ),
+                group="Vs similar funds",
             ),
         )
     ),
@@ -243,6 +354,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "daily",
         "lower_is_better",
         "Blank, never a large number, when the fund has not yet regained that peak.",
+        plain_label="Time taken to recover that fall",
+        plain_definition="How long it took to get back to the level it fell from.",
+        group="Drawdown",
     ),
     ColumnSpec(
         "worst_calendar_year_return",
@@ -253,6 +367,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "monthly",
         "higher_is_better",
         _CALENDAR_YEAR_CAVEAT,
+        plain_label="Worst full year it has had",
+        plain_definition="The return in the poorest January-to-December year of its life so far.",
+        group="Returns",
     ),
     ColumnSpec(
         "worst_calendar_year",
@@ -263,6 +380,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "monthly",
         "context",
         _CALENDAR_YEAR_CAVEAT,
+        plain_label="Which year was the worst full year",
+        plain_definition="The calendar year in which that poorest full-year return happened.",
+        group="Returns",
     ),
     ColumnSpec(
         "positive_calendar_years_pct",
@@ -273,6 +393,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "monthly",
         "higher_is_better",
         _CALENDAR_YEAR_CAVEAT,
+        plain_label="Share of years that ended up",
+        plain_definition="Out of its full calendar years, how many finished higher than they started.",
+        group="Returns",
     ),
     ColumnSpec(
         "style_drift_3y",
@@ -287,6 +410,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "Inferred from NAV, not from holdings - the same style-analysis basis as the "
         "exposure fit, and blank for the same reasons: too little shared history with the "
         "basis, or fewer than 2 windows in the last 3 years that clear the R-squared floor.",
+        plain_label="How much its investing style has shifted (3Y)",
+        plain_definition=(
+            "How far the kind of holdings its returns look like has moved over the last three years."
+        ),
+        group="Rank stability",
     ),
     ColumnSpec(
         "quartile_now_3y",
@@ -298,6 +426,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "monthly",
         "lower_is_better",
         _QUARTILE_CAVEAT,
+        plain_label="Rank group among similar funds today, on 3-year return (1 = top quarter)",
+        plain_definition=(
+            "Which quarter of similar funds its three-year return sits in as of today."
+        ),
+        group="Rank stability",
     ),
     ColumnSpec(
         "quartile_now_5y",
@@ -309,6 +442,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "monthly",
         "lower_is_better",
         _QUARTILE_CAVEAT,
+        plain_label="Rank group among similar funds today (1 = top quarter)",
+        plain_definition=(
+            "Which quarter of similar funds its five-year return sits in as of today."
+        ),
+        group="Rank stability",
     ),
     ColumnSpec(
         "quartile_persistence_3y",
@@ -320,6 +458,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "monthly",
         "higher_is_better",
         _QUARTILE_CAVEAT + " Past performance chasing is the error this exists to check.",
+        plain_label="How often it stayed in the same rank group",
+        plain_definition=(
+            "Over the last few years, how much of the time it sat in the rank group it is in now."
+        ),
+        group="Rank stability",
     ),
     ColumnSpec(
         "quartile_top_share_3y",
@@ -331,6 +474,12 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "monthly",
         "higher_is_better",
         _QUARTILE_CAVEAT,
+        plain_label="Time spent in the top quarter of similar funds",
+        plain_definition=(
+            "How much of the last few years its three-year return ranked in the leading quarter "
+            "of similar funds."
+        ),
+        group="Rank stability",
     ),
     ColumnSpec(
         "quartile_transitions_3y",
@@ -342,6 +491,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "monthly",
         "lower_is_better",
         _QUARTILE_CAVEAT + " Fewer changes means a more stable relative rank, not a better one.",
+        plain_label="How often its rank group changed",
+        plain_definition=(
+            "The number of times it moved from one quarter of similar funds to another."
+        ),
+        group="Rank stability",
     ),
     *(
         spec
@@ -356,6 +510,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "higher_is_better",
                 "Peers are today's surviving schemes; funds that closed are not in the average.",
+                plain_label=f"Ahead of / behind similar funds ({h}Y)",
+                plain_definition=(
+                    "How far its per-year return sits above or below the average similar fund."
+                ),
+                group="Vs similar funds",
             ),
             ColumnSpec(
                 f"fund_div_category_{h}y",
@@ -366,6 +525,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "higher_is_better",
                 "Undefined and shown blank when the peer average is zero or negative.",
+                plain_label=f"Times the similar-fund average ({h}Y)",
+                plain_definition=(
+                    "Its per-year return expressed as a multiple of the average similar fund's."
+                ),
+                group="Vs similar funds",
             ),
             ColumnSpec(
                 f"category_return_{h}y",
@@ -376,6 +540,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "context",
                 "Equal-weighted across schemes by default, not weighted by AUM.",
+                plain_label=f"Similar funds' average return ({h}Y)",
+                plain_definition=(
+                    "The per-year return of the average fund of the same type, this one left out."
+                ),
+                group="Vs similar funds",
             ),
             ColumnSpec(
                 f"fund_minus_benchmark_{h}y",
@@ -386,6 +555,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "higher_is_better",
                 "Blank when no benchmark series is loaded for the fund's category.",
+                plain_label=f"Ahead of / behind its index ({h}Y)",
+                plain_definition=(
+                    "How far its per-year return sits above or below the index it is measured against."
+                ),
+                group="Vs index",
             ),
             ColumnSpec(
                 f"information_ratio_vs_category_{h}y",
@@ -396,6 +570,12 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "higher_is_better",
                 "It is not benchmark Information Ratio. The app uses an equal-weighted, leave-one-out peer return by default.",
+                plain_label=f"How reliably it beat similar funds ({h}Y)",
+                plain_definition=(
+                    "Whether its lead over similar funds came steadily month after month or from "
+                    "a few odd months."
+                ),
+                group="Vs similar funds",
             ),
             ColumnSpec(
                 f"information_ratio_vs_benchmark_{h}y",
@@ -407,6 +587,12 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "higher_is_better",
                 "A proxy benchmark is net of that index fund's costs, which flatters the fund slightly."
                 + FX_CAVEAT,
+                plain_label=f"How reliably it beat its index ({h}Y)",
+                plain_definition=(
+                    "Whether its lead over the index came steadily month after month or from a "
+                    "few odd months."
+                ),
+                group="Vs index",
             ),
             ColumnSpec(
                 f"sharpe_{h}y",
@@ -417,6 +603,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "higher_is_better",
                 "Penalises upside volatility as much as downside.",
+                plain_label=f"Return earned per unit of ups and downs ({h}Y)",
+                plain_definition=(
+                    "How much return it produced for the amount its value moved around."
+                ),
+                group="Risk",
             ),
             ColumnSpec(
                 f"sortino_{h}y",
@@ -427,6 +618,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "higher_is_better",
                 "Downside deviation uses only months below the risk-free rate, so it rests on fewer observations.",
+                plain_label=f"Return earned per unit of downside ({h}Y)",
+                plain_definition=(
+                    "How much return it produced for the size of its losing months alone."
+                ),
+                group="Risk",
             ),
             ColumnSpec(
                 f"volatility_{h}y",
@@ -437,6 +633,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "lower_is_better",
                 "Monthly data smooths intra-month drawdowns.",
+                plain_label=f"How bumpy the ride was ({h}Y)",
+                plain_definition="How widely its month-to-month returns swung around their average.",
+                group="Risk",
             ),
             ColumnSpec(
                 f"downside_deviation_{h}y",
@@ -447,6 +646,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "lower_is_better",
                 "Estimated from below-threshold months only.",
+                plain_label=f"How large the bad months were ({h}Y)",
+                plain_definition="How far its weak months fell short, ignoring the good ones.",
+                group="Risk",
             ),
             ColumnSpec(
                 f"tracking_error_{h}y",
@@ -457,6 +659,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "lower_is_better",
                 "For an active fund a low value means index-hugging, not skill." + FX_CAVEAT,
+                plain_label=f"How closely it follows its index ({h}Y)",
+                plain_definition="How far its month-to-month returns drift from the index's.",
+                group="Vs index",
             ),
             ColumnSpec(
                 f"alpha_{h}y",
@@ -468,6 +673,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "higher_is_better",
                 "Only meaningful against a benchmark the fund actually tracks; check R-squared and beta."
                 + FX_CAVEAT,
+                plain_label=f"Return the index does not explain ({h}Y)",
+                plain_definition=(
+                    "The part of its return left over once the index's own movement is accounted for."
+                ),
+                group="Vs index",
             ),
             ColumnSpec(
                 f"beta_{h}y",
@@ -479,6 +689,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "context",
                 "Above 1 means it amplified the index, in both directions." + FX_CAVEAT,
+                plain_label=f"How hard it swings with the index ({h}Y)",
+                plain_definition=(
+                    "Whether it moves more or less than the index when the index moves."
+                ),
+                group="Vs index",
             ),
             ColumnSpec(
                 f"r_squared_{h}y",
@@ -489,6 +704,12 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "context",
                 "A low value means alpha and beta describe this fund poorly." + FX_CAVEAT,
+                plain_label=f"How much the index explains ({h}Y)",
+                plain_definition=(
+                    "How much of its movement is simply the index moving, rather than anything "
+                    "particular to this fund."
+                ),
+                group="Vs index",
             ),
             ColumnSpec(
                 f"alpha_tstat_{h}y",
@@ -500,6 +721,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "context",
                 _ALPHA_MULTIPLE_COMPARISONS_CAVEAT + FX_CAVEAT,
+                plain_label=f"Strength of the evidence behind that leftover return ({h}Y)",
+                plain_definition=(
+                    "How large the unexplained return is next to the noise in the same measurement."
+                ),
+                group="Vs index",
             ),
             ColumnSpec(
                 f"alpha_pvalue_{h}y",
@@ -511,6 +737,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "lower_is_better",
                 _ALPHA_MULTIPLE_COMPARISONS_CAVEAT + FX_CAVEAT,
+                plain_label=f"Odds this outperformance is chance ({h}Y)",
+                plain_definition=(
+                    "How often a fund with no real edge would show a gap this large by luck alone."
+                ),
+                group="Vs index",
             ),
             ColumnSpec(
                 f"max_drawdown_{h}y",
@@ -522,6 +753,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "higher_is_better",
                 "Measured on daily NAV. The series starts at any NAV redenomination, so the step is never counted as a fall.",
+                plain_label=f"Worst fall from a peak ({h}Y)",
+                plain_definition=(
+                    "The largest drop from a high point to the low that followed it, before any recovery."
+                ),
+                group="Drawdown",
             ),
             ColumnSpec(
                 f"calmar_{h}y",
@@ -532,6 +768,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
                 "monthly",
                 "higher_is_better",
                 "Unstable when the drawdown is small.",
+                plain_label=f"Return per unit of worst fall ({h}Y)",
+                plain_definition=(
+                    "Its per-year return set against the deepest drop it went through to get there."
+                ),
+                group="Drawdown",
             ),
         )
     ),
@@ -546,6 +787,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "Matched to the scheme by name, since the disclosure carries no scheme code. The "
         "source covers only part of the industry, so a blank means not published, not zero. "
         "Returns already sit net of it, so it is not a second deduction.",
+        plain_label="Annual fee, already deducted from returns",
+        plain_definition=(
+            "The yearly charge the fund house takes; the returns shown are after it."
+        ),
+        group="Costs & terms",
     ),
     ColumnSpec(
         "fund_age_years",
@@ -556,6 +802,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "daily",
         "context",
         "AMFI publishes no launch date; the first NAV date stands in for it.",
+        plain_label="How long this fund has existed",
+        plain_definition="Years between its first published price and its latest one.",
+        group="Fund basics",
     ),
     ColumnSpec(
         "latest_aum",
@@ -566,6 +815,11 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "quarterly",
         "context",
         "It is not a current month-end AUM and does not include related Direct/Regular or Growth/IDCW variants.",
+        plain_label="Money in this exact plan (quarterly average)",
+        plain_definition=(
+            "How much investors hold in this one plan variant, averaged over the latest quarter."
+        ),
+        group="Size",
     ),
     ColumnSpec(
         "aum_family_latest",
@@ -579,6 +833,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "Still AMFI's SEBI-standardised quarterly average, so it will not match a "
         "month-end factsheet figure. Null where no variant in the family has a "
         "reported AUM.",
+        plain_label="Total money in the fund, all plans",
+        plain_definition="How much investors hold in this fund across every plan variant of it.",
+        group="Size",
     ),
     ColumnSpec(
         "aum_growth_4q",
@@ -590,6 +847,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "context",
         "Needs 5 distinct quarterly AUM readings recorded for the fund's family; "
         "blank below that, such as for a fund newly tracked by this project.",
+        plain_label="Change in fund size over a year",
+        plain_definition="How much the money held in the fund grew or shrank over the last four quarters.",
+        group="Size",
     ),
     ColumnSpec(
         "aum_percentile_in_sub_category",
@@ -602,6 +862,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "lower_is_better",
         "Ranked on the family total, not this scheme code's own AUM. Requires the "
         "same minimum peer count as every other peer-relative metric; blank below it.",
+        plain_label="Size compared with similar funds",
+        plain_definition="Where its size sits in the line-up of funds of the same type.",
+        group="Size",
     ),
     ColumnSpec(
         "latest_nav",
@@ -612,6 +875,12 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "daily",
         "context",
         "For a matured scheme this is its final frozen NAV.",
+        plain_label="Price of one unit today",
+        plain_definition=(
+            "What one unit of the fund is worth now; a high or low figure says nothing about "
+            "how the fund has done."
+        ),
+        group="Fund basics",
     ),
     # T3.2 enrichment, joined from scheme_attributes the same way expense_ratio is
     # joined from scheme_ter above - never written into scheme_metrics_snapshot itself.
@@ -624,6 +893,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "as published",
         "lower_is_better",
         "Third-party enrichment, not AMFI. Blank when the source does not carry this scheme.",
+        plain_label="Charge for selling early",
+        plain_definition="What is deducted if the money is taken out inside the early-exit window.",
+        group="Costs & terms",
     ),
     ColumnSpec(
         "exit_load_period_days",
@@ -634,6 +906,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "as published",
         "context",
         "Third-party enrichment, not AMFI. Blank when the source does not carry this scheme.",
+        plain_label="How long that early-exit charge applies",
+        plain_definition="The number of days after buying during which selling incurs the charge.",
+        group="Costs & terms",
     ),
     ColumnSpec(
         "lock_in_days",
@@ -644,6 +919,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "as published",
         "context",
         "Third-party enrichment, not AMFI. Blank when the source does not carry this scheme.",
+        plain_label="Money cannot be withdrawn for",
+        plain_definition="The period after buying in which the money simply cannot be taken out.",
+        group="Costs & terms",
     ),
     ColumnSpec(
         "min_investment",
@@ -654,6 +932,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "as published",
         "context",
         "Third-party enrichment, not AMFI. Blank when the source does not carry this scheme.",
+        plain_label="Smallest lump sum",
+        plain_definition="The least the fund accepts as a one-off amount.",
+        group="Costs & terms",
     ),
     ColumnSpec(
         "min_sip",
@@ -664,6 +945,9 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "as published",
         "context",
         "Third-party enrichment, not AMFI. Blank when the source does not carry this scheme.",
+        plain_label="Smallest monthly amount",
+        plain_definition="The least the fund accepts as a monthly instalment.",
+        group="Costs & terms",
     ),
     ColumnSpec(
         "manager_tenure_years",
@@ -674,6 +958,12 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         "as published",
         "context",
         "Third-party enrichment, not AMFI. Blank when the source does not carry a start date.",
+        plain_label="Years the current manager has run it",
+        plain_definition=(
+            "How long the person deciding what the fund holds has been in that seat; the record "
+            "above may predate them."
+        ),
+        group="Fund basics",
     ),
 )
 
@@ -754,6 +1044,22 @@ SELECTABLE: Final[frozenset[str]] = frozenset(
 # sideways, and every row links and selects by code, so neither can be deselected and the
 # name has to lead.
 PINNED_COLUMNS: Final[tuple[str, ...]] = ("scheme_name", "scheme_code")
+
+# The first view a newcomer sees: one headline return, an honesty check on it (typical
+# and worst window), one downside number, one peer-relative number, one cost number.
+# `missing_reasons` is never rendered - it is what every blank cell's tooltip reads.
+STARTER_COLUMNS: Final[tuple[str, ...]] = (
+    *PINNED_COLUMNS,
+    "clean_sub_category",
+    "fund_age_years",
+    "cagr_5y",
+    "rolling_5y_median",
+    "rolling_5y_min",
+    "max_drawdown_5y",
+    "fund_minus_category_5y",
+    "expense_ratio",
+    "missing_reasons",
+)
 
 DEFAULT_COLUMNS: Final[tuple[str, ...]] = (
     *PINNED_COLUMNS,

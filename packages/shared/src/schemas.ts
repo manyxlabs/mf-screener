@@ -19,11 +19,23 @@ export const metricSpecSchema = z.object({
   frequency: z.string(),
   direction: metricDirection,
   caveat: z.string(),
+  /**
+   * The beginner-facing vocabulary, authored alongside the technical one in
+   * `apps/api/mf_api/columns.py`. `label` and `definition` stay authoritative and are
+   * always rendered too; these only ever lead. Required, like every other field here:
+   * the API and this app ship together, so a spec arriving without them means the
+   * contract changed and should fail loudly rather than render a blank header.
+   */
+  plain_label: z.string(),
+  plain_definition: z.string(),
+  group: z.string(),
 });
 export type MetricSpec = z.infer<typeof metricSpecSchema>;
 
 export const columnsResponseSchema = z.object({
   default: z.array(z.string()),
+  /** The eight-column opening view. `default` stays the fuller standard set. */
+  starter: z.array(z.string()),
   selectable: z.array(z.string()),
   sortable: z.array(z.string()),
   metrics: z.array(metricSpecSchema),

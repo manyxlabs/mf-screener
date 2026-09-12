@@ -113,3 +113,52 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 // order, not by the order they are written, so this must not ship one of its own.
 export const inputClass =
   "rounded-md border border-ink-300 bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent-500";
+
+/**
+ * A percent field that reads and writes whole percents while the filter state, the
+ * query string and the API all keep the decimal they already agree on. The screener
+ * used to ask for `0.12` and explain itself in hint text.
+ *
+ * `value` and `onChange` are in decimals; only what the user sees is scaled.
+ */
+export function PercentInput({
+  value,
+  onChange,
+  placeholder,
+  ariaLabel,
+  className = "",
+}: {
+  value: number | undefined;
+  onChange: (decimal: string) => void;
+  placeholder?: string;
+  ariaLabel: string;
+  className?: string;
+}) {
+  // 0.07 * 100 is 7.000000000000001 in binary floating point, and that would be the
+  // field's visible content. Round hard enough to erase the artefact and finely
+  // enough to keep a basis point (0.0001 -> 0.01%).
+  const shown =
+    value === undefined || Number.isNaN(value) ? "" : String(Math.round(value * 1e6) / 1e4);
+  return (
+    <span className="relative inline-block">
+      <input
+        className={`${inputClass} pr-6 ${className}`}
+        type="number"
+        step="any"
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        value={shown}
+        onChange={(e) => {
+          const raw = e.target.value;
+          onChange(raw === "" ? "" : String(Number(raw) / 100));
+        }}
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-ink-500"
+      >
+        %
+      </span>
+    </span>
+  );
+}

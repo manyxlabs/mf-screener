@@ -103,3 +103,25 @@ export function sortDirection(sort: string, column: string): "asc" | "desc" | nu
   if (!token) return null;
   return token.split(":")[1] === "asc" ? "asc" : "desc";
 }
+
+/**
+ * Renders a sort token as a sentence. `rolling_5y_median:desc` is the machine's
+ * spelling of the sort, not a reader's, and it was being printed verbatim above the
+ * results. Falls back to the raw token for a column the metric catalogue does not
+ * carry, so an unknown sort degrades to today's output rather than to nothing.
+ */
+export function describeSort(
+  sort: string,
+  labelOf: (column: string) => string | undefined,
+): string {
+  const parts = sort
+    .split(",")
+    .filter(Boolean)
+    .map((token) => {
+      const [column = "", direction] = token.split(":");
+      const label = labelOf(column);
+      if (!label) return token;
+      return `${label}, ${direction === "asc" ? "lowest first" : "highest first"}`;
+    });
+  return parts.join(", then ");
+}

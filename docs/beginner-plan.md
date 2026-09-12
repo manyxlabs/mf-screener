@@ -184,16 +184,16 @@ Added to `columns.py`, leaving `DEFAULT_COLUMNS` untouched because presets, `/pi
 
 ```python
 STARTER_COLUMNS = (
-    *PINNED_COLUMNS,            # scheme_name, scheme_code
-    "clean_sub_category",       # Fund type
-    "fund_age_years",           # How long this fund has existed
-    "cagr_5y",                  # Past return per year (5Y)
-    "rolling_5y_median",        # Typical 5-year outcome
-    "rolling_5y_min",           # Worst 5-year stretch on record
-    "max_drawdown_5y",          # Worst fall from a peak
-    "fund_minus_category_5y",   # Ahead of / behind similar funds
-    "expense_ratio",            # Annual fee
-    "missing_reasons",          # not rendered; powers every dash tooltip
+    *PINNED_COLUMNS,  # scheme_name, scheme_code
+    "clean_sub_category",  # Fund type
+    "fund_age_years",  # How long this fund has existed
+    "cagr_5y",  # Past return per year (5Y)
+    "rolling_5y_median",  # Typical 5-year outcome
+    "rolling_5y_min",  # Worst 5-year stretch on record
+    "max_drawdown_5y",  # Worst fall from a peak
+    "fund_minus_category_5y",  # Ahead of / behind similar funds
+    "expense_ratio",  # Annual fee
+    "missing_reasons",  # not rendered; powers every dash tooltip
 )
 ```
 

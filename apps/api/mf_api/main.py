@@ -54,7 +54,7 @@ from mf_analytics.universe import (
     is_active_only_key,
 )
 
-from .columns import DEFAULT_COLUMNS, NUMERIC_BY_NAME, SELECTABLE, SORTABLE
+from .columns import DEFAULT_COLUMNS, NUMERIC_BY_NAME, SELECTABLE, SORTABLE, STARTER_COLUMNS
 from .methodology import methodology_document
 from .presets import PRESETS, PRESETS_BY_ID
 from .screen import (
@@ -207,6 +207,7 @@ def presets() -> list[dict[str, Any]]:
 def columns() -> dict[str, Any]:
     return {
         "default": list(DEFAULT_COLUMNS),
+        "starter": list(STARTER_COLUMNS),
         "selectable": sorted(SELECTABLE),
         "sortable": sorted(SORTABLE),
         "metrics": [c.as_dict() for c in NUMERIC_BY_NAME.values()],
