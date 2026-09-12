@@ -329,6 +329,16 @@ export type BenchmarksResponse = z.infer<typeof benchmarksResponseSchema>;
 export const presetSchema = z.object({
   id: z.string(),
   name: z.string(),
+  /** The analyst-register name the goal-shaped `name` replaced, kept beside it. */
+  subtitle: z.string(),
+  /** The goal a beginner would recognise, used as the landing page's card heading. */
+  question: z.string(),
+  /** Explicit because the names no longer begin "A." to "E." and so no longer sort. */
+  order: z.number(),
+  plain_description: z.string(),
+  /** Stated at the point of temptation, not in a footnote. */
+  caution: z.string(),
+  /** The exact filter rules, unchanged, shown under "the exact rules". */
   description: z.string(),
   filters: z.object({
     search: z.string().optional(),

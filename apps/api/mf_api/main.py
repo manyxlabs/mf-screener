@@ -200,7 +200,9 @@ def methodology() -> dict[str, Any]:
 
 @app.get("/presets", tags=["meta"])
 def presets() -> list[dict[str, Any]]:
-    return PRESETS
+    # The names used to begin "A." to "E.", which ordered them wherever they were
+    # rendered. They no longer do, so the order has to be stated rather than spelled.
+    return sorted(PRESETS, key=lambda p: p["order"])
 
 
 @app.get("/columns", tags=["meta"])

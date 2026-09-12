@@ -13,7 +13,8 @@ const DEBOUNCE_MS = 150;
  * separate row until T2.1 groups them, so each result names its plan and option
  * rather than implying the fund appears once.
  */
-export function SchemeSearch() {
+/** `size` only widens the box and the type: the header keeps the compact default. */
+export function SchemeSearch({ size = "compact" }: { size?: "compact" | "large" } = {}) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<SearchResult[] | null>(null);
@@ -78,7 +79,7 @@ export function SchemeSearch() {
   const showPanel = open && query.trim().length > 0;
 
   return (
-    <div ref={containerRef} className="relative w-64">
+    <div ref={containerRef} className={`relative ${size === "large" ? "w-full" : "w-64"}`}>
       <input
         type="text"
         role="combobox"
@@ -86,8 +87,10 @@ export function SchemeSearch() {
         aria-controls="scheme-search-listbox"
         aria-autocomplete="list"
         aria-activedescendant={activeIndex >= 0 ? `scheme-search-option-${activeIndex}` : undefined}
-        placeholder="Search schemes or AMC…"
-        className={`${inputClass} w-full`}
+        placeholder={
+          size === "large" ? "Search any fund by name or AMC…" : "Search schemes or AMC…"
+        }
+        className={`${inputClass} w-full ${size === "large" ? "py-2.5 text-base" : ""}`}
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);

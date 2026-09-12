@@ -66,7 +66,16 @@ _YOUNG_MANDATE_COLUMNS = [
 PRESETS: Final[list[dict[str, Any]]] = [
     {
         "id": "long-term-consistency",
-        "name": "A. Long-term Indian equity consistency",
+        "name": 'Funds that have delivered steadily for a decade',
+        "subtitle": 'Long-term Indian equity consistency',
+        "question": 'Which equity funds have been consistent over ten years?',
+        "order": 1,
+        "plain_description": (
+            "Equity funds at least seven years old whose typical five-year stretch was positive and which stayed ahead of similar funds over both five and ten years. Last year's return is deliberately ignored."
+        ),
+        "caution": (
+            'A ten-year record is history, not a forecast, and funds that closed along the way are not in this list.'
+        ),
         "description": (
             "Funds at least 7 years old that beat their sub-category over 5 and 10 years "
             "and whose median rolling 5-year return is positive. Ignores 1-year return."
@@ -91,7 +100,16 @@ PRESETS: Final[list[dict[str, Any]]] = [
         "id": "mid-multi-momentum",
         "slot": "Momentum sleeve",
         "highlight": ["cagr_1y", "cagr_3y", "volatility_3y", "max_drawdown_3y", "expense_ratio"],
-        "name": "B. Mid / multi-cap momentum",
+        "name": 'Newer momentum funds in mid and multi-cap',
+        "subtitle": 'Mid / multi-cap momentum, short track records',
+        "question": 'What momentum funds exist in the mid and multi-cap space?',
+        "order": 2,
+        "plain_description": (
+            'Momentum mandates in the mid, multi and mid-small bands. Almost all launched since 2023, so there is no age floor here: one would empty the screen rather than improve it.'
+        ),
+        "caution": (
+            'Most of these are younger than three years. There is no long record to judge them on, and this screen does not pretend otherwise.'
+        ),
         "description": (
             "Momentum mandates in the mid, multi and mid-small bands. Almost all of these "
             "are index funds launched since 2023, so there is no age floor here: one would "
@@ -119,7 +137,16 @@ PRESETS: Final[list[dict[str, Any]]] = [
             "max_drawdown_5y",
             "expense_ratio",
         ],
-        "name": "C. Small-cap quality",
+        "name": 'Small-cap funds judged on how they fell, not just how they rose',
+        "subtitle": 'Small-cap quality, 5Y+',
+        "question": 'Which small-cap funds held up in the bad stretches?',
+        "order": 3,
+        "plain_description": (
+            'The whole small-cap band, active and passive, at least five years old and ahead of similar funds over five years. Ranked on the typical five-year stretch and the worst fall.'
+        ),
+        "caution": (
+            'Small-cap funds fall hardest and recover slowest. Read the worst-fall column beside every return column here.'
+        ),
         "description": (
             "The whole small-cap band, active and passive, aged 5+ years and beating the "
             "sub-category over 5 years. Growth is not a filter here: separating growth from "
@@ -149,7 +176,16 @@ PRESETS: Final[list[dict[str, Any]]] = [
             "max_drawdown_5y",
             "expense_ratio",
         ],
-        "name": "D. Value mandates",
+        "name": 'Value and contra funds with a long record',
+        "subtitle": 'Value and contra mandates, 7Y+',
+        "question": 'How have value and contra funds actually done?',
+        "order": 4,
+        "plain_description": (
+            'Funds running a value or contra mandate, at least seven years old, with the peer-relative and rolling columns that show whether the approach paid over a cycle.'
+        ),
+        "caution": (
+            'Value mandates can lag for years at a time. A short look at this screen will mislead in whichever direction the last cycle went.'
+        ),
         "description": (
             "Every fund whose mandate is value or contra, aged 7+ years. There is no cap band "
             "on this screen because SEBI's Value and Contra categories carry none: a value "
@@ -172,7 +208,16 @@ PRESETS: Final[list[dict[str, Any]]] = [
         "id": "sp500-comparison",
         "slot": "US sleeve",
         "highlight": ["cagr_3y", "cagr_5y", "tracking_error_3y", "volatility_5y", "expense_ratio"],
-        "name": "E. S&P 500 comparison",
+        "name": 'US S&P 500 funds, ranked on how closely they track',
+        "subtitle": 'S&P 500 comparison, tracking-quality ranked',
+        "question": 'How do I compare the S&P 500 funds sold in India?',
+        "order": 5,
+        "plain_description": (
+            'Indian funds tracking the S&P 500. These are close substitutes, so the columns that separate them are cost and tracking quality rather than return.'
+        ),
+        "caution": (
+            'These funds file their NAV in rupees, so their returns already contain the rupee-dollar move. No index-relative figure is computed unless an INR-converted series is loaded.'
+        ),
         "description": (
             "Funds whose name mentions the S&P 500. Ranked on tracking quality, not on alpha "
             "against an Indian index, which would be meaningless here. If the only S&P 500 "

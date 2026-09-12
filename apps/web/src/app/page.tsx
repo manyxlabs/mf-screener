@@ -1,7 +1,7 @@
-import { formatPercent } from "@mf/shared";
 import Link from "next/link";
-import { Card, Stat } from "@/components/ui";
-import { getBenchmarks, getCategories, getMetadata, getPresets } from "@/lib/api";
+import { SchemeSearch } from "@/components/scheme-search";
+import { Card } from "@/components/ui";
+import { getCategories, getMetadata, getPresets } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -15,74 +15,83 @@ const QUICK_LINKS = [
   { label: "Index Funds", sub: "Index Funds" },
 ];
 
-export default async function DashboardPage() {
-  const [metadata, presets, categories, benchmarks] = await Promise.all([
+/**
+ * The three things that most change how a beginner reads every other page, each one
+ * the accessible face of a rule the rest of the site already enforces.
+ */
+const READ_FIRST = [
+  {
+    heading: "Every number here is the past",
+    body: "Returns describe what already happened, under market conditions that will not repeat to order. Nothing on this site is a forecast, a rating or a recommendation.",
+    href: "/glossary#past-return",
+  },
+  {
+    heading: "Funds are compared with their own kind",
+    body: "A small-cap fund is measured against small-cap funds, never against the whole market. Funds that closed are missing from that average, which flatters it.",
+    href: "/glossary#peer-group",
+  },
+  {
+    heading: "A dash is an answer, not a gap",
+    body: "Where a number could not be computed honestly it is left blank, and clicking the blank says exactly why. Nothing is filled in with an average.",
+    href: "/glossary#blank-values",
+  },
+];
+
+export default async function StartPage() {
+  const [metadata, presets, categories] = await Promise.all([
     getMetadata(),
     getPresets(),
     getCategories(),
-    getBenchmarks(),
   ]);
-  const foreignBenchmarks = benchmarks.benchmarks.filter((b) => !b.comparable_with_inr_funds);
   const available = new Set(
     categories.items.map((item) => item.clean_sub_category ?? "").filter(Boolean),
   );
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Indian mutual fund screener</h1>
-        <p className="mt-1 max-w-3xl text-sm text-ink-500">
-          Every number here is computed locally from stored AMFI NAV snapshots, with the peer
-          universe and the missing-data policy stated up front. Nothing on this page is a
-          recommendation.
+    <div className="space-y-8">
+      <section className="mx-auto max-w-3xl space-y-4 pt-4 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight text-ink-900">
+          Which Indian mutual funds have actually done what they claim?
+        </h1>
+        <p className="text-sm text-ink-500">
+          Every figure is computed here, from AMFI&rsquo;s published NAV history, with the peer
+          group named and the reason stated wherever a number is missing. It is a research tool: it
+          will not tell you what to buy.
         </p>
-      </div>
-
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <Stat
-          label="Funds loaded"
-          value={(metadata.counts["fund_families"] ?? 0).toLocaleString("en-IN")}
-          hint={`${(metadata.counts["scheme_master"] ?? 0).toLocaleString("en-IN")} scheme codes`}
-          tooltip="Direct and Regular, Growth and IDCW are separate scheme codes for one economic fund. This counts the funds; the scheme code count is what AMFI publishes, and it is larger."
-        />
-        <Stat
-          label="Daily NAV rows"
-          value={(metadata.counts["nav_daily"] ?? 0).toLocaleString("en-IN")}
-        />
-        <Stat
-          label="NAV coverage"
-          value={metadata.coverage.first_nav_date ?? "-"}
-          hint={`to ${metadata.coverage.last_nav_date ?? "-"}`}
-        />
-        <Stat
-          label="Metrics as of"
-          value={metadata.coverage.metrics_as_of ?? "-"}
-          hint={`methodology v${metadata.methodology_version}`}
-        />
-        <Stat
-          label="Benchmarks loaded"
-          value={metadata.benchmarks.length}
-          hint={metadata.benchmarks.length ? "see coverage below" : "import a TRI CSV"}
-        />
+        <div className="mx-auto flex max-w-xl flex-col items-stretch gap-1">
+          <SchemeSearch size="large" />
+          <p className="text-xs text-ink-500">
+            Look up a fund you already own, or one you have been pitched.
+          </p>
+        </div>
       </section>
 
-      <Card
-        title="Default screening universe"
-        subtitle="Change any of this in the screener's filter drawer."
-      >
-        <ul className="grid gap-1 text-sm text-ink-700 sm:grid-cols-2">
-          <li>Plan scope: {metadata.default_universe.plan_scope.replace("_", " + ")}</li>
-          <li>Option scope: {metadata.default_universe.option_scope}</li>
-          <li>Active schemes only: {metadata.default_universe.active_only ? "yes" : "no"}</li>
-          <li>
-            Peer average: {metadata.default_universe.aggregation}, leave-one-out{" "}
-            {metadata.default_universe.exclude_self ? "on" : "off"}, minimum{" "}
-            {metadata.default_universe.min_peers} peers
-          </li>
-        </ul>
-      </Card>
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-ink-900">Or start from a question</h2>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {presets.map((preset) => (
+            <Link
+              key={preset.id}
+              href={`/screener?preset=${preset.id}`}
+              className="flex flex-col rounded-lg border border-ink-200 bg-surface p-4 transition-colors hover:border-accent-500"
+            >
+              <span className="text-sm font-semibold text-ink-900">{preset.question}</span>
+              <span className="mt-1.5 text-xs leading-relaxed text-ink-700">
+                {preset.plain_description}
+              </span>
+              <span className="mt-2 border-t border-ink-100 pt-2 text-[11px] leading-relaxed text-ink-500">
+                {preset.caution}
+              </span>
+            </Link>
+          ))}
+        </div>
+        <p className="text-xs text-ink-500">
+          These are editable starting points, not shortlists. Every one of them opens in the
+          screener with its filters showing, so you can change them.
+        </p>
+      </section>
 
-      <Card title="Jump to a sub-category">
+      <Card title="Start with a category">
         <div className="flex flex-wrap gap-2">
           {QUICK_LINKS.filter((link) => available.has(link.sub)).map((link) => (
             <Link
@@ -109,85 +118,31 @@ export default async function DashboardPage() {
         ) : null}
       </Card>
 
-      <Card title="Preset screens" subtitle="Starting points you can edit. Not recommendations.">
-        <ul className="grid gap-3 md:grid-cols-2">
-          {presets.map((preset) => (
-            <li key={preset.id} className="rounded-md border border-ink-200 p-3">
-              <Link
-                href={`/screener?preset=${preset.id}`}
-                className="text-sm font-medium text-accent-600 hover:underline"
-              >
-                {preset.name}
-              </Link>
-              <p className="mt-1 text-xs text-ink-500">{preset.description}</p>
-            </li>
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-ink-900">
+          Three things to know before you read any number
+        </h2>
+        <div className="grid gap-3 md:grid-cols-3">
+          {READ_FIRST.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="rounded-lg border border-ink-200 bg-surface p-4 transition-colors hover:border-accent-500"
+            >
+              <span className="block text-sm font-semibold text-ink-900">{item.heading}</span>
+              <span className="mt-1 block text-xs leading-relaxed text-ink-700">{item.body}</span>
+            </Link>
           ))}
-        </ul>
-      </Card>
+        </div>
+      </section>
 
-      <Card
-        title="Benchmark coverage"
-        subtitle="Benchmark-relative metrics are only computed where a comparable series is loaded."
-      >
-        {benchmarks.benchmarks.length === 0 ? (
-          <p className="text-sm text-ink-700">
-            No benchmark series loaded. Alpha, beta, tracking error and the benchmark information
-            ratio will all read &quot;-&quot; until you import one with{" "}
-            <code className="rounded bg-ink-100 px-1">make benchmark-import FILE=...</code>.
-          </p>
-        ) : (
-          <div className="space-y-2 text-sm text-ink-700">
-            <p>
-              {benchmarks.benchmarks.length} series loaded, covering{" "}
-              {benchmarks.schemes_mapped.toLocaleString("en-IN")} of{" "}
-              {benchmarks.schemes_total.toLocaleString("en-IN")} schemes.{" "}
-              {benchmarks.schemes_unmapped.toLocaleString("en-IN")} have no benchmark mapped.
-            </p>
-            {foreignBenchmarks.length ? (
-              <p className="rounded border border-bad-300 bg-bad-50 px-3 py-2 text-xs text-bad-900">
-                <span aria-hidden="true">⚠ </span>
-                {foreignBenchmarks.map((b) => b.benchmark_id).join(", ")}{" "}
-                {foreignBenchmarks.length === 1 ? "is" : "are"} not quoted in{" "}
-                {benchmarks.fund_currency}. No benchmark-relative metric is computed against{" "}
-                {foreignBenchmarks.length === 1 ? "it" : "them"}: the difference would include the
-                exchange rate.
-              </p>
-            ) : null}
-            <p>
-              <Link href="/benchmarks" className="underline">
-                Benchmarks and mapping rules
-              </Link>
-            </p>
-          </div>
-        )}
-      </Card>
-
-      <Card title="Last pipeline runs">
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs uppercase tracking-wide text-ink-500">
-            <tr>
-              <th className="py-1">Step</th>
-              <th>Status</th>
-              <th>Rows</th>
-              <th>Finished</th>
-            </tr>
-          </thead>
-          <tbody>
-            {metadata.ingest_log.slice(0, 8).map((entry, index) => (
-              <tr key={`${String(entry["run_id"])}-${index}`} className="border-t border-ink-100">
-                <td className="py-1.5">{String(entry["step"])}</td>
-                <td>{String(entry["status"])}</td>
-                <td className="numeric">{String(entry["row_count"] ?? "-")}</td>
-                <td className="numeric">{String(entry["finished_at"] ?? "-")}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="mt-3 text-xs text-ink-500">
-          Risk-free rate in use: {formatPercent(0.065)} annual by default, configurable with
-          MF_RISK_FREE_ANNUAL. See the methodology page for the exact conversion.
-        </p>
-      </Card>
+      <p className="border-t border-ink-100 pt-4 text-xs text-ink-500">
+        Metrics as of {metadata.coverage.metrics_as_of ?? "-"} · NAV to{" "}
+        {metadata.coverage.last_nav_date ?? "-"} · methodology v{metadata.methodology_version} ·{" "}
+        <Link className="underline hover:text-ink-700" href="/data-status">
+          data status
+        </Link>
+      </p>
     </div>
   );
 }
