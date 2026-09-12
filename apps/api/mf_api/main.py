@@ -219,6 +219,12 @@ def columns() -> dict[str, Any]:
 
 _SEARCH_WORD_RE = re.compile(r"[a-z0-9]+")
 
+# A query containing any of these is asking for a particular plan or option, so the
+# default "lead with Direct Growth" preference is dropped and relevance decides.
+_VARIANT_WORDS: Final = frozenset(
+    {"direct", "regular", "growth", "idcw", "dividend", "payout", "reinvestment", "bonus"}
+)
+
 
 @app.get("/search", tags=["schemes"])
 def search(
@@ -234,19 +240,37 @@ def search(
     words = _SEARCH_WORD_RE.findall(q.lower())
     if not words:
         return {"query": q, "items": []}
+
+    # Relevance alone interleaves one fund's variants and orders them arbitrarily, so
+    # "parag parikh flexi" led with the two IDCW plans. Rank whole funds by their best
+    # matching variant, keep each fund's variants together, and lead with Direct Growth
+    # - unless the query names a plan or option, in which case the user asked for a
+    # specific variant and pure relevance is the right answer.
+    variant_named = bool(_VARIANT_WORDS & set(words))
+    variant_order = (
+        ""
+        if variant_named
+        else """(clean_plan = 'Direct' AND clean_option = 'Growth') DESC,
+                 (clean_plan = 'Direct') DESC,
+                 (clean_option = 'Growth') DESC,"""
+    )
     rows = query_df(
-        """
-        SELECT scheme_code, scheme_name, amc, clean_sub_category, clean_plan, clean_option,
-               fts_main_scheme_master.match_bm25(scheme_code, ?) AS score
-        FROM scheme_master
-        WHERE score IS NOT NULL
-        ORDER BY score DESC, scheme_name
+        f"""
+        WITH matched AS (
+            SELECT scheme_code, scheme_name, amc, clean_sub_category, clean_plan, clean_option,
+                   coalesce(fund_family_id, scheme_code) AS family,
+                   fts_main_scheme_master.match_bm25(scheme_code, ?) AS score
+            FROM scheme_master
+            WHERE score IS NOT NULL
+        )
+        SELECT scheme_code, scheme_name, amc, clean_sub_category, clean_plan, clean_option
+        FROM (SELECT *, max(score) OVER (PARTITION BY family) AS family_score FROM matched)
+        ORDER BY family_score DESC, family, {variant_order} score DESC, scheme_name
         LIMIT ?
         """,
         [" ".join(words), limit],
     )
-    items = _clean_records(rows.drop(columns=["score"]))
-    return {"query": q, "items": items}
+    return {"query": q, "items": _clean_records(rows)}
 
 
 @app.get("/schemes", tags=["schemes"])
@@ -1638,6 +1662,50 @@ def preset(preset_id: str) -> dict[str, Any]:
     if preset_id not in PRESETS_BY_ID:
         raise HTTPException(status_code=404, detail=f"Unknown preset {preset_id!r}")
     return PRESETS_BY_ID[preset_id]
+
+
+# Paths where a query parameter the API does not know is a bug in the caller with
+# real consequences. Starlette drops unknown parameters silently, so `?styles=Momentum`
+# - the plural of the real `style` - returned the whole unfiltered universe ranked by
+# AUM, which reads exactly like a successful screen. Everywhere else an unknown
+# parameter is merely inert; on these two it silently changes what the numbers mean.
+_STRICT_QUERY_PATHS: Final = frozenset({"/screen", "/export/csv"})
+
+
+def _declared_query_params(path: str) -> frozenset[str]:
+    for route in app.routes:
+        if getattr(route, "path", None) == path:
+            return frozenset(p.name for p in route.dependant.query_params)  # type: ignore[attr-defined]
+    return frozenset()
+
+
+@app.middleware("http")
+async def _reject_unknown_query_params(request: Request, call_next: Any) -> Any:
+    """Refuse a filter this API does not have, rather than answering as if unfiltered.
+
+    Range parameters are not declared on the signature - `parse_ranges` reads them off
+    the raw query string and already rejects an unknown metric - so they are allowed
+    through to it and reported there.
+    """
+    if request.url.path in _STRICT_QUERY_PATHS:
+        allowed = _declared_query_params(request.url.path)
+        unknown = sorted(
+            key
+            for key in request.query_params
+            if key not in allowed and not key.endswith(("_min", "_max"))
+        )
+        if unknown:
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "detail": (
+                        f"Unknown query parameter(s): {', '.join(unknown)}. "
+                        f"This endpoint accepts: {', '.join(sorted(allowed))}, "
+                        "plus <metric>_min and <metric>_max."
+                    )
+                },
+            )
+    return await call_next(request)
 
 
 def cli() -> None:

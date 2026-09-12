@@ -524,7 +524,9 @@ def test_screen_shows_one_row_per_fund_but_every_variant_when_asked(client):
     default must show one of them; turning the toggle off must show all three, because
     the variants are still real rows a user may need to see.
     """
-    query = {"plan": ["Direct", "Regular"], "option": ["Growth", "IDCW Payout"], "limit": 100}
+    # No "limit" here: /screen pages with page_size, and the stray parameter this
+    # query used to carry was silently ignored rather than honoured or refused.
+    query = {"plan": ["Direct", "Regular"], "option": ["Growth", "IDCW Payout"]}
 
     deduped = client.get("/screen", params={**query, "page_size": 100}).json()["rows"]
     expanded = client.get(
@@ -618,3 +620,46 @@ def test_exposure_fits_a_loaded_style_basis(client):
 
 def test_exposure_404s_for_an_unknown_scheme(client):
     assert client.get("/schemes/NOPE/exposure").status_code == 404
+
+
+def test_screen_refuses_an_unknown_query_parameter(client):
+    """A misspelled filter must not answer as though the screen were unfiltered.
+
+    `styles` is the plural of the real `style`. Starlette drops it silently, so the
+    request came back as the whole universe ranked by whatever sort was asked for,
+    which is indistinguishable from a successful screen.
+    """
+    response = client.get("/screen", params={"styles": "Momentum"})
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "styles" in detail
+    assert "style" in detail  # the accepted spelling is named
+
+
+def test_screen_still_accepts_range_parameters_it_does_not_declare(client):
+    """Range bounds are read off the raw query string, so the guard must let them by."""
+    assert client.get("/screen", params={"cagr_3y_min": 0.05}).status_code == 200
+    # And an unknown metric is still rejected by parse_ranges, with its own 400 rather
+    # than the middleware's 422: the guard must let range keys reach that check.
+    bad = client.get("/screen", params={"not_a_metric_min": 1})
+    assert bad.status_code == 400
+    assert "not_a_metric" in bad.json()["detail"]
+
+
+def test_search_leads_with_the_direct_growth_variant(client):
+    """Relevance alone interleaved one fund's plans and led with IDCW.
+
+    A person searching a fund name almost always wants the Direct Growth plan; the
+    other variants stay in the list, directly beneath it.
+    """
+    items = client.get("/search", params={"q": "Alpha Bluechip"}).json()["items"]
+    assert items, "fixture fund should be found"
+    first = items[0]
+    assert (first["clean_plan"], first["clean_option"]) == ("Direct", "Growth")
+
+
+def test_search_respects_a_query_that_names_a_variant(client):
+    """Asking for "regular" must not still be answered with the Direct Growth row."""
+    items = client.get("/search", params={"q": "Alpha Bluechip Regular"}).json()["items"]
+    assert items
+    assert any(i["clean_plan"] == "Regular" for i in items)
