@@ -2,6 +2,7 @@ import {
   behaviourSchema,
   exposureSchema,
   basketResponseSchema,
+  overlapResponseSchema,
   categoriesSchema,
   facetsSchema,
   columnsResponseSchema,
@@ -154,6 +155,9 @@ export const getRollingReturns = (code: string, horizon: number) =>
   request(`/schemes/${code}/rolling-returns?horizon=${horizon}`, rollingResponseSchema);
 export const getComparison = (code: string, query = "") =>
   request(`/schemes/${code}/comparison?${query}`, comparisonResponseSchema);
+
+export const getOverlap = (codes: string[]) =>
+  request(`/overlap?codes=${encodeURIComponent(codes.join(","))}`, overlapResponseSchema);
 
 export const postBasket = (scheme_codes: string[], weights?: number[]) =>
   request("/basket", basketResponseSchema, {

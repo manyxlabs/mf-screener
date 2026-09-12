@@ -301,6 +301,9 @@ export const benchmarksResponseSchema = z.object({
     z.object({
       sub_category_contains: z.array(z.string()),
       scheme_name_contains: z.array(z.string()),
+      /** "all" requires both lists to match; "any", the default, requires either. */
+      match: z.enum(["any", "all"]),
+      scheme_name_excludes: z.array(z.string()),
       benchmark_id: z.string(),
       fallback_benchmark_ids: z.array(z.string()),
       notes: z.string().nullable(),
@@ -488,6 +491,52 @@ export const basketResponseSchema = z.object({
   disclaimer: z.string(),
 });
 export type BasketResponse = z.infer<typeof basketResponseSchema>;
+
+/**
+ * Holdings are enrichment, never a return, risk or ranking input, so nothing here
+ * appears on the screener. Every field can be absent with a named reason: the project
+ * ships no holdings data, and a fund the operator has not imported is the normal case.
+ */
+export const overlapResponseSchema = z.object({
+  codes: z.array(z.string()),
+  funds: z.array(
+    z.object({
+      scheme_code: z.string(),
+      scheme_name: z.string(),
+      as_of: z.string().nullable(),
+      as_of_month: z.string().nullable(),
+      holdings_count: z.number(),
+      stale: z.boolean(),
+      reason: z.string().nullable(),
+      reason_description: z.string().nullable(),
+    }),
+  ),
+  pairs: z.array(
+    z.object({
+      scheme_code_a: z.string(),
+      scheme_code_b: z.string(),
+      as_of_a: z.string().nullable(),
+      as_of_b: z.string().nullable(),
+      /** A percentage, 0-100: the sum of the smaller weight per shared instrument. */
+      overlap_pct: z.number().nullable(),
+      shared_instruments: z.array(
+        z.object({
+          instrument_key: z.string(),
+          instrument_name: z.string(),
+          weight_a: z.number(),
+          weight_b: z.number(),
+          min_weight: z.number(),
+        }),
+      ),
+      reason: z.string().nullable(),
+      reason_description: z.string().nullable(),
+    }),
+  ),
+  max_as_of_gap_months: z.number().nullable(),
+  caveat: z.string(),
+  disclaimer: z.string(),
+});
+export type OverlapResponse = z.infer<typeof overlapResponseSchema>;
 
 export const methodologySchema = z
   .object({
