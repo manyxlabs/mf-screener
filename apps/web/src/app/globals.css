@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+/*
+ * Colours are named by role, not by shade, and every role is a variable the dark block
+ * below redefines. The ink ramp runs light-to-dark in both themes - ink-50 is always the
+ * page behind the cards and ink-900 always the strongest text - so inverting it here
+ * flips the whole app without a `dark:` prefix on a single component.
+ */
+@theme {
+  --color-ink-50: #f7f8fa;
+  --color-ink-100: #eef0f4;
+  --color-ink-200: #dde1e9;
+  --color-ink-300: #c2c9d6;
+  --color-ink-500: #6b7488;
+  --color-ink-700: #3a4256;
+  --color-ink-900: #171b26;
+  --color-surface: #ffffff;
+  --color-on-accent: #ffffff;
+  --color-accent-50: #eef3fd;
+  --color-accent-500: #2f5fd0;
+  --color-accent-600: #24499f;
+  --color-good-100: #d1fae0;
+  --color-good-700: #0f6b45;
+  --color-good-900: #064e34;
+  --color-warn-50: #fffbeb;
+  --color-warn-100: #fef3c7;
+  --color-warn-200: #fde68a;
+  --color-warn-300: #fcd34d;
+  --color-warn-900: #78350f;
+  --color-bad-50: #fef2f2;
+  --color-bad-100: #fee2e2;
+  --color-bad-300: #fca5a5;
+  --color-bad-700: #a3341f;
+  --color-bad-800: #991b1b;
+  --color-bad-900: #7f1d1d;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+}
+
+/*
+ * The status tints are lifted rather than darkened: at these small sizes a dark amber on
+ * a dark ground fails contrast, so the fill stays dim and the text carries the hue.
+ */
+[data-theme="dark"] {
+  --color-ink-50: #101319;
+  --color-ink-100: #1b202a;
+  --color-ink-200: #2a3140;
+  --color-ink-300: #3d4657;
+  --color-ink-500: #8c95a8;
+  --color-ink-700: #c3cad8;
+  --color-ink-900: #eef1f6;
+  --color-surface: #171b23;
+  /* The dark accent is a light blue, so its foreground has to invert with it. */
+  --color-on-accent: #0d1117;
+  --color-accent-50: #1c2740;
+  --color-accent-500: #6f9bff;
+  --color-accent-600: #9bbaff;
+  --color-good-100: #10331f;
+  --color-good-700: #58d39a;
+  --color-good-900: #7fe0b4;
+  --color-warn-50: #2b2311;
+  --color-warn-100: #3a2f14;
+  --color-warn-200: #4d3d18;
+  --color-warn-300: #5f4b1c;
+  --color-warn-900: #f0c65a;
+  --color-bad-50: #331717;
+  --color-bad-100: #3f1c1c;
+  --color-bad-300: #6b2b2b;
+  --color-bad-700: #ff8a72;
+  --color-bad-800: #ff9c86;
+  --color-bad-900: #ffb3a1;
+}
+
+html,
+body {
+  background: var(--color-ink-50);
+  color: var(--color-ink-900);
+}
+
+/* Tells the browser to draw form controls and scrollbars in the matching theme. */
+html {
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/*
+ * A select carrying an author background no longer gets the UA's matching option colours,
+ * so the popup has to be told both or dark mode draws light text on a light list.
+ */
+select option {
+  background-color: var(--color-surface);
+  color: var(--color-ink-900);
+}
+
+/* Tabular figures keep every number column aligned on the decimal point. */
+.numeric {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+/*
+ * The fund tearsheet (apps/web/src/app/fund/[scheme_code]/tearsheet.tsx) is the only
+ * thing meant to reach paper: it stays `hidden` on screen and the interactive page
+ * carries `print:hidden`, so this block only has to strip the site chrome around it
+ * and force ink-on-paper colours regardless of the viewer's light/dark setting.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+  body > header,
+  body > footer,
+  body > .border-warn-200 {
+    display: none !important;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  .tearsheet-page {
+    color: #000;
+    background: #fff;
+  }
+  .tearsheet-page * {
+    color: #000 !important;
+    background: transparent !important;
+    border-color: #999 !important;
+    box-shadow: none !important;
+  }
+}

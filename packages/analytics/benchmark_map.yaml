@@ -1,0 +1,35 @@
+# Sub-category -> benchmark mapping. Matching is case-insensitive "contains".
+# The first rule whose sub_category_contains or scheme_name_contains matches wins.
+# A scheme maps to `benchmark_id` if that series is loaded, else to the first loaded
+# entry in fallback_benchmark_ids, else it stays unmapped (metrics report
+# "benchmark_not_mapped" rather than silently using a wrong index).
+version: 1
+mappings:
+  - sub_category_contains: ["Large Cap"]
+    benchmark_id: NIFTY50_TRI
+    notes: SEBI large-cap mandate; Nifty 50 TRI is the common reference.
+  - sub_category_contains: ["Mid Cap"]
+    benchmark_id: NIFTY_MIDCAP150_TRI
+    fallback_benchmark_ids: [NIFTY500_TRI]
+  - sub_category_contains: ["Small Cap"]
+    benchmark_id: NIFTY_SMALLCAP250_TRI
+    fallback_benchmark_ids: [NIFTY500_TRI]
+  - sub_category_contains: ["Flexi Cap", "Multi Cap", "Large & Mid Cap", "ELSS", "Focused"]
+    benchmark_id: NIFTY500_TRI
+  - sub_category_contains: ["Value", "Contra"]
+    benchmark_id: NIFTY500_VALUE50_TRI
+    fallback_benchmark_ids: [NIFTY500_TRI]
+    notes: Value 50 TRI where loaded, otherwise the broad market.
+  - scheme_name_contains: ["momentum"]
+    benchmark_id: NIFTY500_MOMENTUM50_TRI
+    fallback_benchmark_ids: [NIFTY500_TRI]
+  - scheme_name_contains: ["s&p 500", "s and p 500"]
+    benchmark_id: SP500_TR_INR
+    fallback_benchmark_ids: [SP500_TR_USD]
+    notes: >
+      SP500_TR_USD is a USD series. It is never mixed with INR fund returns; if only
+      the USD series is loaded the scheme is mapped to it and flagged currency_mismatch.
+  - sub_category_contains: ["Index Funds", "Index Fund"]
+    benchmark_id: NIFTY50_TRI
+    fallback_benchmark_ids: [NIFTY500_TRI]
+    notes: Coarse - an index fund tracking something other than the Nifty 50 is mapped only as a fallback.

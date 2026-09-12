@@ -1,0 +1,25 @@
+[project]
+name = "mf-api"
+version = "0.1.0"
+description = "FastAPI service for the Indian mutual fund screener"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "mf-analytics",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "pydantic>=2.9",
+]
+
+[project.scripts]
+mf-api = "mf_api.main:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mf_api"]
+artifacts = ["mf_api/py.typed"]
+
+[tool.uv.sources]
+mf-analytics = { workspace = true }
