@@ -79,12 +79,23 @@ def _align(fund: pd.Series, comparison: pd.Series) -> pd.DataFrame:
     ).dropna()
 
 
+def _too_few(n: int) -> str:
+    """Distinguish "these two series never meet" from "they meet, but not often enough".
+
+    Both used to report `no_overlapping_observations`, which reads as the first and was
+    usually the second: a fund with 23 months against a benchmark needing 24 is a
+    thin sample, not a disjoint one, and the two call for different responses from a
+    reader - wait a month, or find a different benchmark.
+    """
+    return Reason.NO_OVERLAP if n == 0 else Reason.INSUFFICIENT_OBSERVATIONS
+
+
 def tracking_error(
     fund: pd.Series, comparison: pd.Series, min_obs: int = MIN_OBS_DEFAULT
 ) -> Metric:
     a = _align(fund, comparison)
     if len(a) < min_obs:
-        return Metric.missing(Reason.NO_OVERLAP, len(a))
+        return Metric.missing(_too_few(len(a)), len(a))
     return Metric(float((a["f"] - a["c"]).std(ddof=1) * ANNUALISATION_MONTHLY), len(a))
 
 
@@ -93,7 +104,7 @@ def information_ratio(
 ) -> Metric:
     a = _align(fund, comparison)
     if len(a) < min_obs:
-        return Metric.missing(Reason.NO_OVERLAP, len(a))
+        return Metric.missing(_too_few(len(a)), len(a))
     active = a["f"] - a["c"]
     sd = float(active.std(ddof=1))
     if sd <= ZERO_TOLERANCE:
@@ -179,7 +190,7 @@ def alpha_beta(
     a = _align(fund, benchmark)
     n = len(a)
     if n < min_obs:
-        miss = Metric.missing(Reason.NO_OVERLAP, n)
+        miss = Metric.missing(_too_few(n), n)
         return Regression(miss, miss, miss, miss, miss)
     y = (a["f"] - rf_monthly).to_numpy(dtype=float)
     x = (a["c"] - rf_monthly).to_numpy(dtype=float)

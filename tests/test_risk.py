@@ -211,3 +211,34 @@ def test_alpha_pvalue_false_positive_rate_on_pure_noise(rng):
             hits += 1
     share = hits / n_funds
     assert 0.03 <= share <= 0.07
+
+
+def test_a_thin_overlap_is_not_reported_as_no_overlap():
+    """23 shared months against a 24-month minimum is a thin sample, not a disjoint one.
+
+    Both cases used to carry `no_overlapping_observations`, which reads as "these
+    series never meet" and sent a reader looking for a mapping bug that was not there.
+    """
+    import pandas as pd
+
+    from mf_analytics.metrics.risk import alpha_beta, information_ratio, tracking_error
+    from mf_analytics.quality import Reason
+
+    idx = pd.date_range("2024-01-31", periods=23, freq="ME")
+    fund = pd.Series([0.01] * 23, index=idx)
+    bench = pd.Series([0.008] * 23, index=idx)
+
+    assert tracking_error(fund, bench, min_obs=24).reason == Reason.INSUFFICIENT_OBSERVATIONS
+    assert information_ratio(fund, bench, min_obs=24).reason == Reason.INSUFFICIENT_OBSERVATIONS
+    assert alpha_beta(fund, bench, 0.0, min_obs=24).alpha.reason == Reason.INSUFFICIENT_OBSERVATIONS
+
+
+def test_genuinely_disjoint_series_still_say_no_overlap():
+    import pandas as pd
+
+    from mf_analytics.metrics.risk import tracking_error
+    from mf_analytics.quality import Reason
+
+    fund = pd.Series([0.01] * 30, index=pd.date_range("2020-01-31", periods=30, freq="ME"))
+    bench = pd.Series([0.01] * 30, index=pd.date_range("2024-01-31", periods=30, freq="ME"))
+    assert tracking_error(fund, bench, min_obs=24).reason == Reason.NO_OVERLAP
