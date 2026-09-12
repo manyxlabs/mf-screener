@@ -101,10 +101,27 @@ def test_registry_rejects_duplicate_table_names() -> None:
 
 
 def test_disjoint_from_real_snapshot_columns_passes_with_the_real_registry() -> None:
-    # T3.2 registers scheme_attributes on the shared REGISTRY at import time - this
-    # proves the fence holds for the actual enrichment table shipped, not a stand-in.
-    assert "scheme_attributes" in {t.name for t in REGISTRY.tables()}
+    # T3.2 registers scheme_attributes and T3.3 scheme_holdings on the shared REGISTRY at
+    # import time - this proves the fence holds for the actual enrichment tables shipped,
+    # not a stand-in.
+    assert {"scheme_attributes", "scheme_holdings"} <= {t.name for t in REGISTRY.tables()}
     assert_disjoint_from_snapshot(real_snapshot_columns())
+
+
+def test_no_holdings_column_reaches_the_snapshot_or_the_screening_view() -> None:
+    """T3.3's fence, asserted on both surfaces a ranking could reach it through.
+
+    `scheme_attributes` is deliberately joined into `screen_base` so exit load and
+    manager tenure can be screened on. Holdings must not be: a weight, a sector or an
+    overlap is a portfolio fact about one month, and a screener column is something a
+    fund gets ranked by.
+    """
+    from mf_analytics.enrich import holdings
+    from mf_api.store import SCREEN_VIEW_SQL
+
+    columns = holdings.TABLE.domain_column_names()
+    assert columns and not columns & real_snapshot_columns()
+    assert holdings.TABLE.name not in SCREEN_VIEW_SQL
 
 
 def test_fence_fails_when_an_enrichment_column_collides_with_the_snapshot(
@@ -179,9 +196,10 @@ def test_coverage_and_staleness_reports_zero_rows_for_an_unpopulated_real_table(
     finally:
         con.close()
     by_table = {r["table"]: r for r in report}
-    assert by_table["scheme_attributes"]["rows"] == 0
-    assert by_table["scheme_attributes"]["coverage_pct"] == 0.0
-    assert by_table["scheme_attributes"]["latest_as_of"] is None
+    for name in ("scheme_attributes", "scheme_holdings"):
+        assert by_table[name]["rows"] == 0
+        assert by_table[name]["coverage_pct"] == 0.0
+        assert by_table[name]["latest_as_of"] is None
 
 
 def test_is_stale_uses_the_configured_threshold() -> None:

@@ -7,7 +7,7 @@ PY := $(UV) run python -m mf_analytics.cli
 .DEFAULT_GOAL := help
 .PHONY: help bootstrap data-master data-nav data-sample data-refresh data-build provenance \
         benchmark-import benchmark-validate benchmark-coverage benchmark-proxy style-basis \
-        benchmark-map benchmark-sample ter-import \
+        benchmark-map benchmark-sample ter-import holdings-validate holdings-import \
         metrics inspect validate api web dev test test-py test-js lint lint-py lint-js \
         typecheck format build clean-data
 
@@ -71,6 +71,14 @@ benchmark-import: ## Import a benchmark CSV: make benchmark-import FILE=path/to.
 	@test -n "$(FILE)" || { echo "usage: make benchmark-import FILE=data/benchmarks_sample/nifty50_tri_sample.csv"; exit 1; }
 	$(PY) benchmark-import --file $(FILE)
 	$(MAKE) benchmark-map
+
+holdings-validate: ## Check a holdings CSV without importing: make holdings-validate FILE=path/to.csv
+	@test -n "$(FILE)" || { echo "usage: make holdings-validate FILE=path/to/holdings.csv"; exit 1; }
+	$(PY) holdings-validate --file $(FILE)
+
+holdings-import: ## Import a holdings CSV: make holdings-import FILE=path/to.csv
+	@test -n "$(FILE)" || { echo "usage: make holdings-import FILE=path/to/holdings.csv"; exit 1; }
+	$(PY) holdings-import --file $(FILE)
 
 benchmark-coverage: ## Show what the loaded benchmarks cover and where they fall short
 	$(PY) benchmark-coverage

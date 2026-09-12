@@ -270,9 +270,9 @@ Removing a component from the weight table changes only that component's own con
 
 Implemented in `packages/analytics/src/mf_analytics/scoring.py`, called live from `GET /score/{scheme_code}` in `apps/api/mf_api/main.py` over the small per-sub-category peer group fetched from `screen_base`, never over the full NAV lake.
 
-## Enrichment tables (T3.1, T3.2)
+## Enrichment tables (T3.1, T3.2, T3.3)
 
-`scheme_attributes` (T3.2) is the first enrichment table registered; `scheme_holdings` (T3.3) is future work and is not in the table above.
+Two are registered: `scheme_attributes` (T3.2) and `scheme_holdings` (T3.3). Neither is in the canonical table above.
 `packages/analytics/src/mf_analytics/enrich/` is the fence that any of them must be declared through: an `EnrichmentTable` names its own domain columns and key columns, and `EnrichmentRegistry.create_sql()` adds the four provenance columns on top of every one of them, so a table can never be declared, and a row can never be inserted, without `source`, `source_url`, `fetched_at` and `as_of` all `NOT NULL`.
 
 Two guarantees the registry gives every future enrichment table for free:
@@ -290,3 +290,34 @@ Defined and registered in `packages/analytics/src/mf_analytics/enrich/attributes
 The screener filter (`exit_load_pct_max`/`manager_tenure_years_min`) is applied to the result of `run_screen`/`run_export` rather than through SQL, since those functions query only `SORTABLE`/`NUMERIC_BY_NAME` columns and read no request-supplied filter beyond that whitelist.
 `riskometer`, `exit_load_pct`, `exit_load_period_days`, `lock_in_days`, `min_investment`, `min_sip`, `benchmark_name`, `fund_manager` and `manager_tenure_years` are, separately, selectable and sortable columns on `GET /screen` and `GET /export`: `screen_base` (`apps/api/mf_api/store.py`) `LEFT JOIN`s `scheme_attributes` the same way it already `LEFT JOIN`s `scheme_ter` for `expense_ratio`, and `manager_tenure_years` is a `date_diff(...)/365.25` expression in that view rather than a stored column, so it is never stale between fetches.
 This join reaches `screen_base`, a read-only view over `scheme_metrics_snapshot` - not `scheme_metrics_snapshot` itself, a ranking, or a risk computation - so the T3.1 fence (enforced by `assert_disjoint_from_snapshot` against the real table schema) is unaffected.
+
+### `scheme_holdings` (T3.3)
+
+One row per instrument per scheme per disclosure month. Key: `(scheme_code, as_of, instrument_key)`.
+
+| Column                                             | Meaning                                                                                                                      |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `scheme_code`                                      | The fund, joined to `scheme_master`; a code absent from it is refused at import.                                             |
+| `as_of`                                            | The disclosure month, collapsed to its month end. Provenance column, and part of the key.                                    |
+| `instrument_key`                                   | What a holding is matched on across funds and months: `instrument_id` when the file carries one, `instrument_name` when not. |
+| `instrument_id`                                    | The published identifier (ISIN or similar), nullable.                                                                        |
+| `instrument_name`                                  | Required and never blank.                                                                                                    |
+| `weight`                                           | **Fraction of net assets, never a percentage.** 4.5% of the portfolio is `0.045`.                                            |
+| `quantity`, `market_value`, `sector`, `asset_type` | All nullable. `asset_type` is one of `equity`, `debt`, `cash`, `derivative`.                                                 |
+| `source`, `source_url`, `fetched_at`               | The remaining three provenance columns, `NOT NULL` like every enrichment table's.                                            |
+
+`instrument_key` exists because a primary key column cannot be null while `instrument_id` legitimately can: a file with no identifiers still imports, matched by name, and the import warns that it will only overlap against another fund naming the same instrument identically.
+
+Defined and registered in `packages/analytics/src/mf_analytics/enrich/holdings.py`; the CSV contract that is the only way rows reach it is in `holdings_csv.py` and documented in `README.md`. Loaded by `make holdings-import`, checked by `make holdings-validate`, and served by `GET /schemes/{code}/holdings`, `GET /schemes/{code}/holdings/turnover` and `GET /overlap`.
+
+Unlike `scheme_attributes`, this table is **not** joined into `screen_base`, so nothing in it is a selectable, sortable or filterable screener column. A weight is a portfolio fact about one month; a screener column is something a fund gets ranked by, and holdings may never be that. `tests/test_enrich.py` asserts both that its columns are disjoint from `scheme_metrics_snapshot` and that its name does not appear in the screening view.
+
+Derived at query time, never stored:
+
+- **Concentration**: holding count, total disclosed weight, and the top-10 share of the latest month.
+- **Sector and asset-type allocation**: weight grouped by `sector` and by `asset_type`, each with an explicit unclassified bucket rather than a dropped row, so a split never quietly sums to less than the portfolio does.
+- **Turnover**: between consecutive disclosure months, half the sum of absolute weight changes over the union of instruments - the same convention `style_drift_3y` uses, so 0 is an unchanged portfolio and 1 a complete replacement. Below two months it is null with `insufficient_holdings_months`.
+- **Overlap**: per pair of funds, the sum of the minimum weight per shared instrument, as a percentage. Refused with `holdings_as_of_months_differ` when the two funds' latest months are more than one month apart, because the difference would then be trading rather than positioning.
+- **Cross-check against returns-based exposure**: the holdings' equity share against whether the (all-equity, Indian) style basis explains the fund's NAV. A portfolio over the 65% equity line that the basis cannot explain, or one under it that the basis explains well, sets `cross_check.diverges`. Both readings are always returned; the disagreement is information, not an error to resolve.
+
+Named reasons this table can emit: `holdings_not_loaded`, `insufficient_holdings_months`, `holdings_as_of_months_differ`, `holdings_asset_type_not_supplied`, plus the shared `enrichment_source_unreachable` from the dormant fetch adapter.

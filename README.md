@@ -207,6 +207,54 @@ Coverage warnings cover foreign-currency series, series too short for a 3-year r
 The stored metrics are a snapshot while the mapping is live, so re-mapping without re-running `make metrics` leaves the two disagreeing.
 The fund page detects that case and says the benchmark figures are out of date rather than attributing them to the newly mapped index.
 
+## Holdings and portfolio overlap
+
+This project ships no holdings data, and fetches none.
+
+There is no consolidated holdings feed in India: AMFI publishes none, SEBI requires each of roughly forty-four AMCs to publish its own monthly portfolio on its own site in its own layout, and scraping those, automating a browser against them, or buying past them with a paid API are all refused by `docs/data-policy.md`.
+The one free candidate API, `mfdata.in`, has never once answered: HTTP 522 on 2026-09-09, and HTTP 522 again on `/`, `/docs` and `/openapi.json` when re-probed on 2026-09-12.
+
+So holdings work the way benchmarks do here - the engine and a strict import contract ship, and you supply the file from a source you legitimately have.
+A dormant adapter for the candidate API exists in `enrich/holdings.py` for the day it becomes reliable; nothing calls it, and a test asserts nothing does.
+
+### The CSV contract
+
+Required columns: `scheme_code`, `as_of`, `instrument_name`, `weight`.
+Optional: `instrument_id`, `quantity`, `market_value`, `sector`, `asset_type`.
+
+`weight` is a **fraction of net assets, never a percentage**: 4.5% of the portfolio is `0.045`.
+A file of percentages loaded as fractions would report a fund as 4,500% invested, and every overlap figure computed from it would be a hundred times too large while still looking like a plausible number.
+`as_of` is the disclosure month and is collapsed to that month's end, so two files dating the same month differently land on one snapshot.
+`asset_type`, where given, is one of `equity`, `debt`, `cash`, `derivative`.
+
+```bash
+make holdings-validate FILE=path/to/holdings.csv
+make holdings-import   FILE=path/to/holdings.csv
+```
+
+Nothing is written unless the whole file passes, and every problem is reported at once with its CSV line numbers.
+
+A file is **rejected** for: a missing required column; an `as_of` that does not parse; a weight that is non-numeric, negative, or above 1; a scheme-month that is plainly a percent file (every weight between 1 and 100, summing to about 100) - which is refused with the instruction to divide by 100, and never silently converted; two rows sharing a scheme, month and instrument; a blank `instrument_name`; an `asset_type` outside the four allowed values; a `scheme_code` that is not in `scheme_master`; and a scheme-month whose weights sum above 1.02, which allows for rounding and nothing more.
+
+It **warns without failing** when a scheme-month's weights sum below 0.90, because published portfolios often omit cash, and when a holding carries no `instrument_id` - that holding is then matched by name, so it will only overlap against another fund naming the same instrument identically.
+
+Re-importing a scheme-month replaces it wholesale rather than merging: a portfolio is a complete list, so a position dropped from the file is dropped from the store instead of lingering at last month's weight.
+
+### What holdings unlock
+
+- `GET /schemes/{code}/holdings` - the latest month's holdings sorted by weight, with top-10 concentration, sector allocation, asset-type split, and the as-of month stated prominently.
+- `GET /schemes/{code}/holdings/turnover` - between consecutive disclosure months, half the sum of absolute weight changes, the same convention `style_drift_3y` uses.
+- `GET /overlap?codes=A,B[,C,D,E]` - per pair, the overlap percentage as the sum of the minimum weight per shared instrument, with both weights for every shared instrument. Two funds whose latest portfolios are more than a month apart are refused, because comparing a January portfolio with a June one measures five months of trading.
+
+Every one of these returns a named reason rather than an error when the store carries nothing.
+
+The holdings endpoint also returns the fund's **returns-based style exposure alongside** the filed portfolio, and flags when the two disagree - a portfolio at or above 65% equity that the style basis cannot explain, or one below it that the basis explains well.
+Both readings are always shown.
+The disagreement is information: a fund that has traded since the filing, or one the all-equity Indian basis does not cover.
+
+Holdings are enrichment under the T3.1 fence: they never enter `scheme_metrics_snapshot`, a ranking or a risk computation, and - unlike `scheme_attributes` - they are deliberately not screener columns either.
+A weight is a portfolio fact about one month; a screener column is something a fund gets ranked by.
+
 ## Fund tearsheet
 
 Every fund page carries a print-only, one-page tearsheet, built for printing or saving to PDF rather than for the browser.
@@ -304,7 +352,7 @@ These are real and they affect what you can conclude:
 - **Peer metrics on the screener come from the stored snapshot**, which uses the default universe. Changing the universe toggles on a fund page recomputes them live for that fund; it does not re-rank the whole table.
 - **Not investment advice.** Nothing here accounts for your taxes, horizon, or circumstances.
 - **`scheme_attributes` (T3.2) is the first enrichment source wired in, and its data is unproven.** Riskometer, exit load, lock-in, minimums, SID benchmark and fund manager come from a candidate third-party source (`mfdata.in`) observed unreachable on first contact - see `docs/data-policy.md`. Every fetch failure and every field it does not carry shows a named reason, never a default, on `/schemes/{code}/attributes` and on `GET /screen`'s `exit_load_pct_max`/`manager_tenure_years_min` filters. `riskometer`, `exit_load_pct`, `exit_load_period_days`, `lock_in_days`, `min_investment`, `min_sip`, `benchmark_name`, `fund_manager` and `manager_tenure_years` (derived at query time from the manager's start date) are also selectable and sortable columns on `GET /screen`, joined into the read-only `screen_base` view the same way `expense_ratio` is joined from `scheme_ter` - never written into `scheme_metrics_snapshot` itself. `packages/analytics/src/mf_analytics/enrich/` is the fence every enrichment table (this one, and T3.3's `scheme_holdings`) is declared through - every table carries `source`, `source_url`, `fetched_at` and `as_of`, and a test asserts none of its columns can reach `scheme_metrics_snapshot`, a ranking, or a risk computation.
-- **Holdings and overlap (T3.3) are not built.** The plan gates this on the candidate holdings source (`mfdata.in`) being observed available across a week of scheduled checks. No such week has elapsed. A read-only probe on 2026-09-09 returned `522`, a timeout, `522`, `522` across four checks - the source was not reachable at all, let alone reliably. `scheme_holdings`, `/overlap` and `apps/web/src/app/overlap/` do not exist. See `docs/data-policy.md`.
+- **Holdings and overlap (T3.3) ship with no data.** `scheme_holdings`, the import contract, turnover, overlap and the three endpoints are built - see the holdings section above - but nothing populates them until you import a file. The candidate source (`mfdata.in`) has never answered: `522`, a timeout, `522`, `522` across four read-only checks on 2026-09-09, and `522` on `/`, `/docs` and `/openapi.json` when re-probed on 2026-09-12. Its adapter is dormant and called by nothing; scraping AMC sites, browser automation and paid APIs stay refused. There is also no `apps/web/src/app/overlap/` page yet, so the endpoints are API-only. See `docs/data-policy.md`.
 
 ## Layout
 
@@ -343,5 +391,6 @@ Nothing is hard-coded and there are no secrets.
 | `MF_HTTP_TIMEOUT` / `MF_HTTP_RETRIES` / `MF_HTTP_BACKOFF`                      | `180` / `5` / `2.0`                           | Download behaviour                                                                                                             |
 | `MF_ENRICH_HTTP_TIMEOUT` / `MF_ENRICH_HTTP_RETRIES` / `MF_ENRICH_HTTP_BACKOFF` | `30` / `3` / `2.0`                            | Enrichment-source fetch behaviour (Phase 3), kept separate so a flaky third-party source cannot slow down or fail a NAV ingest |
 | `MF_ENRICH_STALE_DAYS`                                                         | `45`                                          | Past this many days since an enrichment row's `as_of`, the UI labels it stale                                                  |
+| `MF_ATTRIBUTES_SOURCE_URL` / `MF_HOLDINGS_SOURCE_URL`                          | `https://mfdata.in/api/v1`                    | The candidate enrichment source. Unreachable on every probe, so nothing fetches from it; both adapters are dormant             |
 | `MF_CORS_ORIGINS`                                                              | `http://localhost:3000,http://localhost:3001` | Allowed frontend origins                                                                                                       |
 | `NEXT_PUBLIC_API_BASE`                                                         | `http://localhost:8000`                       | Where the browser calls the API                                                                                                |

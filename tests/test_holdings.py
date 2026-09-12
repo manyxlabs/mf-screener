@@ -639,7 +639,11 @@ def store(tmp_path: Path) -> Settings:
     settings.ensure_dirs()
     with connect(settings) as con:
         init_schema(con)
-        con.execute("INSERT INTO scheme_master (scheme_code) VALUES ('S01'), ('S02')")
+        con.execute(
+            "INSERT INTO scheme_master (scheme_code, scheme_name, source, ingested_at) "
+            "VALUES ('S01', 'Alpha Fund', 'test', now()::TIMESTAMP), "
+            "('S02', 'Beta Fund', 'test', now()::TIMESTAMP)"
+        )
     return settings
 
 

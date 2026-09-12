@@ -112,6 +112,10 @@ def _optional_text(raw: pd.DataFrame, column: str) -> pd.Series:
     return values.where(values.notna() & (values != ""), pd.NA)
 
 
+def _month_label(month: Any) -> str:
+    return str(pd.Timestamp(month).date())
+
+
 def _month_end(parsed: pd.Series) -> pd.Series:
     """Holdings are a monthly photograph, so every as_of collapses to its month end.
     Two files disclosing the same month on different days must land on one snapshot,
@@ -224,7 +228,7 @@ def validate_frame(
         rows = frame.index[(frame["scheme_code"] == code) & (frame["as_of"] == month)]
         total = float(frame.loc[rows, "weight"].sum())
         problems.append(
-            f"scheme {code} for {pd.Timestamp(month).date()} is a percent file: every one of its "
+            f"scheme {code} for {_month_label(month)} is a percent file: every one of its "
             f"{len(rows)} weights is between 1 and 100 and they sum to {total:.2f}. Weight is a "
             "fraction of net assets, so divide this scheme-month's weights by 100 and re-import. "
             f"Nothing is converted for you. CSV line(s) {_lines(rows)}"

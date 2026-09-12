@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from itertools import combinations, pairwise
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, cast
 
 import pandas as pd
 
@@ -187,10 +187,10 @@ def _allocation(holdings: pd.DataFrame, column: str) -> list[dict[str, Any]]:
     """
     grouped = holdings.groupby(column, dropna=False)["weight"].sum()
     rows = [
-        {column: None if pd.isna(name) else str(name), "weight": round(float(value), 6)}
+        {column: None if pd.isna(cast(Any, name)) else str(name), "weight": round(float(value), 6)}
         for name, value in grouped.items()
     ]
-    return sorted(rows, key=lambda r: -r["weight"])
+    return sorted(rows, key=lambda r: -float(cast(float, r["weight"])))
 
 
 def sector_allocation(holdings: pd.DataFrame) -> list[dict[str, Any]]:

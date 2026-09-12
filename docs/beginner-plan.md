@@ -88,56 +88,56 @@ Every one of them is reachable in two clicks, unchanged.
 The technical `label` stays visible as secondary text.
 Horizon-parameterised rows apply to every horizon; 5Y is the exemplar.
 
-| `name` | Current `label` | Proposed `plain_label` |
-| --- | --- | --- |
-| `cagr_5y` | CAGR 5Y | Past return per year (5Y) |
-| `sip_xirr_5y` | SIP XIRR 5Y | Past return per year, monthly SIP (5Y) |
-| `rolling_5y_median` | Rolling 5Y median | Typical 5-year outcome |
-| `rolling_5y_min` | Rolling 5Y minimum | Worst 5-year stretch on record |
-| `rolling_5y_max` | Rolling 5Y maximum | Best 5-year stretch on record |
-| `rolling_5y_positive_pct` | Rolling 5Y positive % | How often 5 years ended in profit |
-| `rolling_5y_beat_category_pct` | Rolling 5Y beat sub-category % | How often it beat similar funds |
-| `rolling_5y_std` | Rolling 5Y dispersion | How much the outcome depended on start date |
-| `fund_minus_category_5y` | Excess vs sub-category 5Y | Ahead of / behind similar funds (5Y) |
-| `fund_div_category_5y` | Ratio vs sub-category 5Y | Times the similar-fund average (5Y) |
-| `category_return_5y` | Sub-category CAGR 5Y | Similar funds' average return (5Y) |
-| `fund_minus_benchmark_5y` | Excess vs benchmark 5Y | Ahead of / behind its index (5Y) |
-| `information_ratio_vs_category_5y` | Information Ratio vs Sub-category 5Y | How reliably it beat similar funds (5Y) |
-| `information_ratio_vs_benchmark_5y` | IR vs benchmark 5Y | How reliably it beat its index (5Y) |
-| `sharpe_5y` | Sharpe 5Y | Return earned per unit of ups and downs (5Y) |
-| `sortino_5y` | Sortino 5Y | Return earned per unit of downside (5Y) |
-| `volatility_5y` | Volatility 5Y | How bumpy the ride was (5Y) |
-| `downside_deviation_5y` | Downside deviation 5Y | How large the bad months were (5Y) |
-| `max_drawdown_5y` | Max drawdown 5Y | Worst fall from a peak (5Y) |
-| `max_drawdown_5y_recovery_days` | Drawdown recovery (days) 5Y | Time taken to recover that fall |
-| `calmar_5y` | Calmar 5Y | Return per unit of worst fall (5Y) |
-| `tracking_error_5y` | Tracking error 5Y | How closely it follows its index (5Y) |
-| `alpha_5y` | Alpha 5Y | Return the index does not explain (5Y) |
-| `beta_5y` | Beta 5Y | How hard it swings with the index (5Y) |
-| `r_squared_5y` | R-squared 5Y | How much the index explains (5Y) |
-| `alpha_pvalue_5y` | Alpha p-value 5Y | Odds this outperformance is chance (5Y) |
-| `upside_capture_5y` | Upside capture 5Y | Share of peers' good months captured |
-| `downside_capture_5y` | Downside capture 5Y | Share of peers' bad months taken on |
-| `worst_calendar_year_return` | Worst calendar year | Worst full year it has had |
-| `positive_calendar_years_pct` | Positive calendar years | Share of years that ended up |
-| `quartile_now_5y` | Quartile now (5Y) | Rank group among similar funds today (1 = top quarter) |
-| `quartile_persistence_3y` | Quartile persistence (3Y) | How often it stayed in the same rank group |
-| `quartile_top_share_3y` | Time in top quartile (3Y) | Time spent in the top quarter of peers |
-| `quartile_transitions_3y` | Quartile changes (3Y) | How often its rank group changed |
-| `style_drift_3y` | Style drift (3Y) | How much its investing style has shifted |
-| `expense_ratio` | Expense ratio | Annual fee, already deducted from returns |
-| `exit_load_pct` | Exit Load | Charge for selling early |
-| `exit_load_period_days` | Exit Load Period | How long that early-exit charge applies |
-| `lock_in_days` | Lock-in | Money cannot be withdrawn for |
-| `fund_age_years` | Fund age | How long this fund has existed |
-| `latest_aum` | Scheme AAUM (Quarterly Average, ₹ Cr) | Money in this exact plan (quarterly average) |
-| `aum_family_latest` | Fund AUM (Family Total) | Total money in the fund, all plans |
-| `aum_growth_4q` | AUM Growth (4Q) | Change in fund size over a year |
-| `aum_percentile_in_sub_category` | AUM Percentile (Sub-Category) | Size compared with similar funds |
-| `latest_nav` | NAV | Price of one unit today |
-| `min_investment` / `min_sip` | Minimum Investment / SIP | Smallest lump sum / smallest monthly amount |
-| `manager_tenure_years` | Manager Tenure | Years the current manager has run it |
-| `monthly_obs_count` | (count column) | Months of history behind these numbers |
+| `name`                              | Current `label`                       | Proposed `plain_label`                                 |
+| ----------------------------------- | ------------------------------------- | ------------------------------------------------------ |
+| `cagr_5y`                           | CAGR 5Y                               | Past return per year (5Y)                              |
+| `sip_xirr_5y`                       | SIP XIRR 5Y                           | Past return per year, monthly SIP (5Y)                 |
+| `rolling_5y_median`                 | Rolling 5Y median                     | Typical 5-year outcome                                 |
+| `rolling_5y_min`                    | Rolling 5Y minimum                    | Worst 5-year stretch on record                         |
+| `rolling_5y_max`                    | Rolling 5Y maximum                    | Best 5-year stretch on record                          |
+| `rolling_5y_positive_pct`           | Rolling 5Y positive %                 | How often 5 years ended in profit                      |
+| `rolling_5y_beat_category_pct`      | Rolling 5Y beat sub-category %        | How often it beat similar funds                        |
+| `rolling_5y_std`                    | Rolling 5Y dispersion                 | How much the outcome depended on start date            |
+| `fund_minus_category_5y`            | Excess vs sub-category 5Y             | Ahead of / behind similar funds (5Y)                   |
+| `fund_div_category_5y`              | Ratio vs sub-category 5Y              | Times the similar-fund average (5Y)                    |
+| `category_return_5y`                | Sub-category CAGR 5Y                  | Similar funds' average return (5Y)                     |
+| `fund_minus_benchmark_5y`           | Excess vs benchmark 5Y                | Ahead of / behind its index (5Y)                       |
+| `information_ratio_vs_category_5y`  | Information Ratio vs Sub-category 5Y  | How reliably it beat similar funds (5Y)                |
+| `information_ratio_vs_benchmark_5y` | IR vs benchmark 5Y                    | How reliably it beat its index (5Y)                    |
+| `sharpe_5y`                         | Sharpe 5Y                             | Return earned per unit of ups and downs (5Y)           |
+| `sortino_5y`                        | Sortino 5Y                            | Return earned per unit of downside (5Y)                |
+| `volatility_5y`                     | Volatility 5Y                         | How bumpy the ride was (5Y)                            |
+| `downside_deviation_5y`             | Downside deviation 5Y                 | How large the bad months were (5Y)                     |
+| `max_drawdown_5y`                   | Max drawdown 5Y                       | Worst fall from a peak (5Y)                            |
+| `max_drawdown_5y_recovery_days`     | Drawdown recovery (days) 5Y           | Time taken to recover that fall                        |
+| `calmar_5y`                         | Calmar 5Y                             | Return per unit of worst fall (5Y)                     |
+| `tracking_error_5y`                 | Tracking error 5Y                     | How closely it follows its index (5Y)                  |
+| `alpha_5y`                          | Alpha 5Y                              | Return the index does not explain (5Y)                 |
+| `beta_5y`                           | Beta 5Y                               | How hard it swings with the index (5Y)                 |
+| `r_squared_5y`                      | R-squared 5Y                          | How much the index explains (5Y)                       |
+| `alpha_pvalue_5y`                   | Alpha p-value 5Y                      | Odds this outperformance is chance (5Y)                |
+| `upside_capture_5y`                 | Upside capture 5Y                     | Share of peers' good months captured                   |
+| `downside_capture_5y`               | Downside capture 5Y                   | Share of peers' bad months taken on                    |
+| `worst_calendar_year_return`        | Worst calendar year                   | Worst full year it has had                             |
+| `positive_calendar_years_pct`       | Positive calendar years               | Share of years that ended up                           |
+| `quartile_now_5y`                   | Quartile now (5Y)                     | Rank group among similar funds today (1 = top quarter) |
+| `quartile_persistence_3y`           | Quartile persistence (3Y)             | How often it stayed in the same rank group             |
+| `quartile_top_share_3y`             | Time in top quartile (3Y)             | Time spent in the top quarter of peers                 |
+| `quartile_transitions_3y`           | Quartile changes (3Y)                 | How often its rank group changed                       |
+| `style_drift_3y`                    | Style drift (3Y)                      | How much its investing style has shifted               |
+| `expense_ratio`                     | Expense ratio                         | Annual fee, already deducted from returns              |
+| `exit_load_pct`                     | Exit Load                             | Charge for selling early                               |
+| `exit_load_period_days`             | Exit Load Period                      | How long that early-exit charge applies                |
+| `lock_in_days`                      | Lock-in                               | Money cannot be withdrawn for                          |
+| `fund_age_years`                    | Fund age                              | How long this fund has existed                         |
+| `latest_aum`                        | Scheme AAUM (Quarterly Average, ₹ Cr) | Money in this exact plan (quarterly average)           |
+| `aum_family_latest`                 | Fund AUM (Family Total)               | Total money in the fund, all plans                     |
+| `aum_growth_4q`                     | AUM Growth (4Q)                       | Change in fund size over a year                        |
+| `aum_percentile_in_sub_category`    | AUM Percentile (Sub-Category)         | Size compared with similar funds                       |
+| `latest_nav`                        | NAV                                   | Price of one unit today                                |
+| `min_investment` / `min_sip`        | Minimum Investment / SIP              | Smallest lump sum / smallest monthly amount            |
+| `manager_tenure_years`              | Manager Tenure                        | Years the current manager has run it                   |
+| `monthly_obs_count`                 | (count column)                        | Months of history behind these numbers                 |
 
 Non-metric text columns in `data-table.tsx` `TEXT_LABELS`: `clean_sub_category` to "Fund type", `cap_band` to "Company size focus", `style` to "Investing style", `clean_plan` to "Plan (Direct = no distributor commission)", `data_quality_flags` to "Data warnings", `riskometer` to "SEBI risk label".
 
@@ -241,13 +241,13 @@ Result-line plain English: "342 funds match" gains, on preset load, one sentence
 
 `id` values are unchanged, so `/screener?preset=`, `PRESETS_BY_ID`, `GET /presets/{id}` and `/picks` slot filtering all keep working.
 
-| `id` (unchanged) | New `name` | New `subtitle` |
-| --- | --- | --- |
-| `long-term-consistency` | Funds that have delivered steadily for a decade | Long-term Indian equity consistency |
-| `mid-multi-momentum` | Newer momentum funds in mid and multi-cap | Mid / multi-cap momentum, short track records |
-| `small-cap-quality` | Small-cap funds judged on how they fell, not just how they rose | Small-cap quality, 5Y+ |
-| `value-mandates` | Value and contra funds with a long record | Value and contra mandates, 7Y+ |
-| `sp500-comparison` | US S&P 500 funds, ranked on how closely they track | S&P 500 comparison, tracking-quality ranked |
+| `id` (unchanged)        | New `name`                                                      | New `subtitle`                                |
+| ----------------------- | --------------------------------------------------------------- | --------------------------------------------- |
+| `long-term-consistency` | Funds that have delivered steadily for a decade                 | Long-term Indian equity consistency           |
+| `mid-multi-momentum`    | Newer momentum funds in mid and multi-cap                       | Mid / multi-cap momentum, short track records |
+| `small-cap-quality`     | Small-cap funds judged on how they fell, not just how they rose | Small-cap quality, 5Y+                        |
+| `value-mandates`        | Value and contra funds with a long record                       | Value and contra mandates, 7Y+                |
+| `sp500-comparison`      | US S&P 500 funds, ranked on how closely they track              | S&P 500 comparison, tracking-quality ranked   |
 
 New fields per preset:
 

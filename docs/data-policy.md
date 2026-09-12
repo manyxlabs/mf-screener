@@ -23,7 +23,7 @@ There is no bare `latest` format; the manifest offers `latest.csv`, `latest.csv.
 Not used, and not to be added: AMFI scraping, MFAPI, Tickertape, Value Research, paid APIs, or browser automation to collect investment data.
 The MFAPI adapter that once existed has been deleted - nothing called it, and a fallback nothing exercises is a fallback that does not work.
 
-### Portfolio holdings: a candidate exists, but nothing is built on it
+### Portfolio holdings: the engine is built, the source is not depended on
 
 No holdings source is wired into this app today, and none will be until the rules below are satisfied.
 The earlier version of this section concluded that no usable source existed at all; that conclusion is no longer complete.
@@ -40,16 +40,25 @@ They are also actively hostile to automated collection: HDFC's disclosure page a
 Getting past that is browser automation to collect investment data, which is the one thing this policy names and refuses, and buying past it with a paid API is refused for the same reason.
 
 The candidate is `mfdata.in`, a free, no-authentication REST API that claims stock-level holdings, sector allocation and ratios across 14,000+ schemes.
-It is third party, not an authoritative regulatory filing, and its availability is unproven: probed read-only on 2026-09-09 at `https://mfdata.in/docs`, it returned HTTP 522, meaning its origin was down.
-A source that is down on first contact cannot be depended on, and nothing is built against it on the strength of one probe.
+It is third party, not an authoritative regulatory filing, and it has never once answered.
+Probed read-only on 2026-09-09 at `https://mfdata.in/docs`, it returned HTTP 522, meaning its origin was down.
+Re-probed read-only on 2026-09-12 at `/`, `/docs` and `/openapi.json`, it returned HTTP 522 on all three - the same failure, three days later.
+A source that has never once responded cannot be depended on, and this project does not depend on it: nothing fetches from it, no pipeline step and no `make` target reaches for it, and no holdings data ships.
+
+What T3.3 ships instead is the engine plus a strict import contract, which is exactly the pattern that already works here for benchmark index series (`make benchmark-import` / `benchmark-validate`, and `ingest/benchmarks.py`).
+The operator supplies a holdings file from a source they legitimately have, `make holdings-validate` checks it against the contract, and `make holdings-import` loads it.
+See the holdings CSV contract in `README.md` for the columns and every rejection.
+`packages/analytics/src/mf_analytics/enrich/holdings.py` also carries a **dormant** adapter, `fetch_scheme_holdings`, wired to the enrichment timeout/retry budget and returning `enrichment_source_unreachable` on failure.
+Nothing calls it - a test asserts that no file under `packages/`, `apps/api/` or the `Makefile` does - and it exists only so that the day the source becomes reliably available, wiring it in is one call rather than a rewrite.
 
 So holdings are admitted only as an enrichment tier, never as a return, risk or ranking input, under the rules T3.1 sets before any enrichment source is wired in: every row carries `source`, `source_url`, `fetched_at` and `as_of`; no enrichment column is ever read into `scheme_metrics_snapshot`, a ranking or a risk computation; an unreachable source produces a named-reason null across the dependent UI, never an error page or a stale value shown as current; and past a staleness threshold the UI labels the value as stale with its `as_of` date.
-T3.3 may only begin building on `mfdata.in` after T3.1 is merged and after the source has been observed available across a week of scheduled checks; if it is not reliably available, that is written down here instead, not worked around.
-Until then, what the app does instead is stated below under returns-based exposure: it estimates behaviour from NAV and never claims a position.
+Unlike `scheme_attributes`, `scheme_holdings` is deliberately **not** joined into the `screen_base` view either, so no holding, sector or weight is a screener column: a weight is a portfolio fact about one month, and a screener column is something a fund gets ranked by.
+`tests/test_enrich.py` asserts both halves of that.
+Where holdings do exist, the fund's returns-based style exposure is reported alongside them and a divergence between the two readings is flagged rather than resolved - see the returns-based exposure section below, and `GET /schemes/{code}/holdings`.
 
 T3.1 builds that fence before either source lands: `packages/analytics/src/mf_analytics/enrich/` is the only place an enrichment table's schema may be declared, provenance is added automatically rather than left to each table author, and a test (`tests/test_enrich.py`) asserts the fence holds by importing the real `scheme_metrics_snapshot` column list rather than a hand-maintained copy.
 The staleness threshold and the enrichment source's own timeout/retry/backoff budget - deliberately smaller than the NAV provider's, so a flaky third-party source cannot slow down or fail a NAV ingest - live in `.env` as `MF_ENRICH_STALE_DAYS`, `MF_ENRICH_HTTP_TIMEOUT`, `MF_ENRICH_HTTP_RETRIES` and `MF_ENRICH_HTTP_BACKOFF`.
-`make validate` will report enrichment coverage and staleness alongside the existing checks once `cli.py`'s `validate` command calls `EnrichmentRegistry.coverage_and_staleness` (not yet wired - see the plan's T3.1 task).
+`make validate` reports enrichment coverage and staleness per table alongside the existing checks, through `cli.py`'s `validate` command calling `EnrichmentRegistry.coverage_and_staleness`.
 
 ### Scheme attributes (T3.2): riskometer, exit load, lock-in, minimums, manager
 
@@ -84,7 +93,7 @@ Three reasons are distinguished, so a blank never reads as "no data loaded yet" 
 ## Canonical tables
 
 `scheme_master`, `nav_daily` (a view over the year-partitioned Parquet lake), `nav_monthly`, `monthly_returns`, `rolling_returns_monthly`, `category_monthly_returns`, `category_metrics_snapshot`, `scheme_metrics_snapshot`, `benchmarks`, `scheme_benchmark_map`, `scheme_ter`, `nav_zero_excluded`, `ingest_log`, `raw_file`.
-Enrichment tables (`scheme_attributes`, and any T3.3 adds) are listed separately above, under the T3.1 fence, because none of them may ever be read into a return, risk or ranking query the way this list's tables are.
+Enrichment tables (`scheme_attributes` and `scheme_holdings`) are listed separately above, under the T3.1 fence, because none of them may ever be read into a return, risk or ranking query the way this list's tables are.
 
 Two names differ from the draft.
 `ingest_log` is the draft's `ingestion_metadata`, and `raw_file` holds the per-artefact provenance - source URL, SHA-256, byte count, ETag, file and manifest row counts, download and ingest timestamps.
@@ -163,12 +172,24 @@ Every screen carries the data source, the disclaimer, a methodology link, and th
 NAV coverage, the ingest log and the metrics as-of date are on the dashboard.
 Every null metric shows the reason it is null, in words, from `/columns`.
 
-## Holdings source gate (T3.3)
+## Holdings source gate (T3.3): the source failed the gate, the engine shipped anyway
 
-T3.3 (`scheme_holdings`, portfolio overlap, sector and market-cap splits) may only start once the candidate source has been observed available across a week of scheduled checks, per the plan.
-No such week has elapsed.
+The plan gated T3.3 on the candidate source being observed available across a week of scheduled checks.
+It has not been available once.
 A read-only probe on 2026-09-09 ran four checks against `https://mfdata.in`: three requests to `/docs` returned `522`, `522`, and a client-side timeout with no response, and one request to `/` returned `522`.
-The source was not reachable even once in this probe, so the question of whether its response would carry stock-level holdings was never reached.
-Even a single successful probe would not satisfy the week-of-checks gate on its own.
-Nothing under `packages/analytics/src/mf_analytics/enrich/holdings.py`, no `/overlap` endpoint, and no `apps/web/src/app/overlap/` page has been built as a result.
-This entry should be revisited only after a week of scheduled availability checks against the candidate source has actually run and passed.
+A read-only re-probe on 2026-09-12 checked `/`, `/docs` and `/openapi.json` and got `522` from all three.
+The source has therefore never once answered, and the question of whether its response would carry stock-level holdings has never been reached.
+
+The plan's instruction for that outcome was to stop and say so here rather than build on the source, and that is what has happened: **no holdings data ships, and nothing fetches from that source.**
+What did ship is the part that does not depend on it - `scheme_holdings`, the import contract, the derived reads, and the endpoints - on the same operator-supplied-file model this project already uses for benchmark index series, where no index data ships either.
+
+Built:
+
+- `packages/analytics/src/mf_analytics/enrich/holdings.py` and `holdings_csv.py`: the `scheme_holdings` table registered on the T3.1 fence, the CSV contract, concentration, sector and asset-type splits, turnover, and pairwise overlap.
+- `make holdings-validate FILE=...` and `make holdings-import FILE=...`.
+- `GET /schemes/{code}/holdings`, `GET /schemes/{code}/holdings/turnover`, `GET /overlap?codes=A,B[,C,D,E]`, each returning a named reason rather than an error when the store carries nothing.
+- A dormant `fetch_scheme_holdings` adapter, called by nothing, asserted to be called by nothing.
+
+Not built, deliberately: any fetch from an AMC site, any browser automation, any paid API, and any scheduled fetch from `mfdata.in`.
+`apps/web/src/app/overlap/` is still not built.
+This entry should be revisited only if the candidate source starts answering across a week of scheduled checks - and even then, only the dormant adapter changes, because the import contract and everything derived from it are already the shipped path.

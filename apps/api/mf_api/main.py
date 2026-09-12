@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from mf_analytics.config import BASE_CURRENCY, TRAILING_HORIZONS, get_settings
 from mf_analytics.db import StoreLockedError
 from mf_analytics.enrich import attributes as scheme_attributes
+from mf_analytics.enrich import holdings, is_stale
 from mf_analytics.ingest import benchmarks as benchmark_ingest
 from mf_analytics.ingest.benchmarks import STYLE_FACTOR_CLASS
 from mf_analytics.logging_setup import configure_logging
@@ -1662,6 +1663,196 @@ def preset(preset_id: str) -> dict[str, Any]:
     if preset_id not in PRESETS_BY_ID:
         raise HTTPException(status_code=404, detail=f"Unknown preset {preset_id!r}")
     return PRESETS_BY_ID[preset_id]
+
+
+# ---------------------------------------------------------------------------
+# T3.3: holdings, turnover and overlap. Enrichment throughout - none of it enters
+# scheme_metrics_snapshot, a ranking or a risk computation.
+# ---------------------------------------------------------------------------
+
+_HOLDINGS_CAVEAT: Final = (
+    "Holdings are a month-old photograph filed by the AMC, not a live portfolio: the fund "
+    "may have traded since the as-of month stated here. This project ships no holdings "
+    "data and fetches none - every row shown was imported from a file the operator "
+    "supplied to `make holdings-import`. Holdings are enrichment: they never enter a "
+    "return, a risk metric or a ranking."
+)
+_OVERLAP_MIN_CODES: Final = 2
+_OVERLAP_MAX_CODES: Final = 5
+
+
+def _holdings_reason(reason: str) -> dict[str, str]:
+    return {"reason": reason, "reason_description": _REASON_DESCRIPTIONS[reason]}
+
+
+def _holdings_frame(scheme_code: str) -> pd.DataFrame:
+    """Every stored month for one scheme, `as_of` as a plain date so the month
+    arithmetic in `mf_analytics.enrich.holdings` gets dates rather than timestamps."""
+    rows = query_df(
+        "SELECT as_of, instrument_key, instrument_id, instrument_name, weight, quantity, "
+        "market_value, sector, asset_type, source, source_url, fetched_at "
+        f"FROM {holdings.TABLE.name} WHERE scheme_code = ? ORDER BY as_of, weight DESC",
+        [scheme_code],
+    )
+    if not rows.empty:
+        rows["as_of"] = pd.to_datetime(rows["as_of"]).dt.date
+    return rows
+
+
+@app.get("/schemes/{scheme_code}/holdings", tags=["schemes"])
+def scheme_holdings(scheme_code: str) -> dict[str, Any]:
+    """The latest disclosed portfolio, its concentration and splits, alongside the
+    returns-based exposure fitted from NAV for the same fund.
+
+    Both readings are always returned, and `cross_check.diverges` says when they
+    disagree - a filed portfolio the style basis cannot explain, or a basis that
+    explains a fund the filing says is not equity-oriented. Neither is hidden in favour
+    of the other: the disagreement is the information.
+    """
+    _scheme_or_404(scheme_code)
+    rows = _holdings_frame(scheme_code)
+    fund, factors, names = _style_basis(scheme_code)
+    fit = style_exposure(fund, factors)
+    returns_based = {
+        "weights": _exposure_weights(fit, names),
+        "r_squared": fit.r_squared,
+        "months": fit.months,
+        "reason": fit.reason,
+    }
+    if rows.empty:
+        return {
+            "scheme_code": scheme_code,
+            "as_of": None,
+            **_holdings_reason(holdings.HoldingsReason.NOT_LOADED),
+            "holdings": [],
+            "returns_based_exposure": returns_based,
+            "cross_check": None,
+            "caveat": _HOLDINGS_CAVEAT,
+            "disclaimer": DISCLAIMER,
+        }
+
+    as_of = max(rows["as_of"])
+    latest = rows.loc[rows["as_of"] == as_of]
+    return {
+        "scheme_code": scheme_code,
+        "as_of": as_of.isoformat(),
+        "as_of_month": as_of.strftime("%Y-%m"),
+        "months_available": [d.isoformat() for d in sorted(set(rows["as_of"]))],
+        "stale": is_stale(as_of),
+        "reason": None,
+        "reason_description": None,
+        **holdings.concentration(latest),
+        "holdings": [
+            {
+                "instrument_id": None if pd.isna(r["instrument_id"]) else r["instrument_id"],
+                "instrument_name": r["instrument_name"],
+                "weight": float(r["weight"]),
+                "quantity": None if pd.isna(r["quantity"]) else float(r["quantity"]),
+                "market_value": None if pd.isna(r["market_value"]) else float(r["market_value"]),
+                "sector": None if pd.isna(r["sector"]) else r["sector"],
+                "asset_type": None if pd.isna(r["asset_type"]) else r["asset_type"],
+            }
+            for r in latest.sort_values("weight", ascending=False).to_dict("records")
+        ],
+        "sector_allocation": holdings.sector_allocation(latest),
+        "asset_type_split": holdings.asset_type_split(latest),
+        "returns_based_exposure": returns_based,
+        "cross_check": holdings.exposure_cross_check(latest, fit.reason is None),
+        "source": str(latest["source"].iloc[0]),
+        "source_url": str(latest["source_url"].iloc[0]),
+        "caveat": _HOLDINGS_CAVEAT,
+        "disclaimer": DISCLAIMER,
+    }
+
+
+@app.get("/schemes/{scheme_code}/holdings/turnover", tags=["schemes"])
+def scheme_holdings_turnover(scheme_code: str) -> dict[str, Any]:
+    """Portfolio turnover between consecutive disclosure months: half the sum of
+    absolute weight changes, the same convention `style_drift_3y` uses, so 0 is an
+    unchanged portfolio and 1 a complete replacement."""
+    _scheme_or_404(scheme_code)
+    rows = _holdings_frame(scheme_code)
+    if rows.empty:
+        return {
+            "scheme_code": scheme_code,
+            "points": [],
+            "latest": None,
+            **_holdings_reason(holdings.HoldingsReason.NOT_LOADED),
+            "caveat": _HOLDINGS_CAVEAT,
+            "disclaimer": DISCLAIMER,
+        }
+    points, reason = holdings.turnover_series(rows)
+    return {
+        "scheme_code": scheme_code,
+        "months_available": [d.isoformat() for d in sorted(set(rows["as_of"]))],
+        "points": [p.to_dict() for p in points],
+        "latest": points[-1].to_dict() if points else None,
+        **(
+            {"reason": None, "reason_description": None}
+            if reason is None
+            else _holdings_reason(reason)
+        ),
+        "caveat": _HOLDINGS_CAVEAT,
+        "disclaimer": DISCLAIMER,
+    }
+
+
+@app.get("/overlap", tags=["metrics"])
+def overlap(
+    codes: Annotated[str, Query(description="2 to 5 comma-separated scheme codes")],
+) -> dict[str, Any]:
+    """Pairwise portfolio overlap: the sum of the minimum weight per instrument both
+    funds hold, as a percentage of net assets.
+
+    Each fund's own as-of month is stated, and a pair whose two months are more than one
+    month apart is refused with `holdings_as_of_months_differ` rather than reported:
+    comparing a January portfolio with a June one measures five months of trading.
+    """
+    requested = [c.strip() for c in codes.split(",") if c.strip()]
+    if not _OVERLAP_MIN_CODES <= len(requested) <= _OVERLAP_MAX_CODES:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"codes must name {_OVERLAP_MIN_CODES} to {_OVERLAP_MAX_CODES} scheme codes, "
+                f"got {len(requested)}"
+            ),
+        )
+    if len(set(requested)) != len(requested):
+        raise HTTPException(status_code=422, detail="codes must not repeat a scheme code")
+
+    frames: dict[str, pd.DataFrame] = {}
+    funds: list[dict[str, Any]] = []
+    for code in requested:
+        scheme = _scheme_or_404(code)
+        rows = _holdings_frame(code)
+        frames[code] = rows
+        as_of = None if rows.empty else max(rows["as_of"])
+        funds.append(
+            {
+                "scheme_code": code,
+                "scheme_name": scheme.get("scheme_name"),
+                "as_of": None if as_of is None else as_of.isoformat(),
+                "as_of_month": None if as_of is None else as_of.strftime("%Y-%m"),
+                "holdings_count": 0 if as_of is None else int((rows["as_of"] == as_of).sum()),
+                "stale": None if as_of is None else is_stale(as_of),
+                **(
+                    {"reason": None, "reason_description": None}
+                    if as_of is not None
+                    else _holdings_reason(holdings.HoldingsReason.NOT_LOADED)
+                ),
+            }
+        )
+    return {
+        "codes": requested,
+        "funds": funds,
+        "pairs": [
+            {**pair, "reason_description": _REASON_DESCRIPTIONS.get(pair["reason"])}
+            for pair in holdings.overlap_report(frames)
+        ],
+        "max_as_of_gap_months": holdings.MAX_OVERLAP_MONTH_GAP,
+        "caveat": _HOLDINGS_CAVEAT,
+        "disclaimer": DISCLAIMER,
+    }
 
 
 # Paths where a query parameter the API does not know is a bug in the caller with

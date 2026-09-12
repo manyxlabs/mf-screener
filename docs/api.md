@@ -22,6 +22,10 @@ This page covers the parts a generated page cannot explain well.
 | GET    | `/schemes/{code}/net-returns`        | Gross, after-tax and after-tax-and-load return for one horizon and mode                            |
 | GET    | `/schemes/{code}/comparison`         | Peer comparison recomputed live for chosen universe toggles                                        |
 | GET    | `/schemes/{code}/exposure`           | Style-factor fit, once over the whole history or rolling with `rolling=true`                       |
+| GET    | `/schemes/{code}/attributes`         | Riskometer, exit load, lock-in, minimums, SID benchmark, manager and tenure (enrichment)           |
+| GET    | `/schemes/{code}/holdings`           | The latest disclosed portfolio, its splits, and the returns-based exposure beside it               |
+| GET    | `/schemes/{code}/holdings/turnover`  | Turnover between consecutive disclosure months                                                     |
+| GET    | `/overlap`                           | Pairwise portfolio overlap for 2 to 5 scheme codes                                                 |
 | GET    | `/score/{code}`                      | Composite score: weighted sub-category percentile, component by component                          |
 | GET    | `/categories`                        | Sub-category counts                                                                                |
 | GET    | `/categories/{category_key}/metrics` | Category snapshot, its monthly return series, and the active-only vs. all-schemes survivorship gap |
@@ -131,6 +135,120 @@ With `rolling=true`, the same fit refit on every trailing 36-month window, stepp
 A window whose R-squared falls below the same floor the single fit uses is dropped from `points` with its `reason` (`weights: null`) rather than repeating the previous window's mix - there is no carry-forward.
 `style_drift_3y` is the mean turnover (half the sum of absolute weight changes across the basis) between consecutive windows ending in the last 3 years; it needs at least 2 such windows or it is null with `insufficient_rolling_windows`.
 The same scalar is also stored on the snapshot (`GET /schemes/{code}/metrics`), so a screen can sort or filter on it.
+
+## `GET /schemes/{code}/holdings`
+
+The latest disclosed portfolio for one fund, plus everything derived from it.
+
+This project ships no holdings data and fetches none - see `docs/data-policy.md` - so every row served here was imported from a file the operator supplied to `make holdings-import`. A fund the store carries nothing for returns `200` with `as_of: null` and `reason: "holdings_not_loaded"`, never an error page.
+
+```json
+{
+  "as_of": "2026-06-30",
+  "as_of_month": "2026-06",
+  "months_available": ["2026-05-31", "2026-06-30"],
+  "stale": false,
+  "holdings_count": 3,
+  "weight_sum": 1.0,
+  "top_10_concentration": 1.0,
+  "holdings": [
+    {
+      "instrument_id": "INE001",
+      "instrument_name": "Alpha Ltd",
+      "weight": 0.4,
+      "quantity": null,
+      "market_value": null,
+      "sector": "Financials",
+      "asset_type": "equity"
+    }
+  ],
+  "sector_allocation": [{ "sector": "Financials", "weight": 0.4 }],
+  "asset_type_split": [{ "asset_type": "equity", "weight": 1.0 }],
+  "returns_based_exposure": {
+    "weights": [],
+    "r_squared": null,
+    "months": 0,
+    "reason": "benchmark_unavailable"
+  },
+  "cross_check": {
+    "holdings_equity_share": 1.0,
+    "style_basis_explains_this_fund": false,
+    "diverges": true,
+    "reason": null,
+    "note": "..."
+  }
+}
+```
+
+`as_of` is stated on every response and repeated as `as_of_month`, because holdings are a month-old photograph and the fund can have traded since. `stale` compares that month against `MF_ENRICH_STALE_DAYS`.
+
+`holdings` is sorted by weight, heaviest first. `sector_allocation` and `asset_type_split` keep an explicit `null` bucket for anything the file did not classify, rather than dropping the row, so a split never quietly sums to less than the portfolio does.
+
+`returns_based_exposure` is the same fit `GET /schemes/{code}/exposure` returns, served here so the two readings of the fund sit side by side. `cross_check.diverges` is true when the portfolio is at or above 65% equity and the style basis cannot explain the fund's NAV, or below 65% and it can. **Both readings are always returned** - the disagreement is information about a fund that has traded since the filing, or one the all-equity Indian basis does not cover, and hiding either would throw that away. When the imported file carried no `asset_type`, `diverges` is `null` with `reason: "holdings_asset_type_not_supplied"`.
+
+## `GET /schemes/{code}/holdings/turnover`
+
+```json
+{
+  "months_available": ["2026-05-31", "2026-06-30"],
+  "points": [{ "from_as_of": "2026-05-31", "to_as_of": "2026-06-30", "turnover": 0.3 }],
+  "latest": { "from_as_of": "2026-05-31", "to_as_of": "2026-06-30", "turnover": 0.3 },
+  "reason": null
+}
+```
+
+Half the sum of absolute weight changes between consecutive disclosure months, over the union of instruments in the two - the same convention `style_drift_3y` uses, so 0 is an unchanged portfolio and 1 a complete replacement. Below two stored months the points list is empty with `reason: "insufficient_holdings_months"`; with no holdings at all, `holdings_not_loaded`. Consecutive means as filed, not as dated: a gap in the disclosures is diffed across, and each point's two dates say how far apart it is.
+
+## `GET /overlap`
+
+```
+/overlap?codes=119551,120503
+```
+
+Two to five comma-separated scheme codes, no repeats; anything else is `422`. An unknown scheme code is `404`.
+
+```json
+{
+  "codes": ["S01", "S02"],
+  "funds": [
+    {
+      "scheme_code": "S01",
+      "scheme_name": "...",
+      "as_of": "2026-06-30",
+      "as_of_month": "2026-06",
+      "holdings_count": 3,
+      "stale": false,
+      "reason": null
+    }
+  ],
+  "pairs": [
+    {
+      "scheme_code_a": "S01",
+      "scheme_code_b": "S02",
+      "as_of_a": "2026-06-30",
+      "as_of_b": "2026-06-30",
+      "overlap_pct": 50.0,
+      "shared_instruments": [
+        {
+          "instrument_key": "INE002",
+          "instrument_name": "Beta Ltd",
+          "weight_a": 0.3,
+          "weight_b": 0.5,
+          "min_weight": 0.3
+        }
+      ],
+      "reason": null
+    }
+  ],
+  "max_as_of_gap_months": 1
+}
+```
+
+`overlap_pct` is the sum of the minimum weight per shared instrument, as a percentage of net assets: two funds holding identical portfolios overlap 100%, two holding nothing in common 0%.
+
+Each fund's own as-of month is stated, and **a pair whose two months are more than one month apart is refused** with `overlap_pct: null` and `reason: "holdings_as_of_months_differ"`. Comparing a January portfolio with a June one measures five months of trading, not a difference in positioning. A fund the store carries no holdings for gets `holdings_not_loaded` on its own row and on every pair it appears in, rather than dropping out of the response.
+
+Instruments are matched on `instrument_key` - the published identifier where the imported file carried one, the instrument name where it did not - so two funds whose files identify the same stock differently will not match it. The import warns when a file has no identifiers, for exactly this reason.
 
 ## `GET /score/{code}`
 
