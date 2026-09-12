@@ -216,3 +216,4 @@ def fetch_or_reason[T](fetch: Callable[[], T]) -> tuple[T | None, str | None]:
 # T3.2 (and later T3.3) register their tables by importing here, at the end of this
 # module, once everything above they depend on already exists on this package.
 from . import attributes as _attributes  # noqa: E402,F401
+from . import holdings as _holdings  # noqa: E402,F401

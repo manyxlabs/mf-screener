@@ -9,6 +9,7 @@ layer it exists in: the import contract, the mapping, and the computed snapshot.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -355,3 +356,78 @@ def test_thousands_separators_are_accepted(tmp_path: Path) -> None:
         tmp_path, "k.csv", '2024-01-31,X,X,INR,"31,500.10"\n2024-02-29,X,X,INR,"31,980.44"\n'
     )
     assert validate_csv(path)["series"][0]["rows"] == 2
+
+
+class TestSectoralRuleMatching:
+    """The AND predicate, and the two traps that make it necessary.
+
+    A sector is named in the scheme name; whether the fund is an equity fund at all is
+    only knowable from its sub-category. Matching on either alone is wrong in both
+    directions, and both wrong directions exist in the real AMFI universe.
+    """
+
+    BANK_RULE: ClassVar[dict[str, object]] = {
+        "match": "all",
+        "sub_category_contains": ["Sectoral", "Thematic", "Index Fund", "Equity Funds"],
+        "scheme_name_contains": ["nifty bank", "banking and financial", "financial services"],
+        "scheme_name_excludes": ["debt", "liquid", "arbitrage", "crisil-ibx"],
+        "benchmark_id": "NIFTY_BANK_PROXY",
+    }
+
+    def test_claims_a_real_banking_sector_fund(self):
+        from mf_analytics.ingest.benchmarks import _rule_matches
+
+        assert _rule_matches(
+            self.BANK_RULE, "Sectoral/Thematic", "UTI Banking and Financial Services Fund - Growth"
+        )
+
+    def test_claims_a_bank_index_fund_filed_under_index_funds(self):
+        from mf_analytics.ingest.benchmarks import _rule_matches
+
+        assert _rule_matches(
+            self.BANK_RULE, "Index Funds", "Axis Nifty Bank Index Fund - Direct Plan - Growth"
+        )
+
+    def test_does_not_claim_a_liquid_fund_from_an_amc_called_bank_of_india(self):
+        """ "BANK OF INDIA" is a fund house, not a sector. A name-only rule would
+        benchmark that house's liquid, arbitrage and ELSS funds against Nifty Bank."""
+        from mf_analytics.ingest.benchmarks import _rule_matches
+
+        for sub, name in [
+            ("Liquid Fund", "BANK OF INDIA Liquid Fund- Regular Plan- Growth"),
+            ("Arbitrage Fund", "BANK OF INDIA Arbitrage Fund Direct Plan Monthly IDCW"),
+            ("Large & Mid Cap Fund", "BANK OF INDIA Large & Mid Cap Fund Direct Plan- Bonus"),
+            ("ELSS", "BANK OF INDIA Mid Cap Tax Fund Series 1 Regular Plan Growth"),
+        ]:
+            assert not _rule_matches(self.BANK_RULE, sub, name), name
+
+    def test_does_not_claim_a_debt_index_fund_that_names_financial_services(self):
+        """SEBI files this under "Index Funds", so the equity gate admits it and only
+        the exclusion list keeps a 3-6 month debt fund off an equity index."""
+        from mf_analytics.ingest.benchmarks import _rule_matches
+
+        assert not _rule_matches(
+            self.BANK_RULE,
+            "Index Funds",
+            "Kotak CRISIL-IBX Financial Services 3-6 Months Debt Index Fund-Direct-Growth",
+        )
+
+    def test_does_not_claim_banking_and_psu_debt_funds(self):
+        from mf_analytics.ingest.benchmarks import _rule_matches
+
+        assert not _rule_matches(
+            self.BANK_RULE, "Banking and PSU Debt Fund", "HDFC Banking and PSU Debt Fund - Growth"
+        )
+
+    def test_match_all_needs_both_lists_to_be_written(self):
+        """An empty list must not make "all" pass on a condition nobody stated."""
+        from mf_analytics.ingest.benchmarks import _rule_matches
+
+        rule = {"match": "all", "sub_category_contains": ["Sectoral"], "benchmark_id": "X"}
+        assert not _rule_matches(rule, "Sectoral/Thematic", "Anything")
+
+    def test_the_default_is_still_or_so_existing_rules_are_unchanged(self):
+        from mf_analytics.ingest.benchmarks import _rule_matches
+
+        rule = {"sub_category_contains": ["Large Cap"], "benchmark_id": "NIFTY50_TRI"}
+        assert _rule_matches(rule, "Large Cap Fund", "Anything At All")

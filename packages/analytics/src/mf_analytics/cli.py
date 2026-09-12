@@ -11,6 +11,7 @@ import typer
 
 from .config import get_settings
 from .db import StoreLockedError, connect, init_schema, scalar
+from .enrich import holdings
 from .ingest import benchmarks, master, nav, sample, ter
 from .ingest.nav import register_nav_view
 from .logging_setup import configure_logging
@@ -175,6 +176,28 @@ def benchmark_import(
         typer.secho(f"warning: {warning}", fg=typer.colors.YELLOW, err=True)
 
 
+@app.command("holdings-validate")
+def holdings_validate(
+    file: Annotated[Path, typer.Option(exists=True, help="CSV to check")],
+) -> None:
+    """Check a holdings CSV against the import contract without loading it."""
+    info = holdings.validate_csv(file)
+    typer.echo(json.dumps(info, indent=2, default=str))
+    for warning in info["warnings"]:
+        typer.secho(f"warning: {warning}", fg=typer.colors.YELLOW, err=True)
+
+
+@app.command("holdings-import")
+def holdings_import(
+    file: Annotated[Path, typer.Option(exists=True, help="CSV to import")],
+) -> None:
+    """Validate and import a scheme holdings CSV."""
+    info = holdings.import_csv(file)
+    typer.echo(json.dumps(info, indent=2, default=str))
+    for warning in info["warnings"]:
+        typer.secho(f"warning: {warning}", fg=typer.colors.YELLOW, err=True)
+
+
 @app.command("benchmark-coverage")
 def benchmark_coverage() -> None:
     """Show what the loaded benchmarks cover and where that coverage falls short."""
@@ -281,7 +304,7 @@ def main_cli() -> None:
     """Entry point that reports a locked store or a rejected CSV as advice, not a traceback."""
     try:
         app()
-    except (StoreLockedError, benchmarks.BenchmarkCsvError) as exc:
+    except (StoreLockedError, benchmarks.BenchmarkCsvError, holdings.HoldingsCsvError) as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise SystemExit(1) from None
 

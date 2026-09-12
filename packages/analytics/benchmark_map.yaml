@@ -1,10 +1,76 @@
 # Sub-category -> benchmark mapping. Matching is case-insensitive "contains".
-# The first rule whose sub_category_contains or scheme_name_contains matches wins.
+# The first rule that matches wins.
+#
+# Each of sub_category_contains and scheme_name_contains is an OR of substrings.
+# `match` says how the two combine and defaults to "any"; "all" requires both, which
+# is what the sectoral rules below need.
+#
 # A scheme maps to `benchmark_id` if that series is loaded, else to the first loaded
 # entry in fallback_benchmark_ids, else it stays unmapped (metrics report
 # "benchmark_not_mapped" rather than silently using a wrong index).
-version: 1
+version: 2
 mappings:
+  # --- Sectoral and thematic. These come first because a Nifty Bank index fund is
+  # filed under "Index Funds" and would otherwise be swept up by the coarse Nifty 50
+  # rule at the bottom.
+  #
+  # Every one of them is match: all, and the name tokens are deliberately multi-word.
+  # "bank" alone is not a sector: BANK OF INDIA is an AMC, and matching it would
+  # benchmark that house's liquid, arbitrage and ELSS funds against Nifty Bank.
+  # The sub-category gate is what keeps "Banking and PSU Debt Fund" - 119 active debt
+  # schemes - out of an equity index entirely.
+  #
+  # No fallback_benchmark_ids on any of these: a sector fund measured against the
+  # broad market reports its sector's excess return as alpha, which is worse than
+  # reporting no alpha. Unmapped is the honest answer when the sector series is absent.
+  - match: all
+    sub_category_contains:
+      ["Sectoral", "Thematic", "Index Fund", "Equity ETF", "Equity Funds", "Other ETF"]
+    scheme_name_contains:
+      [
+        "nifty bank",
+        "psu bank",
+        "bank index",
+        "bank etf",
+        "banking and financial",
+        "banking & financial",
+        "financial services",
+      ]
+    scheme_name_excludes: &debt_tokens
+      [
+        "debt",
+        "bond",
+        "gilt",
+        "g-sec",
+        "gsec",
+        "sdl",
+        "liquid",
+        "overnight",
+        "money market",
+        "arbitrage",
+        "psu debt",
+        "duration",
+        "maturity",
+        "crisil-ibx",
+        "nifty sdl",
+      ]
+    benchmark_id: NIFTY_BANK_PROXY
+    notes: Banking and financial-services mandates. Index-fund proxy, so it understates the index.
+  - match: all
+    sub_category_contains:
+      ["Sectoral", "Thematic", "Index Fund", "Equity ETF", "Equity Funds", "Other ETF"]
+    scheme_name_contains: ["nifty it", "it index", "it etf", "technology", "digital"]
+    scheme_name_excludes: *debt_tokens
+    benchmark_id: NIFTY_IT_PROXY
+    notes: Technology mandates. "it" is only ever matched as part of a longer token.
+  - match: all
+    sub_category_contains:
+      ["Sectoral", "Thematic", "Index Fund", "Equity ETF", "Equity Funds", "Other ETF"]
+    scheme_name_contains: ["pharma", "healthcare", "health care"]
+    scheme_name_excludes: *debt_tokens
+    benchmark_id: NIFTY_PHARMA_PROXY
+    notes: Pharma and healthcare mandates.
+
   - sub_category_contains: ["Large Cap"]
     benchmark_id: NIFTY50_TRI
     notes: SEBI large-cap mandate; Nifty 50 TRI is the common reference.

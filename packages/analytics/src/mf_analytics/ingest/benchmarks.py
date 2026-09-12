@@ -147,6 +147,36 @@ def load_mapping_config(settings: Settings | None = None) -> dict[str, Any]:
     return yaml.safe_load(Path(s.benchmark_map_path).read_text())
 
 
+def _rule_matches(rule: dict[str, Any], sub_category: str, scheme_name: str) -> bool:
+    """Does this rule claim this scheme?
+
+    Each list is an OR of substrings. `match` says how the two lists combine, and
+    defaults to "any" so every rule written before this existed behaves as it did.
+
+    "all" exists because a sector is named in the scheme name while whether the fund
+    is an equity fund at all is only knowable from its sub-category, and matching on
+    either alone is wrong in both directions. "BANK OF INDIA" is an AMC, so a name
+    rule alone would benchmark that house's liquid and arbitrage funds against Nifty
+    Bank; a sub-category rule alone cannot tell a banking fund from a pharma one,
+    since both are filed as "Sectoral/Thematic".
+    """
+    lowered = scheme_name.lower()
+    # Checked before anything else: a fund the rule must not claim, whatever else
+    # matches. SEBI files a CRISIL-IBX Financial Services 3-6 Months *Debt* Index Fund
+    # under "Index Funds", so the equity gate admits it and "financial services" then
+    # claims it for Nifty Bank.
+    if any(m.lower() in lowered for m in rule.get("scheme_name_excludes", [])):
+        return False
+    subs = rule.get("sub_category_contains", [])
+    names = rule.get("scheme_name_contains", [])
+    sub_hit = any(m.lower() in sub_category.lower() for m in subs)
+    name_hit = any(m.lower() in lowered for m in names)
+    if rule.get("match", "any") == "all":
+        # An empty list would otherwise make "all" pass on a condition nobody wrote.
+        return bool(subs) and bool(names) and sub_hit and name_hit
+    return sub_hit or name_hit
+
+
 def apply_mapping(settings: Settings | None = None) -> dict[str, Any]:
     """Map every scheme to a benchmark by sub-category, honouring configured fallbacks."""
     s = settings or get_settings()
@@ -169,15 +199,7 @@ def apply_mapping(settings: Settings | None = None) -> dict[str, Any]:
         for rec in master.to_dict("records"):
             sub = str(rec["clean_sub_category"] or "")
             name = str(rec["scheme_name"] or "")
-            rule = next(
-                (
-                    r
-                    for r in rules
-                    if any(m.lower() in sub.lower() for m in r.get("sub_category_contains", []))
-                    or any(m.lower() in name.lower() for m in r.get("scheme_name_contains", []))
-                ),
-                None,
-            )
+            rule = next((r for r in rules if _rule_matches(r, sub, name)), None)
             if rule is None:
                 continue
             candidates = [
