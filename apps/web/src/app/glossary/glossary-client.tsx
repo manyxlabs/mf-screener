@@ -69,7 +69,7 @@ export function GlossaryClient({ metrics }: { metrics: MetricSpec[] }) {
 
       <Card
         title="Before you read any number"
-        subtitle="Twelve ideas that the rest of this page assumes."
+        subtitle={`${CONCEPTS.length} ideas that the rest of this page assumes.`}
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {CONCEPTS.map((c) => (
