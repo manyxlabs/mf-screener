@@ -72,8 +72,11 @@ export function ScreenerClient({
   const [filters, setFilters] = useState<ScreenFilters>(() => {
     const presetId = searchParams.get("preset");
     const preset = presets.find((p) => p.id === presetId);
+    // A preset brings its own column list. Without one, a first visit opens on the
+    // eight-column starter set rather than the 34-column standard one.
     const base: ScreenFilters = { ...DEFAULT_FILTERS, columns: columnsMeta.default };
     if (preset) return presetToFilters(preset, base);
+    if (!searchParams.get("columns")) base.columns = columnsMeta.starter;
     const sub = searchParams.get("sub_category");
     const search = searchParams.get("search");
     return {
@@ -91,6 +94,12 @@ export function ScreenerClient({
   const [saved, setSaved] = useState<SavedScreen[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [searchDraft, setSearchDraft] = useState(filters.search);
+  const onStarterColumns = useMemo(
+    () =>
+      filters.columns.length === columnsMeta.starter.length &&
+      filters.columns.every((c, i) => c === columnsMeta.starter[i]),
+    [filters.columns, columnsMeta.starter],
+  );
   const sortDescription = useMemo(
     () => describeSort(filters.sort, (c) => metrics[c]?.plain_label || metrics[c]?.label),
     [filters.sort, metrics],
@@ -222,7 +231,18 @@ export function ScreenerClient({
         <Button onClick={() => setShowFilters(true)}>
           Filters{activeRangeCount ? ` (${activeRangeCount})` : ""}
         </Button>
-        <Button onClick={() => setShowColumns(true)}>Columns ({filters.columns.length})</Button>
+        {onStarterColumns ? (
+          <Button
+            onClick={() => setFilters({ ...filters, columns: columnsMeta.default, page: 1 })}
+            title="Switch to the fuller standard column set"
+          >
+            Show advanced columns
+          </Button>
+        ) : null}
+        <Button onClick={() => setShowColumns(true)}>
+          Columns ({filters.columns.length}
+          {onStarterColumns ? " · starter" : ""})
+        </Button>
         <a
           className="rounded-md border border-ink-300 bg-surface px-3 py-1.5 text-sm font-medium hover:bg-ink-100"
           href={exportCsvUrl(toQueryString(filters, { omitPaging: true }))}
@@ -388,6 +408,7 @@ export function ScreenerClient({
         selected={filters.columns}
         metrics={metrics}
         defaults={columnsMeta.default}
+        starter={columnsMeta.starter}
         onChange={(columns) => setFilters((f) => ({ ...f, columns }))}
       />
     </div>

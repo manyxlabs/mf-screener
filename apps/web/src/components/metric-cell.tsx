@@ -1,6 +1,7 @@
 "use client";
 
 import { comparisonLabel, formatByUnit, MISSING, type MetricSpec } from "@mf/shared";
+import Link from "next/link";
 import { InfoTooltip } from "./tooltip";
 
 export function MetricHeader({ spec, name }: { spec?: MetricSpec; name: string }) {
@@ -35,6 +36,14 @@ export function MetricHeader({ spec, name }: { spec?: MetricSpec; name: string }
       <span className="mt-1.5 block border-t border-ink-200 pt-1.5 text-ink-500">
         Caveat: {spec.caveat}
       </span>
+      {/* Reachable with a mouse only because InfoTooltip keeps the panel open while
+          the pointer is inside it. */}
+      <Link
+        href={`/glossary#metric-${spec.name}`}
+        className="mt-1.5 inline-block text-accent-600 underline"
+      >
+        Full explanation
+      </Link>
     </InfoTooltip>
   );
 }

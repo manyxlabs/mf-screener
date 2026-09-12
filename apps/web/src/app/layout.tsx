@@ -10,12 +10,16 @@ export const metadata: Metadata = {
     "Local-first screener for Indian mutual funds: trailing and rolling returns, peer-relative and risk-adjusted metrics. Research only, not investment advice.",
 };
 
+// "Shortlist" rather than "Picks", because /picks is a workspace you fill in and
+// "picks" reads as though the site made them. /benchmarks moves to the footer: it is
+// a data-coverage page for whoever maintains the store, not a research entry point.
 const NAV = [
-  { href: "/", label: "Dashboard" },
+  { href: "/", label: "Start" },
   { href: "/screener", label: "Screener" },
-  { href: "/picks", label: "Picks" },
   { href: "/compare", label: "Compare" },
-  { href: "/benchmarks", label: "Benchmarks" },
+  { href: "/basket", label: "Basket" },
+  { href: "/picks", label: "Shortlist" },
+  { href: "/glossary", label: "Glossary" },
   { href: "/methodology", label: "Methodology" },
 ];
 
@@ -54,10 +58,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           future returns.
         </div>
         <main className="mx-auto max-w-[1600px] px-6 py-6">{children}</main>
-        <footer className="mx-auto max-w-[1600px] px-6 pb-10 pt-4 text-xs text-ink-500">
-          NAV data originates from AMFI public records, delivered through the TigZig MF NAV API.
-          This project is not affiliated with or endorsed by AMFI. Verify anything that matters
-          against AMFI directly.
+        <footer className="mx-auto max-w-[1600px] space-y-2 px-6 pb-10 pt-4 text-xs text-ink-500">
+          <p>
+            <Link className="underline hover:text-ink-700" href="/benchmarks">
+              Benchmark coverage
+            </Link>
+            {" · "}
+            <Link className="underline hover:text-ink-700" href="/data-status">
+              Data status
+            </Link>
+          </p>
+          <p>
+            NAV data originates from AMFI public records, delivered through the TigZig MF NAV API.
+            This project is not affiliated with or endorsed by AMFI. Verify anything that matters
+            against AMFI directly.
+          </p>
         </footer>
       </body>
     </html>

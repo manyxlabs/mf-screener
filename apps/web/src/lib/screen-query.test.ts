@@ -85,6 +85,11 @@ describe("presetToFilters", () => {
   const preset: Preset = {
     id: "mid-cap-consistency",
     name: "Mid cap",
+    subtitle: "Mid cap consistency",
+    question: "Which mid-cap funds have been consistent?",
+    order: 1,
+    plain_description: "",
+    caution: "",
     description: "",
     filters: {
       sub_categories: ["Mid Cap Fund"],
