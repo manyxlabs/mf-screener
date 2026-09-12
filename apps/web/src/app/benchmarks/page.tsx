@@ -182,9 +182,22 @@ export default async function BenchmarksPage() {
                           <Badge>{m}</Badge>
                         </span>
                       ))}
+                      {/* Whether these two groups are ANDed or ORed changes what the
+                          rule claims entirely, so it is stated between them rather
+                          than left for the reader to assume. */}
+                      {rule.scheme_name_contains.length ? (
+                        <span className="mr-1 text-[11px] font-semibold text-ink-500">
+                          {rule.match === "all" ? "AND" : "OR"}
+                        </span>
+                      ) : null}
                       {rule.scheme_name_contains.map((m) => (
                         <span key={m} className="mr-1 inline-block">
                           <Badge>name: {m}</Badge>
+                        </span>
+                      ))}
+                      {rule.scheme_name_excludes.map((m) => (
+                        <span key={m} className="mr-1 inline-block">
+                          <Badge tone="bad">not: {m}</Badge>
                         </span>
                       ))}
                     </td>

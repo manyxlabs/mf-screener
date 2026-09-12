@@ -18,6 +18,7 @@ const NAV = [
   { href: "/screener", label: "Screener" },
   { href: "/compare", label: "Compare" },
   { href: "/basket", label: "Basket" },
+  { href: "/overlap", label: "Overlap" },
   { href: "/picks", label: "Shortlist" },
   { href: "/glossary", label: "Glossary" },
   { href: "/methodology", label: "Methodology" },

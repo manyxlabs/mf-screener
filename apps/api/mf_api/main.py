@@ -1222,6 +1222,11 @@ def benchmarks_overview() -> dict[str, Any]:
         {
             "sub_category_contains": rule.get("sub_category_contains", []),
             "scheme_name_contains": rule.get("scheme_name_contains", []),
+            # Without these two a sectoral rule reads as though it claimed every
+            # Sectoral/Thematic fund for one sector index, which is the opposite of
+            # what "match: all" plus an exclusion list actually does.
+            "match": rule.get("match", "any"),
+            "scheme_name_excludes": rule.get("scheme_name_excludes", []),
             "benchmark_id": rule["benchmark_id"],
             "fallback_benchmark_ids": rule.get("fallback_benchmark_ids", []),
             "notes": rule.get("notes"),
