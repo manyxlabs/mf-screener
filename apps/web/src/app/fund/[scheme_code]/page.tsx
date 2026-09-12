@@ -72,6 +72,16 @@ const RISK_ROWS: { label: string; keys: [string, string, string] }[] = [
 const ROLLING_STATS = ["mean", "median", "min", "max", "std", "positive_pct"] as const;
 
 /**
+ * The plain label for a metric, with its horizon dropped: these rows span the 3Y, 5Y
+ * and 10Y columns at once, so "Return earned per unit of downside (5Y)" would name the
+ * wrong horizon in two cells out of three.
+ */
+function plainRowLabel(spec: MetricSpec | undefined): string | null {
+  const plain = spec?.plain_label;
+  return plain ? plain.replace(/\s*\(\d+Y\)$/, "") : null;
+}
+
+/**
  * Shown wherever a benchmark-relative number would otherwise sit. Every such metric is
  * already null when the currencies differ, but a column of dashes reads as "no data
  * yet" and invites someone to go and load the very series that must not be used. This
@@ -490,7 +500,10 @@ export default async function FundPage({ params }: { params: Promise<{ scheme_co
             <tbody>
               {RISK_ROWS.map((row) => (
                 <tr key={row.label} className="border-t border-ink-100">
-                  <td className="py-1.5">{row.label}</td>
+                  <td className="py-1.5">
+                    <div>{plainRowLabel(specs[row.keys[1]]) ?? row.label}</div>
+                    <div className="text-[11px] text-ink-500">{row.label}</div>
+                  </td>
                   {row.keys.map((key) => (
                     <td key={key}>
                       <Cell record={record} keyName={key} metrics={specs} />
