@@ -15,3 +15,7 @@ data/cache/*
 data/exports/*
 !data/**/.gitkeep
 !data/benchmarks_sample/
+
+# Build artefacts that were tracked before the repo was initialised.
+*.tsbuildinfo
+next-env.d.ts
