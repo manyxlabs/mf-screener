@@ -121,6 +121,7 @@ def test_survivorship_gap_matches_hand_computed_amount(tmp_path: Path) -> None:
     amount hand-computed straight from the schemes' own stored monthly returns,
     independent of the category-context code under test.
     """
+    from mf_analytics.classify import peer_group
     from mf_analytics.pipeline import run as run_metrics
     from mf_analytics.universe import DEFAULT_UNIVERSE, counterpart_category_key
 
@@ -133,7 +134,10 @@ def test_survivorship_gap_matches_hand_computed_amount(tmp_path: Path) -> None:
     fixtures_data.build(settings)
     run_metrics(settings)
 
-    active_key = DEFAULT_UNIVERSE.category_key("Small Cap Fund")
+    # The peer group, not the bare sub-category: that is what a category_key names.
+    active_key = DEFAULT_UNIVERSE.category_key(
+        peer_group("Equity Scheme", "Small Cap Fund", "S09 Small Cap Fund", "Small Cap")
+    )
     all_schemes_key = counterpart_category_key(active_key)
 
     with connect(settings) as con:

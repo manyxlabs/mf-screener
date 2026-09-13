@@ -11,6 +11,7 @@ import { API_BASE, exportCsvUrl, getScreen } from "@/lib/api";
 import {
   DEFAULT_FILTERS,
   describeSort,
+  matchesPreset,
   presetToFilters,
   toQueryString,
   toggleSort,
@@ -188,6 +189,35 @@ export function ScreenerClient({
   }, []);
 
   const activeRangeCount = Object.keys(filters.ranges).length;
+  const appliedPreset = useMemo(
+    () => presets.find((preset) => matchesPreset(preset, filters)),
+    [presets, filters],
+  );
+
+  // A preset can hide half a dozen thresholds behind one dropdown, and a screen that
+  // answers "12 funds" without saying 12 of how many reads as a bug in the data.
+  const [universeTotal, setUniverseTotal] = useState<number | null>(null);
+  const universeQuery = useMemo(
+    () =>
+      activeRangeCount
+        ? toQueryString({ ...filters, ranges: {}, page: 1, pageSize: 1, columns: [] })
+        : null,
+    [filters, activeRangeCount],
+  );
+
+  useEffect(() => {
+    if (!universeQuery) {
+      setUniverseTotal(null);
+      return;
+    }
+    let cancelled = false;
+    getScreen(universeQuery)
+      .then((response) => !cancelled && setUniverseTotal(response.total))
+      .catch(() => !cancelled && setUniverseTotal(null));
+    return () => {
+      cancelled = true;
+    };
+  }, [universeQuery]);
   // Alpha screened across the whole universe without a correction is a
   // multiple-comparisons machine: surface the caveat whenever an alpha-related
   // filter is actually set, not just while the filter drawer happens to be open.
@@ -210,7 +240,7 @@ export function ScreenerClient({
         <select
           className={`${inputClass} w-56`}
           aria-label="Preset screen"
-          value=""
+          value={appliedPreset?.id ?? ""}
           onChange={(e) => {
             const preset = presets.find((p) => p.id === e.target.value);
             if (preset) {
@@ -258,6 +288,13 @@ export function ScreenerClient({
             : `${data?.total ?? 0} ${data?.total === 1 ? "fund matches" : "funds match"}`}{" "}
           · <span title={filters.sort}>sorted by {sortDescription}</span>
         </span>
+        {universeTotal !== null && data ? (
+          <span>
+            {`· ${data.total} of the ${universeTotal} funds in this universe clear the `}
+            {activeRangeCount === 1 ? "numeric rule" : `${activeRangeCount} numeric rules`}
+            {`; the rest fall short of one or have no value for it.`}
+          </span>
+        ) : null}
         {selected.size ? (
           <a
             className="rounded border border-accent-500 px-2 py-0.5 text-accent-600"
@@ -294,12 +331,20 @@ export function ScreenerClient({
         ))}
       </div>
 
+      {appliedPreset ? (
+        <section className="rounded-lg border border-ink-200 bg-surface p-3">
+          <h2 className="text-sm font-semibold">{appliedPreset.name}</h2>
+          <p className="mt-1 text-sm text-ink-700">{appliedPreset.plain_description}</p>
+          <p className="mt-1 text-xs text-ink-500">{appliedPreset.caution}</p>
+        </section>
+      ) : null}
+
       {alphaFilterActive && alphaCaveat ? (
-        <p className="rounded bg-warn-50 p-2 text-xs text-warn-900">{alphaCaveat}</p>
+        <p className="text-xs text-ink-500">{alphaCaveat}</p>
       ) : null}
 
       {categoryAverageShown ? (
-        <p className="rounded bg-warn-50 p-2 text-xs text-warn-900">
+        <p className="text-xs text-ink-500">
           {gap
             ? `Category averages above are active-only. Including matured/closed schemes, ` +
               `this sub-category's ${gap.horizon} CAGR is ${gap.pp >= 0 ? "" : "-"}` +

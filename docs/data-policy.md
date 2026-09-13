@@ -77,7 +77,30 @@ AMFI mandates daily TER disclosure but serves it per AMC behind a form, so there
 It is join-only: it never enters a return, a risk metric or a ranking, and a fund the source does not carry shows a blank carrying the reason `ter_not_published`, never a zero.
 Returns are already net of expenses, so TER is there for cost comparison and is never subtracted again.
 
-### Why benchmarks are in
+### AUM history: AMFI's own JSON endpoint, read directly
+
+Fund flow - the change in a scheme's assets from one quarter to the next - is one of the two fund characteristics that survive out of sample in the machine-learning literature on fund selection (Kaniel et al., NBER 2022; DeMiguel et al., JFE 2023).
+Computing it needs several years of scheme-wise quarterly AAUM, and nothing else carries that: TigZig's master holds the latest quarter only (`aaum_cr_quarterly_avg` with an `aaum_quarter` label, confirmed against its data dictionary and OpenAPI on 2026-09-12), and every third-party mirror checked republishes that same single field.
+So `scheme_aum_history` could only accumulate forward, one quarter per quarter, and `aum_growth_4q` was null for every scheme in the store.
+
+AMFI serves the history itself - 65 quarters, June 2010 to June 2026, on the first full run:
+
+    GET https://www.amfiindia.com/api/average-aum-schemewise?strType=Categorywise&fyId={fy}&periodId={p}&MF_ID=0
+
+This is the exception to "no AMFI" above, and it was the owner's call rather than a reading of the old rule.
+What makes it a narrow exception rather than a hole:
+
+- It is a **JSON API**, not a page to parse. No HTML scraping, no form automation, no browser - one GET per quarter, exactly the shape the TigZig endpoints are consumed in. The endpoint was found by watching the AAUM page's own network call once; nothing automates a browser at run time.
+- `robots.txt` disallows only `/admin/`, `/login/` and `/search/`. This path is not disallowed.
+- It is read **once per quarter of history**, with a second's pause between requests, by a command a person runs (`make data-aum-history`). Nothing schedules it.
+- It carries `AMFI_Code`, so it joins on scheme code and needs none of the name-matching the TER source does.
+
+Two conventions the payload does not state, both verified against the NAV feed's own figures before the importer was written (Nippon India Small Cap Direct Growth, April-June 2026: AMFI 2,291,161.52 against the feed's 22,911.6152):
+amounts are in rupees **lakh** where the store keeps crore, and a scheme's AAUM is the **sum** of the two reported columns - a plain scheme reports in "excluding FoF domestic but including FoF overseas", a domestic fund-of-funds in the other.
+
+The importer is `mf_analytics/ingest/aum_history.py`, append-only on `(scheme_code, aum_quarter)`, so a quarter a master ingest already recorded is never rewritten by it.
+
+### Why benchmarks are in### Why benchmarks are in
 
 The draft deferred every benchmark-relative metric to v2 and asked that the schema be built so a provider could be added later.
 The schema was built that way and the provider was then added, so the deferral no longer describes the code.

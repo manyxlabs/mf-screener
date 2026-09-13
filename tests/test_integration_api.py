@@ -146,6 +146,18 @@ def test_screen_search_matches_name_and_amc(client):
     assert all("Small Cap" in row["scheme_name"] for row in payload["rows"])
 
 
+def test_screen_search_treats_comma_separated_terms_as_alternatives(client):
+    """One screen has to hold funds that share a mandate but no common word in their names."""
+    small = client.get("/screen", params={"search": "small cap", "page_size": 100}).json()["total"]
+    contra = client.get("/screen", params={"search": "contra", "page_size": 100}).json()["total"]
+    both = client.get("/screen", params={"search": "small cap, contra", "page_size": 100}).json()
+    assert small and contra
+    assert both["total"] == small + contra
+    assert all(
+        "Small Cap" in row["scheme_name"] or "Contra" in row["scheme_name"] for row in both["rows"]
+    )
+
+
 def test_screen_column_selection(client):
     payload = client.get("/screen", params={"columns": "scheme_name,sharpe_5y"}).json()
     assert payload["columns"] == ["scheme_name", "scheme_code", "sharpe_5y"]
@@ -293,6 +305,19 @@ def test_methodology_document_is_complete(client):
     assert "trailing_cagr" in payload["formulas"]
     assert payload["peer_universe_default"]["exclude_self"] is True
     assert len(payload["metric_catalog"]) > 50
+
+
+def test_the_published_methodology_names_each_score_component_once(client):
+    """A horizon-free component listed three times reads as three metrics, not one."""
+    score = client.get("/methodology").json()["score"]
+    assert sum(score["weights"].values()) == pytest.approx(1.0)
+    assert score["components"]["cost"]["metrics"] == ["expense_ratio"]
+    assert score["components"]["momentum"]["metrics"] == ["momentum_12_1"]
+    assert score["components"]["consistency"]["metrics"] == [
+        "rolling_3y_median",
+        "rolling_5y_median",
+        "rolling_10y_median",
+    ]
 
 
 def test_presets_are_served_and_resolvable(client):
@@ -663,3 +688,91 @@ def test_search_respects_a_query_that_names_a_variant(client):
     items = client.get("/search", params={"q": "Alpha Bluechip Regular"}).json()["items"]
     assert items
     assert any(i["clean_plan"] == "Regular" for i in items)
+
+
+def test_the_score_is_ranked_against_the_refined_peer_group(client):
+    """The response names the group, because the group is what the percentiles mean.
+
+    SEBI's own sub-category would pool a Nasdaq feeder with gold funds, so `peer_group`
+    carries the mandate axes as well - and the fixture's mid-caps must still land in one
+    group rather than being split by the refinement.
+    """
+    payload = client.get("/score/S01").json()
+
+    assert payload["peer_group"] == "Mid Cap Fund · India Equity · Mid Cap"
+    assert payload["peer_count"] >= 5
+    assert sum(payload["weights"].values()) == pytest.approx(1.0)
+    assert 0.0 <= payload["coverage"] <= 1.0
+    named = set(payload["components"]) | set(payload["missing_components"])
+    assert named == set(payload["weights"])
+
+
+def test_a_scored_component_says_which_horizons_fed_it(client):
+    """`horizons` is how a young fund's score says on its face what it was formed on."""
+    components = client.get("/score/S01").json()["components"]
+
+    consistency = components["consistency"]
+    assert consistency["percentile"] is None or set(consistency["horizons"]) <= {"3y", "5y", "10y"}
+    # A fee is one number, not a family of windows, so it is scored once.
+    assert components["cost"]["horizons"] == []
+
+
+def test_a_parallel_metrics_rebuild_can_be_asked_for_through_the_api(client, monkeypatch):
+    """The endpoint is the only rebuild path that does not stop the server, so it has
+    to be able to ask for the fast one."""
+    seen: dict[str, list[str]] = {}
+
+    class _Done:
+        returncode = 0
+        stdout = "{}"
+        stderr = ""
+
+    def fake_run(command, **kwargs):
+        seen["command"] = command
+        return _Done()
+
+    import mf_api.main as api_main
+
+    monkeypatch.setattr(api_main.subprocess, "run", fake_run)
+
+    client.post("/admin/refresh", json={"step": "metrics-build", "jobs": 4})
+    assert seen["command"][-3:] == ["metrics-build", "--jobs", "4"]
+
+    # Every other step takes no worker count, so it must not be handed one.
+    client.post("/admin/refresh", json={"step": "benchmark-map"})
+    assert "--jobs" not in seen["command"]
+
+
+def test_the_stored_score_column_agrees_with_the_score_endpoint(client):
+    """Two code paths, one number: the column is sortable, the endpoint explains it.
+
+    The screener sorts and filters on the stored column while `/score` recomputes the
+    same fund from its peer group on request. If these ever drift, the screener ranks
+    funds by one number and the breakdown justifies a different one.
+    """
+    rows = client.get(
+        "/screen", params={"columns": "score,score_coverage", "page_size": 25}
+    ).json()["rows"]
+    scored = [r for r in rows if r["score"] is not None]
+    assert scored, "the fixture universe has at least one scoreable fund"
+
+    for row in scored[:5]:
+        live = client.get(f"/score/{row['scheme_code']}").json()
+        assert row["score"] == pytest.approx(live["total"])
+        assert row["score_coverage"] == pytest.approx(live["coverage"])
+
+
+def test_the_screener_can_sort_and_filter_on_the_score(client):
+    """The point of storing it: a column you cannot order by is not a screener column."""
+    payload = client.get(
+        "/screen", params={"columns": "score", "sort": "score:desc", "page_size": 50}
+    ).json()
+    values = [r["score"] for r in payload["rows"] if r["score"] is not None]
+    assert values == sorted(values, reverse=True)
+
+    floor = values[len(values) // 2]
+    narrowed = client.get(
+        "/screen", params={"columns": "score", "score_min": floor, "page_size": 50}
+    ).json()
+    assert narrowed["total"] < payload["total"]
+    assert all(r["score"] >= floor for r in narrowed["rows"])

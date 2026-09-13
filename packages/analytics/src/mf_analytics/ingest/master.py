@@ -34,6 +34,7 @@ CANONICAL_COLUMNS = [
     "clean_sub_category",
     "cap_band",
     "style",
+    "peer_group",
     "plan",
     "option",
     "clean_plan",

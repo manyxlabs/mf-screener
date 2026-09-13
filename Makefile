@@ -7,7 +7,7 @@ PY := $(UV) run python -m mf_analytics.cli
 .DEFAULT_GOAL := help
 .PHONY: help bootstrap data-master data-nav data-sample data-refresh data-build provenance \
         benchmark-import benchmark-validate benchmark-coverage benchmark-proxy style-basis \
-        benchmark-map benchmark-sample ter-import holdings-validate holdings-import \
+        benchmark-map benchmark-sample ter-import data-aum-history holdings-validate holdings-import \
         metrics inspect validate api web dev test test-py test-js lint lint-py lint-js \
         typecheck format build clean-data
 
@@ -45,6 +45,9 @@ data-sample: ## Build a small development dataset (a few dozen schemes)
 ter-import: ## Refresh expense ratios from the configured TER source
 	$(PY) ter-import
 
+data-aum-history: ## Import AMFI's scheme-wise quarterly AAUM history (one request per quarter)
+	$(PY) aum-history-import
+
 data-refresh: ## Incrementally top up recent NAVs, then rebuild metrics
 	$(PY) data-refresh
 	$(MAKE) benchmark-map
@@ -60,8 +63,13 @@ data-build: ## Full pipeline: master + NAV + benchmarks + metrics + validation
 	$(MAKE) metrics
 	$(PY) validate
 
-metrics: ## Recompute category series and the per-scheme metrics snapshot
-	$(PY) metrics-build
+# Every core but one, by default. `make metrics JOBS=1` puts it back on a single
+# process, which is what to do on a machine short of memory: each worker holds its
+# own copy of whatever it touches of the NAV series.
+JOBS ?= 0
+
+metrics: ## Recompute category series and the per-scheme metrics snapshot (JOBS=n to limit workers)
+	$(PY) metrics-build --jobs $(JOBS)
 
 benchmark-validate: ## Check a benchmark CSV without importing: make benchmark-validate FILE=path/to.csv
 	@test -n "$(FILE)" || { echo "usage: make benchmark-validate FILE=data/benchmarks_sample/nifty50_tri_sample.csv"; exit 1; }

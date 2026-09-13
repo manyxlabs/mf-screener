@@ -17,7 +17,13 @@ from mf_analytics.pipeline import (
     MIN_CALENDAR_YEARS,
 )
 from mf_analytics.quality import all_reason_descriptions
-from mf_analytics.scoring import COMPONENT_WEIGHTS, COMPONENTS
+from mf_analytics.scoring import (
+    COMPONENT_WEIGHTS,
+    COMPONENTS,
+    HORIZON_WEIGHTS,
+    HORIZONS,
+    MIN_COVERAGE,
+)
 from mf_analytics.universe import DEFAULT_UNIVERSE
 
 from .columns import NUMERIC_COLUMNS
@@ -225,42 +231,56 @@ def methodology_document(settings: Settings) -> dict[str, Any]:
             ),
             "aum_percentile_in_sub_category": (
                 "Percentile rank of aum_family_latest among peers in the fund's "
-                "clean_sub_category, 1.0 being the largest fund by family AUM. Feeds "
-                "the size_discipline score component, where the smaller fund scores "
-                "higher: asset bloat is the risk this exists to flag."
+                "clean_sub_category, 1.0 being the largest fund by family AUM. A column "
+                "to read beside the score rather than one of its components: asset "
+                "bloat is a risk to weigh yourself, not one this score prices."
             ),
         },
         "score": {
             "description": (
-                "A weighted, within-sub-category percentile decomposition, never a rating "
+                "A weighted, within-peer-group percentile decomposition, never a rating "
                 "or a recommendation. Every component is a percentile against the fund's "
-                "own clean_sub_category peers, and GET /score/{scheme_code} returns the "
+                "own peer_group - its sub-category refined by what it actually holds, "
+                "because SEBI files by legal wrapper and would otherwise rank a Nasdaq "
+                "feeder against gold funds - and GET /score/{scheme_code} returns the "
                 "percentile and point contribution of each one alongside the total."
             ),
             "weights": COMPONENT_WEIGHTS,
+            "horizon_weights": HORIZON_WEIGHTS,
             "components": {
                 name: {
-                    "metrics": [m.column for m in component.metrics],
-                    "combination": component.strategy,
+                    "metrics": [
+                        metric.column
+                        for horizon in (("3y",) if component.horizon_free else HORIZONS)
+                        for metric in component.columns(horizon)
+                    ],
+                    "combination": (
+                        "one reading, scored once - this metric has no 3/5/10-year family"
+                        if component.horizon_free
+                        else "the 3/5/10-year readings blended on horizon_weights, each "
+                        "horizon read through the first metric listed that has a value"
+                    ),
                     "weight": COMPONENT_WEIGHTS[name],
+                    "description": component.description,
                 }
                 for name, component in COMPONENTS.items()
             },
-            "size_discipline": (
-                "AUM relative to the sub-category, using aum_percentile_in_sub_category "
-                f"(T2.3): a smaller aum_family_latest scores higher, since asset bloat is "
-                f"the risk this component exists to flag. Needs {settings.mf_min_peers} "
-                "peers in the sub-category with a computed AUM family total; a store that "
-                "predates T2.3 (the column never computed at all) or a fund whose own "
-                "family has no reported AUM is named missing with reason "
-                "'aum_history_not_available' or 'insufficient_peer_universe' rather than "
-                "imputed to the category mean."
+            "not_double_counted": (
+                "Raw CAGR carries no weight of its own: measured on the live universe it "
+                "ranks funds identically to fund_minus_category inside a sub-category "
+                "(Spearman 1.000), so counting both would be counting returns twice. "
+                "Sortino likewise only stands in for a null Sharpe (0.990). Expense ratio "
+                "and AUM carry no weight here at all - they are columns to read beside "
+                "the score, not part of it."
             ),
             "missing_component_handling": (
                 "A fund missing a component is scored on the components it has: the "
                 "missing ones are named, their contribution is null rather than zero or a "
-                "category average, and the total sums only the present contributions "
-                "(never rescaled to 100), with status 'partial'."
+                "category average, and both the horizon blend and the total renormalise "
+                "over the weight actually present, so a fund with no ten-year column is "
+                "not ranked below one that merely has more history. `coverage` reports "
+                f"the share of the weight table the fund answered; below {MIN_COVERAGE:.0%} "
+                "no total is published at all and only the components are shown."
             ),
             "minimum_peers": (
                 f"{settings.mf_min_peers} eligible peers with a non-null value for that "

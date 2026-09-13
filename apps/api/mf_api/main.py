@@ -47,7 +47,7 @@ from mf_analytics.metrics.series import (
 )
 from mf_analytics.pipeline import CAPTURE_HORIZONS
 from mf_analytics.quality import Reason, all_reason_descriptions
-from mf_analytics.scoring import COMPONENTS, ScoreResult, score_fund
+from mf_analytics.scoring import COMPONENTS, HORIZONS, ScoreResult, score_fund
 from mf_analytics.universe import (
     DEFAULT_UNIVERSE,
     PeerUniverse,
@@ -506,30 +506,49 @@ def scheme_metrics(scheme_code: str) -> dict[str, Any]:
 # Every column the score's components read, gathered from the declared table itself so
 # this list can never drift out of step with scoring.COMPONENTS.
 _SCORE_COLUMNS: Final[tuple[str, ...]] = tuple(
-    sorted({metric.column for component in COMPONENTS.values() for metric in component.metrics})
+    sorted(
+        {
+            metric.column
+            for component in COMPONENTS.values()
+            for horizon in HORIZONS
+            for metric in component.columns(horizon)
+        }
+    )
 )
 
 
-def _score_peer_group(scheme_code: str) -> tuple[str | None, pd.DataFrame]:
-    """This scheme's own row plus its Direct-Growth active peers in the same sub-category.
+def _available_score_columns() -> tuple[str, ...]:
+    """The score's columns that this store actually has.
 
-    Same peer definition `_cost_position` and the default screening universe use, so a
-    score component means the same "peer" everywhere in the app.
+    A component whose column has never been computed - a metric added after the last
+    rebuild - must read as a missing component, which the score already handles, rather
+    than break every /score with an unknown-column error.
     """
-    sub_category = query_optional(
-        "SELECT clean_sub_category FROM scheme_master WHERE scheme_code = ?", [scheme_code]
+    present = set(query_df("SELECT * FROM screen_base LIMIT 0").columns)
+    return tuple(c for c in _SCORE_COLUMNS if c in present)
+
+
+def _score_peer_group(scheme_code: str) -> tuple[str | None, pd.DataFrame]:
+    """This scheme's own row plus its active Direct-Growth peers in the same peer group.
+
+    The group is `peer_group`, not the raw sub-category: SEBI files a fund by its legal
+    wrapper, which pools a gold fund-of-funds with a Nasdaq feeder. Same definition the
+    stored peer-relative metrics use, so "peer" means one thing across the app.
+    """
+    group = query_optional(
+        "SELECT peer_group FROM scheme_master WHERE scheme_code = ?", [scheme_code]
     )
-    if not sub_category:
+    if not group:
         return None, pd.DataFrame(columns=("scheme_code", *_SCORE_COLUMNS))
-    columns_sql = ", ".join(_SCORE_COLUMNS)
+    columns_sql = ", ".join(_available_score_columns())
     rows = query_df(
         f"SELECT scheme_code, {columns_sql} FROM screen_base "
-        "WHERE clean_sub_category = ? "
+        "WHERE peer_group = ? "
         "AND (scheme_code = ? "
         "OR (clean_plan = 'Direct' AND clean_option = 'Growth' AND is_active))",
-        [sub_category, scheme_code],
+        [group, scheme_code],
     )
-    return str(sub_category), rows
+    return str(group), rows
 
 
 def _score_out(result: ScoreResult) -> dict[str, Any]:
@@ -538,6 +557,11 @@ def _score_out(result: ScoreResult) -> dict[str, Any]:
         "total": result.total,
         "status": result.status,
         "missing_components": list(result.missing),
+        "coverage": result.coverage,
+        "reason": result.reason,
+        "reason_description": (
+            _REASON_DESCRIPTIONS.get(result.reason, result.reason) if result.reason else None
+        ),
         "weights": result.weights,
         "components": {
             name: {
@@ -548,6 +572,7 @@ def _score_out(result: ScoreResult) -> dict[str, Any]:
                 "reason_description": (
                     _REASON_DESCRIPTIONS.get(c.reason, c.reason) if c.reason else None
                 ),
+                "horizons": list(c.horizons),
             }
             for name, c in result.components.items()
         },
@@ -556,15 +581,15 @@ def _score_out(result: ScoreResult) -> dict[str, Any]:
 
 @app.get("/score/{scheme_code}", tags=["metrics"])
 def scheme_score(scheme_code: str) -> dict[str, Any]:
-    """The composite score: a weighted, within-sub-category percentile decomposition.
+    """The composite score: a weighted, within-peer-group percentile decomposition.
 
     A description of the past against a declared weight table - never a rating or a
     recommendation. A fund missing a component is scored on the components it has, with
     the missing ones named; nothing is imputed to a category mean.
     """
     _scheme_or_404(scheme_code)
-    sub_category, peers = _score_peer_group(scheme_code)
-    if sub_category is None or scheme_code not in set(peers["scheme_code"]):
+    group, peers = _score_peer_group(scheme_code)
+    if group is None or scheme_code not in set(peers["scheme_code"]):
         unavailable = _metrics_unavailable(scheme_code)
         detail = (
             unavailable["description"] if unavailable else "No metrics snapshot for this scheme."
@@ -572,7 +597,7 @@ def scheme_score(scheme_code: str) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=detail)
     result = score_fund(peers, scheme_code, min_peers=settings.mf_min_peers)
     out = _score_out(result)
-    out["sub_category"] = sub_category
+    out["peer_group"] = group
     out["peer_count"] = len(peers) - 1
     out["disclaimer"] = DISCLAIMER
     return out
@@ -685,7 +710,7 @@ def _cost_position(scheme_code: str) -> dict[str, Any]:
     )
     peers = query_df(
         "SELECT t.expense_ratio FROM scheme_ter t JOIN scheme_master m USING (scheme_code) "
-        "WHERE m.clean_sub_category = (SELECT clean_sub_category FROM scheme_master "
+        "WHERE m.peer_group = (SELECT peer_group FROM scheme_master "
         "WHERE scheme_code = ?) AND m.clean_plan = 'Direct' AND m.clean_option = 'Growth' "
         "AND m.is_active AND t.expense_ratio IS NOT NULL",
         [scheme_code],
@@ -1595,9 +1620,14 @@ def export_csv(
 class RefreshRequest(BaseModel):
     step: str = Field(
         default="data-refresh",
-        pattern=("^(data-master|data-nav|data-refresh|data-sample|metrics-build|benchmark-map)$"),
+        pattern=(
+            "^(data-master|data-nav|data-refresh|data-sample|metrics-build|benchmark-map"
+            "|aum-history-import)$"
+        ),
     )
     force: bool = False
+    # Only metrics-build parallelises; 0 there means every core but one.
+    jobs: int = Field(default=1, ge=0)
 
 
 @app.post("/admin/refresh", tags=["admin"])
@@ -1606,6 +1636,8 @@ def admin_refresh(payload: Annotated[RefreshRequest, Body()]) -> dict[str, Any]:
     command = [sys.executable, "-m", "mf_analytics.cli", payload.step]
     if payload.force and payload.step in {"data-master", "data-nav"}:
         command.append("--force")
+    if payload.step == "metrics-build":
+        command += ["--jobs", str(payload.jobs)]
     # Released before the subprocess starts so it can take the write lock, and again
     # afterwards so the next request reopens against the refreshed store.
     close_connection()

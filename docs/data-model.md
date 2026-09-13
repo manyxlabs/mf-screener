@@ -62,12 +62,33 @@ AMFI publishes no launch date, so `launch_date` is set to the first NAV date and
 
 ## Derived classification
 
-`classify.py` adds four columns that the raw feed does not provide cleanly:
+`classify.py` adds five columns that the raw feed does not provide cleanly:
 
 - `clean_plan` - Direct / Regular / Unknown. The source field wins; the scheme name only breaks ties it leaves open. Pre-2013 schemes predate the Direct/Regular split and stay Unknown by design rather than being guessed into a bucket.
 - `clean_option` - Growth / IDCW Payout / IDCW Reinvestment / Other / Unknown. AMFI publishes only Growth/IDCW/Bonus/Other, so payout versus reinvestment is read from the scheme name.
 - `clean_category`, `clean_sub_category` - the stable grouping, with the raw AMFI category text as the fallback where SEBI never assigned a sub-category.
+- `peer_group` - the funds a scheme is ranked against: its sub-category refined by what it actually holds. See below.
 - `fund_family_id` (T2.1) - ties the Direct/Regular and Growth/IDCW scheme codes of one economic fund together. See below.
+
+### Peer groups
+
+SEBI files a fund by its legal wrapper rather than by its mandate, and for the passive and fund-of-funds wrappers that makes `clean_sub_category` useless as a peer group.
+On 2026-09-12 the sub-category `Fund of Funds Scheme (Domestic)` held 52 active Direct-Growth funds spanning gold, silver, US equity, Hang Seng tech and bonds, and `Index Funds` held 272 tracking everything from the Nifty 50 to a midcap momentum index.
+A percentile inside either is a number without a meaning.
+
+`peer_group` therefore refines the sub-category by what the fund holds, and then by the one axis that separates mandates inside that asset class:
+
+- the **asset class** - India Equity, International Equity, Debt, Commodity or Hybrid.
+  SEBI's own `clean_category` settles it wherever it commits to one (`Equity Scheme`, `Debt Scheme`, `Hybrid Scheme`); only the funds it files under `Other Scheme` fall through to the scheme name.
+- the **market-cap band** for Indian equity, and the **region** (US, Greater China, Europe, Japan, Asia, Emerging Markets, Global) for an overseas mandate.
+  A cap band is an Indian-index reading and says nothing useful about a US feeder, so it is not applied to one.
+- the four passive wrappers are **pooled into one base**, `Passive/FoF`, so a US feeder filed as `FoF Domestic` and one filed as `FoF Overseas` - the same fund to a buyer - are peers rather than two thin groups.
+
+For a genuine SEBI category this changes nothing: every Small Cap Fund is Indian equity, small cap, so the group is exactly what it was.
+It is only the wrapper categories that split, and they split into groups that mean something: the Edelweiss Nifty Midcap150 Momentum 50 index fund is ranked against the 15 other funds tracking a Nifty Midcap 150 variant instead of against 271 assorted index funds.
+
+The refinement leaves 97 of 1,734 active Direct-Growth funds (5.6%) in groups too thin to rank, and those return `insufficient_peer_universe` rather than a percentile.
+That is the intended trade: no number at all beats a percentile computed against funds that were never alternatives to each other.
 
 `category_key` encodes the whole peer methodology, not just the label:
 
@@ -247,26 +268,45 @@ It is a hint to check, not a finding.
 
 ## Composite score
 
-`GET /score/{scheme_code}` computes a weighted percentile score against the fund's own `clean_sub_category` peers - never a rating or a recommendation, a decomposition the caller can audit component by component.
+`GET /score/{scheme_code}` computes a weighted percentile score against the fund's own `peer_group` peers (see [Peer groups](#peer-groups)) - never a rating or a recommendation, a decomposition the caller can audit component by component.
+
+The score is also a stored, sortable screener column.
+A percentile cannot be computed from one fund's own row - it needs the whole peer group - so `metrics-build` runs the same `score_fund` once over every group and writes the result to `scheme_score_snapshot` (`score`, `score_coverage`, `score_status`), which `screen_base` left-joins the way it left-joins `scheme_ter`.
+It is a separate table rather than three more columns on `scheme_metrics_snapshot` because the cost component reads the expense ratio, and T3.1 keeps enrichment out of that table.
+An integration test asserts the stored column and the endpoint return the same number for the same fund: the screener must not rank funds by one figure while the breakdown justifies another.
 Peers are the same Direct-Growth, active universe the default screener and `_cost_position` already use, so "peer" means the same thing everywhere in the app.
 
-Five components, each a percentile in `[0, 1]` within that peer group (1 is best), weighted per the declared table in `packages/analytics/src/mf_analytics/scoring.py` and echoed on every response so there is no hidden weighting:
+Seven components, each a percentile in `[0, 1]` within that peer group (1 is best), weighted per the declared table in `packages/analytics/src/mf_analytics/scoring.py` and echoed on every response so there is no hidden weighting:
 
-| Component              | Weight | Built from                                         | Combination |
-| ---------------------- | -----: | -------------------------------------------------- | ----------- |
-| `risk_adjusted_return` |   0.30 | `sharpe_5y`, falling back to `sortino_5y`          | fallback    |
-| `consistency`          |   0.20 | `rolling_5y_median`, `quartile_persistence_3y`     | average     |
-| `drawdown_behaviour`   |   0.20 | `downside_capture_5y`, `max_drawdown_5y`           | average     |
-| `cost`                 |   0.15 | `expense_ratio` (lower is better)                  | average     |
-| `size_discipline`      |   0.15 | `aum_percentile_in_sub_category` (lower is better) | average     |
+| Component              | Weight | Built from                                                                             |
+| ---------------------- | -----: | -------------------------------------------------------------------------------------- |
+| `consistency`          |   0.33 | `rolling_{3y,5y,10y}_median`                                                           |
+| `cost`                 |   0.20 | `expense_ratio` (lower is better)                                                      |
+| `peer_excess`          |   0.20 | `fund_minus_category_{3y,5y,10y}`, falling back to `information_ratio_vs_category_{h}` |
+| `risk_adjusted_return` |   0.15 | `sharpe_{3y,5y,10y}`, falling back to `sortino_{h}`                                    |
+| `momentum`             |   0.05 | `momentum_12_1`                                                                        |
+| `steadiness`           |   0.02 | `volatility_{3y,5y,10y}` (lower is better)                                             |
+| `index_skill`          |   0.05 | `information_ratio_vs_benchmark_{3y,5y,10y}`, falling back to `alpha_{h}`              |
+
+A component whose metric has a 3-, 5- and 10-year reading blends them on `HORIZON_WEIGHTS` (3y 0.35, 5y 0.40, 10y 0.25 - measured, see [docs/backtest.md](backtest.md#three-years-against-five)), renormalised over the horizons the fund actually has.
+`cost` and `momentum` are single numbers rather than a family of windows, so they are scored once and report no horizons.
+Within a horizon the listed metrics are a fallback chain, not a blend: the second is consulted only where the first is null, because both measure the same thing.
+
+The weights are what `scripts/backtest_score.py` measured, not what reads well: 12-1 momentum had the highest information coefficient (+0.17) and the expense ratio the most stable sign (+0.14, right at 4 of 4 formation dates), while ranking the calmer fund higher was the wrong sign at every date.
+Cost is weighted above its IC rank because it is the one input with outside corroboration and the only mechanical one - a fee is deducted whatever the market does.
+
+Raw CAGR carries no weight of its own.
+Measured on the live universe (579 active Direct-Growth equity funds), `cagr_5y` and `fund_minus_category_5y` rank funds identically inside a sub-category (Spearman 1.000), so weighting both would weight returns twice; `sharpe_5y` against `sortino_5y` is 0.990, which is why Sortino is only a stand-in.
+Expense ratio and AUM carry no weight either - they are columns to read beside the score rather than part of it.
 
 A component needs `MF_MIN_PEERS` peers with a non-null value in the underlying metric, the same floor every other peer-relative metric in this document uses; below it the component is null with reason `insufficient_peer_universe`.
-`size_discipline` (T2.3) is scored on `aum_percentile_in_sub_category`, itself already a percentile of `aum_family_latest` within the sub-category, so a smaller fund family scores higher - asset bloat is the risk this component exists to flag.
-It is null with `insufficient_peer_universe` where the sub-category has fewer than `MF_MIN_PEERS` families with a computed AUM total, and with `aum_history_not_available` only for a store that predates T2.3 and has never computed the column at all; neither case is ever imputed to the category mean.
 
-A fund missing one or more components is still scored on the ones it has: the total sums only the present components' contributions (`percentile * weight * 100`, never rescaled to fill the missing weight), `status` is `"partial"`, and `missing_components` names which ones did not count.
+A fund missing one or more components is still scored on the ones it has, and both the horizon blend and the total renormalise over the weight actually present, so a fund with no ten-year column is not ranked below one that merely has more history.
+`coverage` reports the share of the weight table the fund answered; below `MIN_COVERAGE` (0.5) no total is published at all, `reason` is `coverage_below_floor`, and only the components are shown.
+`status` is `"partial"` whenever anything is missing, and `missing_components` names which.
 Reordering the peer rows never changes a score, since every percentile comes from `pandas.rank(pct=True)` against the set of peer values, not their order.
-Removing a component from the weight table changes only that component's own contribution - every other component's percentile and contribution are computed independently and are untouched.
+
+`scripts/backtest_score.py` re-forms this ranking at past dates from NAV alone and measures what happened next; see `docs/backtest.md` for the result.
 
 Implemented in `packages/analytics/src/mf_analytics/scoring.py`, called live from `GET /score/{scheme_code}` in `apps/api/mf_api/main.py` over the small per-sub-category peer group fetched from `screen_base`, never over the full NAV lake.
 

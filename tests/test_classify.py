@@ -9,8 +9,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from mf_analytics import scoring
 from mf_analytics.classify import (
+    ASSET_DEBT,
+    ASSET_HYBRID,
+    ASSET_INDIA_EQUITY,
     OPT_BONUS,
     OPT_GROWTH,
     OPT_IDCW_PAYOUT,
@@ -19,6 +21,7 @@ from mf_analytics.classify import (
     PLAN_DIRECT,
     PLAN_REGULAR,
     PLAN_UNKNOWN,
+    asset_class,
     cap_band,
     classify_frame,
     clean_option,
@@ -27,6 +30,7 @@ from mf_analytics.classify import (
     derive_fund_family_ids,
     fund_family_key,
     normalise_fund_name,
+    peer_group,
     style,
 )
 from mf_analytics.config import Settings
@@ -230,6 +234,10 @@ def _t22_master_row(code: str, sub_category: str, ingested_at: datetime) -> dict
         "clean_sub_category": sub_category,
         "cap_band": None,
         "style": None,
+        # Derived rather than written out, so the fixture cannot drift from the classifier.
+        "peer_group": peer_group(
+            "Equity Scheme", sub_category, f"{code} Fund - Direct - Growth", None
+        ),
         "plan": "Direct",
         "option": "Growth",
         "clean_plan": PLAN_DIRECT,
@@ -642,36 +650,6 @@ def test_aum_percentile_withheld_below_min_peers() -> None:
     assert pct.isna().all()
 
 
-def _score_peers_with_aum() -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "scheme_code": ["A", "B", "C", "D", "E"],
-            "sharpe_5y": [1.5, 0.8, 0.5, 1.2, 0.3],
-            "sortino_5y": [1.9, 1.0, 0.6, 1.6, 0.4],
-            "rolling_5y_median": [0.16, 0.12, 0.10, 0.14, 0.09],
-            "quartile_persistence_3y": [0.9, 0.5, 0.4, 0.8, 0.3],
-            "downside_capture_5y": [0.80, 0.95, 1.05, 0.85, 1.10],
-            "max_drawdown_5y": [-0.18, -0.30, -0.35, -0.20, -0.40],
-            "expense_ratio": [0.008, 0.015, 0.020, 0.010, 0.022],
-            # A is the smallest fund by AUM percentile (best size discipline).
-            "aum_percentile_in_sub_category": [0.1, 0.9, 0.5, 0.7, 0.3],
-        }
-    )
-
-
-def test_size_discipline_scores_once_aum_percentile_is_present() -> None:
-    """T2.3 wires the component scoring.py declared but never computed: with the
-    column present, a fund is no longer flagged partial for it."""
-    result = scoring.score_fund(_score_peers_with_aum(), "A")
-    assert "size_discipline" not in result.missing
-    comp = result.components["size_discipline"]
-    assert comp.reason is None
-    # A has the smallest AUM percentile (0.1, most disciplined), so it must rank best.
-    assert comp.percentile == pytest.approx(1.0)
-    assert comp.contribution == pytest.approx(scoring.COMPONENT_WEIGHTS["size_discipline"] * 100.0)
-    assert result.status == "complete"
-
-
 def test_aum_growth_is_measured_once_five_quarters_are_stored(tmp_path: Path) -> None:
     """T2.3's own column, from the table it reads rather than from a stub.
 
@@ -717,3 +695,72 @@ def test_aum_growth_is_measured_once_five_quarters_are_stored(tmp_path: Path) ->
     # 150 from 100 across the four-quarter horizon, not 150 from the 110 next to it.
     assert growth["A1"] == pytest.approx(0.5)
     assert "B1" not in growth
+
+
+class TestPeerGroup:
+    """The wrapper sub-categories are the reason this axis exists (T-peer)."""
+
+    def test_a_genuine_sebi_category_is_not_split_by_the_refinement(self) -> None:
+        """Every Small Cap Fund is Indian equity, small cap: one group before and after."""
+        assert (
+            peer_group(
+                "Equity Scheme", "Small Cap Fund", "BANK OF INDIA Small Cap Fund", "Small Cap"
+            )
+            == peer_group("Equity Scheme", "Small Cap Fund", "quant Small Cap Fund", "Small Cap")
+            == "Small Cap Fund · India Equity · Small Cap"
+        )
+
+    def test_a_gold_fof_and_a_us_feeder_stop_being_peers(self) -> None:
+        """Both are filed as "Fund of Funds Scheme (Domestic)"; they hold nothing alike."""
+        gold = peer_group("Other Scheme", "FoF Domestic", "SBI Gold Fund - Direct Growth", None)
+        us = peer_group(
+            "Other Scheme",
+            "Fund of Funds Scheme (Domestic)",
+            "Mirae Asset S&P 500 Top 50 ETF Fund of Fund",
+            "Large Cap",
+        )
+        assert gold != us
+        assert gold == "Passive/FoF · Commodity"
+        assert us == "Passive/FoF · International Equity · US"
+
+    def test_the_same_mandate_filed_under_two_wrappers_stays_one_group(self) -> None:
+        """A US feeder is the same fund to a buyer whether AMFI files it domestic or overseas."""
+        assert peer_group(
+            "Other Scheme", "FoF Overseas", "Navi NASDAQ100 US Specific Equity Passive FOF", None
+        ) == peer_group(
+            "Other Scheme", "Index Funds", "Motilal Oswal S&P 500 Index Fund - Direct", "Large Cap"
+        )
+
+    def test_index_funds_split_by_the_band_they_track(self) -> None:
+        """272 funds tracking everything from the Nifty 50 to a midcap momentum index."""
+        assert peer_group(
+            "Other Scheme",
+            "Index Funds",
+            "Edelweiss Nifty Midcap150 Momentum 50 Index Fund",
+            "Mid Cap",
+        ) != peer_group("Other Scheme", "Index Funds", "UTI Nifty 50 Index Fund", "Large Cap")
+
+    def test_sebis_scheme_type_outranks_a_name_that_reads_overseas(self) -> None:
+        """SEBI files every overseas mandate under Other Scheme, so an Equity Scheme is Indian."""
+        assert asset_class("Equity Scheme", "Mirae Asset Great Consumer Fund") == ASSET_INDIA_EQUITY
+        assert asset_class("Debt Scheme", "Axis Liquid Fund") == ASSET_DEBT
+
+    def test_a_multi_asset_fof_holding_gold_is_hybrid_not_a_commodity_fund(self) -> None:
+        assert (
+            asset_class("Other Scheme", "Kotak Multi Asset Omni FOF - Direct Growth")
+            == ASSET_HYBRID
+        )
+
+    def test_a_nan_cap_band_off_a_frame_does_not_reach_the_label(self) -> None:
+        """A thematic fund has no band, and a frame hands that back as a float NaN."""
+        assert (
+            peer_group("Equity Scheme", "Sectoral/Thematic", "Tata Digital India Fund", np.nan)
+            == "Sectoral/Thematic · India Equity"
+        )
+
+    def test_cap_band_is_dropped_for_an_overseas_mandate(self) -> None:
+        """ "Top 50" is an Indian-index reading; the region is the axis that means something."""
+        assert (
+            peer_group("Other Scheme", "FoF Domestic", "Mirae Asset Hang Seng TECH ETF FoF", None)
+            == "Passive/FoF · International Equity · Greater China"
+        )

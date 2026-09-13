@@ -252,64 +252,69 @@ Instruments are matched on `instrument_key` - the published identifier where the
 
 ## `GET /score/{code}`
 
-A weighted percentile score against the fund's own `clean_sub_category` peers - never a rating or a recommendation, a decomposition the caller can read component by component.
+A weighted percentile score against the fund's own `peer_group` peers - never a rating or a recommendation, a decomposition the caller can read component by component.
+
+The same number is available as the `score` screener column (with `score_coverage`), stored by `metrics-build` so it can be sorted and ranged on; this endpoint is the decomposition behind it.
+
+The peer group is the sub-category refined by what the fund actually holds (see `docs/data-model.md#peer-groups`).
+SEBI files a fund by its legal wrapper, so the raw sub-category ranks a Nasdaq feeder against gold and bond funds; `peer_group` does not.
+Where the refinement leaves too few peers to rank against, the components come back with `insufficient_peer_universe` rather than a percentile computed against funds that were never alternatives.
 
 ```json
 {
   "scheme_code": "S01",
   "total": 65.0,
   "status": "partial",
-  "missing_components": ["cost", "size_discipline"],
+  "missing_components": ["index_skill"],
+  "coverage": 0.85,
+  "reason": null,
+  "reason_description": null,
   "weights": {
-    "risk_adjusted_return": 0.3,
+    "peer_excess": 0.3,
     "consistency": 0.2,
-    "drawdown_behaviour": 0.2,
-    "cost": 0.15,
-    "size_discipline": 0.15
+    "risk_adjusted_return": 0.2,
+    "steadiness": 0.15,
+    "index_skill": 0.15
   },
   "components": {
-    "risk_adjusted_return": {
+    "peer_excess": {
       "weight": 0.3,
       "percentile": 1.0,
-      "contribution": 30.0,
+      "contribution": 35.3,
       "reason": null,
-      "reason_description": null
+      "reason_description": null,
+      "horizons": ["3y", "5y"]
     },
-    "cost": {
+    "index_skill": {
       "weight": 0.15,
       "percentile": null,
       "contribution": null,
       "reason": "insufficient_peer_universe",
-      "reason_description": "Too few eligible peer schemes in the sub-category for this horizon."
-    },
-    "size_discipline": {
-      "weight": 0.15,
-      "percentile": null,
-      "contribution": null,
-      "reason": "aum_history_not_available",
-      "reason_description": "..."
+      "reason_description": "Too few eligible peer schemes in the sub-category for this horizon.",
+      "horizons": []
     }
   },
-  "sub_category": "Mid Cap Fund",
+  "peer_group": "Mid Cap Fund · India Equity · Mid Cap",
   "peer_count": 5,
   "disclaimer": "..."
 }
 ```
 
 `weights` is the whole declared table (see `docs/data-model.md#composite-score`), echoed on every response - there is no hidden weighting.
-A fund missing a component is scored on the components it has: `total` sums only the present contributions, `status` is `"partial"`, and `missing_components` names which ones did not count.
-`size_discipline` has no metric until T2.3 lands AUM history, so it is always missing with reason `aum_history_not_available`, never imputed to the category mean.
+Every component blends the 3-, 5- and 10-year reading of its metric; `horizons` names the ones that actually fed the percentile, so a young fund's score says on its face that it was formed on three years.
+A fund missing a component is scored on the components it has: `status` is `"partial"`, `missing_components` names which did not count, and both the horizon blend and `total` renormalise over the weight present - which is why a contribution can exceed `weight * 100`.
+`coverage` is the share of the weight table the fund answered; below 0.5 `total` is null with `reason` `coverage_below_floor` and only the components are returned.
 404 when the scheme is unknown or has no metrics snapshot row, with the same reason `GET /schemes/{code}/metrics` would give.
 
 ## `GET /categories/{category_key}/metrics`
 
-`category_key` is `PeerUniverse.category_key(value)`: `sub_category=<value>|plan=<plan_scope>|option=<option_scope>|active=<y|n>|agg=<mean|median>` (or `category=` at the category level). The `active=y`/`active=n` marker is the only difference between the two keys that name the same peer group under active-only and all-schemes universes.
+`category_key` is `PeerUniverse.category_key(value)`, where `value` is the `peer_group` label: `sub_category=<value>|plan=<plan_scope>|option=<option_scope>|active=<y|n>|agg=<mean|median>` (or `category=` at the category level). The `active=y`/`active=n` marker is the only difference between the two keys that name the same peer group under active-only and all-schemes universes.
 
 T2.4: every category aggregate is computed over both universes and stored under its own key, so this endpoint always returns both sides of the pair alongside the row for the key that was asked for:
 
 ```json
 {
-  "category_key": "sub_category=Small Cap Fund|plan=direct|option=growth|active=y|agg=mean",
+  "category_key": "sub_category=Small Cap Fund · India Equity · Small Cap|plan=direct|option=growth|active=y|agg=mean",
   "cagr_1y": 0.0627,
   "cagr_3y": 0.1451,
   "cagr_5y": 0.1201,
@@ -349,6 +354,9 @@ Correlation of returns is not portfolio overlap - it says nothing about whether 
 
 ## `POST /admin/refresh`
 
-Runs one of `data-master`, `data-nav`, `data-refresh`, `data-sample`, `metrics-build`, `benchmark-map` as a subprocess.
+Runs one of `data-master`, `data-nav`, `data-refresh`, `data-sample`, `metrics-build`, `benchmark-map`, `aum-history-import` as a subprocess.
 The API releases its database handle first, so this is the way to refresh data without stopping the server.
 DuckDB permits one writing process at a time; a CLI command run while the API holds the file fails with an explanatory message instead of a stack trace.
+
+`jobs` sets the worker count for `metrics-build` and is ignored by every other step: `0` uses every core but one, which is the difference between a 15-minute rebuild and a 40-minute one.
+Since this is the only way to rebuild without stopping the server, running it serially by default made the supported path the slow one.

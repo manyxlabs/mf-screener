@@ -54,12 +54,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         </header>
-        <div className="border-b border-warn-200 bg-warn-50 px-6 py-2 text-center text-xs text-warn-900">
-          Research and analytics only. Not investment advice. Historical returns do not guarantee
-          future returns.
-        </div>
         <main className="mx-auto max-w-[1600px] px-6 py-6">{children}</main>
         <footer className="mx-auto max-w-[1600px] space-y-2 px-6 pb-10 pt-4 text-xs text-ink-500">
+          <p>
+            Research and analytics only. Not investment advice. Historical returns do not guarantee
+            future returns.
+          </p>
           <p>
             <Link className="underline hover:text-ink-700" href="/benchmarks">
               Benchmark coverage

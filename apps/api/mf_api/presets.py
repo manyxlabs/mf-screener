@@ -71,7 +71,7 @@ PRESETS: Final[list[dict[str, Any]]] = [
         "question": "Which equity funds have been consistent over ten years?",
         "order": 1,
         "plain_description": (
-            "Equity funds at least seven years old whose typical five-year stretch was positive "
+            "Equity funds at least ten years old whose typical five-year stretch was positive "
             "and which stayed ahead of similar funds over both five and ten years. Last year's "
             "return is deliberately ignored."
         ),
@@ -80,15 +80,17 @@ PRESETS: Final[list[dict[str, Any]]] = [
             "not in this list."
         ),
         "description": (
-            "Funds at least 7 years old that beat their sub-category over 5 and 10 years "
-            "and whose median rolling 5-year return is positive. Ignores 1-year return."
+            "Funds at least 10 years old that beat their sub-category over 5 and 10 years "
+            "and whose median rolling 5-year return is positive. Ignores 1-year return. The age "
+            "bar reads 10 rather than 7 because the ten-year peer-relative rule already needs a "
+            "decade of NAV: a 7-year bar would have promised funds this screen can never return."
         ),
         "filters": {
             "plans": ["Direct"],
             "options": ["Growth"],
             "active_only": True,
             "ranges": {
-                "fund_age_years_min": 7,
+                "fund_age_years_min": 10,
                 "cagr_5y_min": 0,
                 "fund_minus_category_5y_min": 0,
                 "fund_minus_category_10y_min": 0,
@@ -219,29 +221,41 @@ PRESETS: Final[list[dict[str, Any]]] = [
         "id": "sp500-comparison",
         "slot": "US sleeve",
         "highlight": ["cagr_3y", "cagr_5y", "tracking_error_3y", "volatility_5y", "expense_ratio"],
-        "name": "US S&P 500 funds, ranked on how closely they track",
-        "subtitle": "S&P 500 comparison, tracking-quality ranked",
-        "question": "How do I compare the S&P 500 funds sold in India?",
+        "name": "US index funds, ranked on how closely they track",
+        "subtitle": "S&P 500 and Nasdaq 100, funds and ETFs, tracking-quality ranked",
+        "question": "How do I compare the US index funds sold in India?",
         "order": 5,
         "plain_description": (
-            "Indian funds tracking the S&P 500. These are close substitutes, so the columns that "
-            "separate them are cost and tracking quality rather than return."
+            "Indian funds tracking a US index, the S&P 500 or the Nasdaq 100. Within one index "
+            "these are close substitutes, so the columns that separate them are cost and tracking "
+            "quality rather than return."
         ),
         "caution": (
             "These funds file their NAV in rupees, so their returns already contain the "
             "rupee-dollar move. No index-relative figure is computed unless an INR-converted "
-            "series is loaded."
+            "series is loaded. The ETFs on this screen need a demat account and trade at "
+            "whatever the exchange pays, which has run well above NAV whenever the RBI's "
+            "overseas-investment limit is hit; every column here is computed from NAV and "
+            "so cannot see that premium."
         ),
         "description": (
-            "Funds whose name mentions the S&P 500. Ranked on tracking quality, not on alpha "
-            "against an Indian index, which would be meaningless here. If the only S&P 500 "
-            "series loaded is in USD, every benchmark-relative column here is blank by design: "
-            "the comparison would include the exchange rate. Import an INR-converted index."
+            "Funds and ETFs whose name mentions the S&P 500 or the Nasdaq 100. The two "
+            "indices are not substitutes for each other - the Nasdaq 100 is a concentrated "
+            "growth index - so "
+            "compare cost and tracking within an index, not across the two. Ranked on tracking "
+            "quality, not on alpha against an Indian index, which would be meaningless here. If "
+            "the only US series loaded is in USD, every benchmark-relative column here is blank "
+            "by design: the comparison would include the exchange rate. Import an "
+            "INR-converted index."
         ),
         "filters": {
-            "search": "s&p 500",
-            "plans": ["Direct"],
-            "options": ["Growth"],
+            "search": "s&p 500, nasdaq",
+            # AMFI files an ETF with no plan and no option, so the Direct-Growth default
+            # that keeps every other screen comparable would drop the three listed US
+            # ETFs - including the largest US vehicle sold in India. They are let in
+            # here, and only here, because this sleeve is about tracking one index.
+            "plans": ["Direct", "Unknown"],
+            "options": ["Growth", "Other"],
             "active_only": True,
             "ranges": {},
         },
@@ -254,6 +268,8 @@ PRESETS: Final[list[dict[str, Any]]] = [
             "cagr_1y",
             "cagr_3y",
             "cagr_5y",
+            "clean_plan",
+            "clean_option",
             "tracking_error_3y",
             "tracking_error_5y",
             "information_ratio_vs_benchmark_3y",

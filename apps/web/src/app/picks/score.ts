@@ -10,7 +10,11 @@ export function scoreBreakdown(score: ScoreResponse): string {
   // percentile is close to meaningless - which is only visible if the group is named.
   const lines = [
     `Total ${Math.round(score.total ?? 0)}/100 (${score.status})`,
-    `Ranked against ${score.peer_count} funds in ${score.sub_category}`,
+    `Ranked against ${score.peer_count} funds in ${score.peer_group}`,
+    // Coverage is the score's own honesty check: what share of the weight table this
+    // fund could answer. The total is renormalised over it, so a young fund is not
+    // ranked below an old one for the horizons it has not lived through.
+    `Answers ${Math.round(score.coverage * 100)}% of the weight table`,
   ];
   for (const [name, weight] of Object.entries(score.weights)) {
     const component = score.components[name];
@@ -18,9 +22,10 @@ export function scoreBreakdown(score: ScoreResponse): string {
     if (!component || component.percentile === null) {
       lines.push(`${name}: missing (${component?.reason ?? "unavailable"}) of ${points} pts`);
     } else {
+      const horizons = component.horizons.length ? ` over ${component.horizons.join("/")}` : "";
       lines.push(
         `${name}: ${component.contribution!.toFixed(1)} of ${points} pts ` +
-          `(${Math.round(component.percentile * 100)}th percentile)`,
+          `(${Math.round(component.percentile * 100)}th percentile${horizons})`,
       );
     }
   }

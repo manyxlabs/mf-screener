@@ -574,6 +574,10 @@ export const scoreComponentSchema = z.object({
   contribution: z.number().nullable(),
   reason: z.string().nullable(),
   reason_description: z.string().nullable(),
+  /** The horizons that actually fed this percentile, e.g. ["3y","5y"] for a young fund.
+   * Required, not defaulted: a z.default() splits the inferred input and output types
+   * and every caller of this schema then holds a different ScoreComponent. */
+  horizons: z.array(z.string()),
 });
 export type ScoreComponent = z.infer<typeof scoreComponentSchema>;
 
@@ -582,9 +586,14 @@ export const scoreResponseSchema = z.object({
   total: z.number().nullable(),
   status: z.enum(["complete", "partial"]),
   missing_components: z.array(z.string()),
+  /** Share of the weight table this fund could answer; the total is renormalised over it. */
+  coverage: z.number(),
+  reason: z.string().nullable(),
+  reason_description: z.string().nullable(),
   weights: z.record(z.number()),
   components: z.record(scoreComponentSchema),
-  sub_category: z.string(),
+  /** The funds this one is ranked against: sub-category refined by what it holds. */
+  peer_group: z.string(),
   peer_count: z.number(),
   disclaimer: z.string(),
 });

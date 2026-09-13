@@ -37,7 +37,13 @@ class PeerUniverse(BaseModel):
         )
 
     def label_column(self) -> str:
-        return "clean_sub_category" if self.level == "sub_category" else "clean_category"
+        """The column holding one peer group's label.
+
+        The fine level is `peer_group`, not `clean_sub_category`: SEBI files a fund by
+        its legal wrapper, so the raw sub-category pools a gold FoF with a Nasdaq feeder.
+        See `classify.peer_group`.
+        """
+        return "peer_group" if self.level == "sub_category" else "clean_category"
 
     def filter(self, master: pd.DataFrame) -> pd.DataFrame:
         """Rows of the scheme master eligible for this peer universe."""
