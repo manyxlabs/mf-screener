@@ -11,8 +11,8 @@
 version: 2
 mappings:
   # --- Sectoral and thematic. These come first because a Nifty Bank index fund is
-  # filed under "Index Funds" and would otherwise be swept up by the coarse Nifty 50
-  # rule at the bottom.
+  # filed under "Index Funds" and would otherwise be swept up by the index rules at
+  # the bottom.
   #
   # Every one of them is match: all, and the name tokens are deliberately multi-word.
   # "bank" alone is not a sector: BANK OF INDIA is an AMC, and matching it would
@@ -74,15 +74,17 @@ mappings:
   - sub_category_contains: ["Large Cap"]
     benchmark_id: NIFTY50_TRI
     notes: SEBI large-cap mandate; Nifty 50 TRI is the common reference.
+  # Ahead of the Mid Cap rule, which would otherwise claim "Large & Mid Cap Fund".
+  - sub_category_contains: ["Flexi Cap", "Multi Cap", "Large & Mid Cap", "ELSS", "Focused"]
+    benchmark_id: NIFTY500_TRI
   - sub_category_contains: ["Mid Cap"]
     benchmark_id: NIFTY_MIDCAP150_TRI
     fallback_benchmark_ids: [NIFTY500_TRI]
   - sub_category_contains: ["Small Cap"]
     benchmark_id: NIFTY_SMALLCAP250_TRI
     fallback_benchmark_ids: [NIFTY500_TRI]
-  - sub_category_contains: ["Flexi Cap", "Multi Cap", "Large & Mid Cap", "ELSS", "Focused"]
-    benchmark_id: NIFTY500_TRI
   - sub_category_contains: ["Value", "Contra"]
+    scheme_name_contains: ["nifty 500 value 50", "nifty500 value 50"]
     benchmark_id: NIFTY500_VALUE50_TRI
     fallback_benchmark_ids: [NIFTY500_TRI]
     notes: Value 50 TRI where loaded, otherwise the broad market.
@@ -90,12 +92,58 @@ mappings:
     benchmark_id: NIFTY500_MOMENTUM50_TRI
     fallback_benchmark_ids: [NIFTY500_TRI]
   - scheme_name_contains: ["s&p 500", "s and p 500"]
+    scheme_name_excludes: ["top 50"]
     benchmark_id: SP500_TR_INR
     fallback_benchmark_ids: [SP500_TR_USD]
     notes: >
       SP500_TR_USD is a USD series. It is never mixed with INR fund returns; if only
       the USD series is loaded the scheme is mapped to it and flagged currency_mismatch.
-  - sub_category_contains: ["Index Funds", "Index Fund"]
+
+  # --- Index funds, each claimed only by the index it names. An index fund exists to
+  # track one index, so its tracking error against any other is a difference between
+  # two indices, not a measure of the fund. Next 50, factor, sector, debt and overseas
+  # index funds have no series loaded and stay unmapped. Order matters: "nifty 50" is
+  # a substring of "nifty 500".
+  - match: all
+    sub_category_contains: ["Index Fund"]
+    scheme_name_contains: ["midcap 150", "mid cap 150"]
+    scheme_name_excludes: &index_variant_tokens
+      [
+        "debt",
+        "bond",
+        "gilt",
+        "g-sec",
+        "gsec",
+        "sdl",
+        "liquid",
+        "overnight",
+        "money market",
+        "arbitrage",
+        "duration",
+        "maturity",
+        "crisil",
+        "equal",
+        "quality",
+        "value",
+        "alpha",
+        "low vol",
+        "multicap",
+        "flexicap",
+        "shariah",
+      ]
+    benchmark_id: NIFTY_MIDCAP150_TRI
+  - match: all
+    sub_category_contains: ["Index Fund"]
+    scheme_name_contains: ["smallcap 250", "small cap 250", "smallcap250"]
+    scheme_name_excludes: *index_variant_tokens
+    benchmark_id: NIFTY_SMALLCAP250_TRI
+  - match: all
+    sub_category_contains: ["Index Fund"]
+    scheme_name_contains: ["nifty 500", "nifty500"]
+    scheme_name_excludes: *index_variant_tokens
+    benchmark_id: NIFTY500_TRI
+  - match: all
+    sub_category_contains: ["Index Fund"]
+    scheme_name_contains: ["nifty 50", "nifty50", "nifty index"]
+    scheme_name_excludes: *index_variant_tokens
     benchmark_id: NIFTY50_TRI
-    fallback_benchmark_ids: [NIFTY500_TRI]
-    notes: Coarse - an index fund tracking something other than the Nifty 50 is mapped only as a fallback.

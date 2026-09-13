@@ -27,6 +27,8 @@ __all__ = [
 
 logger = get_logger(__name__)
 
+PROXY_SOURCE_PREFIX: Final = "index_fund_proxy:"
+
 
 def _monthly_from_index(df: pd.DataFrame, tolerance_days: int | None = None) -> pd.DataFrame:
     """Month-end index level and its monthly return, per benchmark.
@@ -108,7 +110,7 @@ def build_index_fund_proxy(
     nav["benchmark_name"] = benchmark_name
     nav["asset_class"] = asset_class
     nav["currency"] = BASE_CURRENCY
-    nav["source"] = f"index_fund_proxy:{scheme_code}"
+    nav["source"] = f"{PROXY_SOURCE_PREFIX}{scheme_code}"
     return _upsert(
         _monthly_from_index(nav, s.mf_month_end_tolerance_days),
         s,
@@ -185,15 +187,25 @@ def apply_mapping(settings: Settings | None = None) -> dict[str, Any]:
     with connect(s) as con:
         init_schema(con)
         master = con.execute(
-            "SELECT scheme_code, clean_sub_category, scheme_name FROM scheme_master"
+            "SELECT scheme_code, clean_sub_category, scheme_name, fund_family_id FROM scheme_master"
         ).fetch_df()
         loaded = con.execute(
-            "SELECT benchmark_id, any_value(currency) AS currency FROM benchmarks "
-            "GROUP BY benchmark_id"
+            "SELECT benchmark_id, any_value(currency) AS currency, any_value(source) AS source "
+            "FROM benchmarks GROUP BY benchmark_id"
         ).fetch_df()
         currency_of: dict[str, str] = dict(
             zip(loaded["benchmark_id"].astype(str), loaded["currency"].astype(str), strict=True)
         )
+        family_of = dict(
+            zip(master["scheme_code"].astype(str), master["fund_family_id"], strict=True)
+        )
+        # A proxy built from one plan of a fund is that fund: every plan of it would
+        # report a near-zero tracking error and no alpha, measured against itself.
+        proxy_family_of = {
+            str(bid): family_of.get(str(src).removeprefix(PROXY_SOURCE_PREFIX))
+            for bid, src in zip(loaded["benchmark_id"], loaded["source"], strict=True)
+            if str(src).startswith(PROXY_SOURCE_PREFIX)
+        }
 
         rows: list[dict[str, Any]] = []
         for rec in master.to_dict("records"):
@@ -202,10 +214,11 @@ def apply_mapping(settings: Settings | None = None) -> dict[str, Any]:
             rule = next((r for r in rules if _rule_matches(r, sub, name)), None)
             if rule is None:
                 continue
+            family = rec["fund_family_id"]
             candidates = [
                 b
                 for b in (rule["benchmark_id"], *rule.get("fallback_benchmark_ids", []))
-                if b in currency_of
+                if b in currency_of and not (pd.notna(family) and proxy_family_of.get(b) == family)
             ]
             # An INR series always wins, wherever it sits in the configured order: a
             # foreign-currency benchmark yields no benchmark-relative metrics at all.
@@ -283,7 +296,7 @@ def coverage_report(fetch: Callable[[str], pd.DataFrame]) -> dict[str, Any]:
         currency = str(rec["currency"])
         comparable = currency == BASE_CURRENCY
         months = int(rec["months"])
-        is_proxy = str(rec["source"]).startswith("index_fund_proxy")
+        is_proxy = str(rec["source"]).startswith(PROXY_SOURCE_PREFIX)
         entries.append(
             {
                 "benchmark_id": str(rec["benchmark_id"]),

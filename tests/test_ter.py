@@ -31,6 +31,8 @@ def schemes(*rows: tuple[str, str, str]) -> pd.DataFrame:
         ("Acme Flexicap Fund -Regular - Quarterly IDCW", "Acme Flexicap Fund"),
         ("Acme Flexicap Fund - Growth Option - Direct Plan", "Acme Flexicap Fund"),
         ("Acme Flexicap Fund (Formerly Known as Zeta Flexicap)", "Acme Flexicap Fund"),
+        ("Acme Flexi Cap Fund - Direct Plan - Growth", "Acme Flexicap Fund"),
+        ("Acme Large & Mid Cap Fund - Direct - Growth", "Acme Large and Mid Cap Fund"),
     ],
 )
 def test_plan_and_option_variants_reduce_to_one_fund(filed_as: str, disclosed_as: str) -> None:
@@ -46,7 +48,9 @@ def test_a_longer_name_is_a_different_fund() -> None:
 def test_percentages_are_stored_as_fractions() -> None:
     """A TER of 0.43 alongside a CAGR of 0.48 would read as a 43% charge."""
     lookup = build_lookup(pd.DataFrame([source_row("Acme Flexicap Fund", 0.43, 1.95)]))
-    assert lookup.loc["acme flexicap fund", "Direct Plan - Total TER (%)"] == pytest.approx(0.0043)
+    assert lookup.loc[
+        normalise_name("Acme Flexicap Fund"), "Direct Plan - Total TER (%)"
+    ] == pytest.approx(0.0043)
 
 
 def test_a_key_two_source_rows_disagree_on_is_dropped_whole() -> None:
@@ -59,14 +63,16 @@ def test_a_key_two_source_rows_disagree_on_is_dropped_whole() -> None:
             ]
         )
     )
-    assert "acme flexicap fund" not in lookup.index
+    assert normalise_name("Acme Flexicap Fund") not in lookup.index
 
 
 def test_identical_duplicates_are_kept_since_they_disagree_about_nothing() -> None:
     lookup = build_lookup(
         pd.DataFrame([source_row("Acme Flexicap Fund", 0.43, 1.95)] * 2),
     )
-    assert lookup.loc["acme flexicap fund", "Direct Plan - Total TER (%)"] == pytest.approx(0.0043)
+    assert lookup.loc[
+        normalise_name("Acme Flexicap Fund"), "Direct Plan - Total TER (%)"
+    ] == pytest.approx(0.0043)
 
 
 def test_each_plan_takes_its_own_disclosed_ratio() -> None:
@@ -124,4 +130,4 @@ def test_a_direct_plan_priced_above_its_regular_plan_is_withheld() -> None:
 def test_an_equally_priced_pair_is_kept() -> None:
     """Only a strictly inverted pair is impossible; a zero gap is merely unusual."""
     lookup = build_lookup(pd.DataFrame([source_row("Acme Flexicap Fund", 1.00, 1.00)]))
-    assert "acme flexicap fund" in lookup.index
+    assert normalise_name("Acme Flexicap Fund") in lookup.index

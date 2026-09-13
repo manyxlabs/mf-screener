@@ -41,7 +41,11 @@ DESCRIPTIONS: Final[dict[str, str]] = {
     Reason.INSUFFICIENT_WINDOWS: "Fewer valid rolling windows than the configured minimum.",
     Reason.INSUFFICIENT_PEERS: "Too few eligible peer schemes in the sub-category for this horizon.",
     Reason.BENCHMARK_UNAVAILABLE: "No benchmark index data loaded for the mapped benchmark and period.",
-    Reason.BENCHMARK_UNMAPPED: "No benchmark is mapped to this scheme's sub-category.",
+    Reason.BENCHMARK_UNMAPPED: (
+        "No benchmark is mapped to this scheme: none is configured for the index or "
+        "sub-category it follows, or the only candidate is an index-fund proxy built from "
+        "this same fund, which would measure the fund against itself."
+    ),
     Reason.BENCHMARK_CURRENCY: (
         "The mapped benchmark is denominated in a different currency from the fund's NAV. "
         "Comparing them would measure the exchange rate as well as performance, so this "

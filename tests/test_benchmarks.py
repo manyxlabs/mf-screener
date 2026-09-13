@@ -19,10 +19,13 @@ from mf_analytics.config import BASE_CURRENCY, Settings
 from mf_analytics.db import connect, init_schema
 from mf_analytics.ingest.benchmark_csv import BenchmarkCsvError
 from mf_analytics.ingest.benchmarks import (
+    PROXY_SOURCE_PREFIX,
+    _rule_matches,
     apply_mapping,
     build_index_fund_proxy,
     coverage_report,
     import_csv,
+    load_mapping_config,
     validate_csv,
 )
 from mf_analytics.pipeline import load_benchmarks
@@ -230,6 +233,67 @@ def test_coverage_warns_about_foreign_series_proxies_and_unmapped_schemes(
     assert any("exchange rate" in w for w in report["warnings"])
     assert any("no benchmark mapped" in w for w in report["warnings"])
     assert report["benchmarks"][0]["comparable_with_inr_funds"] is False
+
+
+@pytest.mark.parametrize(
+    ("sub_category", "scheme_name", "benchmark_id"),
+    [
+        ("Large & Mid Cap Fund", "HDFC Large & Mid Cap Fund - Direct - Growth", "NIFTY500_TRI"),
+        ("Mid Cap Fund", "Edelweiss Mid Cap Fund - Direct - Growth", "NIFTY_MIDCAP150_TRI"),
+        ("Index Funds", "UTI Nifty 50 Index Fund - Direct - Growth", "NIFTY50_TRI"),
+        ("Index Funds", "SBI NIFTY INDEX FUND - DIRECT PLAN - GROWTH", "NIFTY50_TRI"),
+        ("Index Funds", "DSP Nifty 500 Index Fund - Direct - Growth", "NIFTY500_TRI"),
+        (
+            "Index Funds",
+            "Navi Nifty Midcap 150 Index Fund Direct Plan- Growth",
+            "NIFTY_MIDCAP150_TRI",
+        ),
+        ("Index Funds", "HDFC NIFTY Smallcap 250 Index Fund - Direct", "NIFTY_SMALLCAP250_TRI"),
+        ("Index Funds", "Bandhan Nifty 500 Value 50 Index Fund Direct", "NIFTY500_VALUE50_TRI"),
+        ("Index Funds", "ICICI Prudential NASDAQ 100 Index Fund - Direct - Growth", None),
+        ("Index Funds", "SBI Nifty Next 50 Index Fund - Direct Plan - Growth", None),
+        ("Index Funds", "SBI Nifty50 Equal Weight Index Fund - Direct Plan - Growth", None),
+        ("Index Funds", "ICICI Prudential Nifty50 Value 20 Index Fund - Direct", None),
+        ("Index Funds", "DSP Nifty Midcap 150 Quality 50 Index Fund - Direct", None),
+        ("Index Funds", "Nippon India Nifty 500 Equal Weight Index Fund - Direct", None),
+        ("Index Funds", "Aditya Birla Sun Life Crisil IBX Gilt Apr 2028 Index Fund", None),
+        ("Index Funds", "SBI BSE Sensex Index Fund - Direct Plan - Growth", None),
+        ("Equity ETF", "Mirae Asset S&P 500 Top 50 ETF", None),
+    ],
+)
+def test_each_fund_is_claimed_by_the_index_it_follows(
+    settings: Settings, sub_category: str, scheme_name: str, benchmark_id: str | None
+) -> None:
+    """Against any other index, an index fund's tracking error measures the gap between
+    two indices: a Midcap 150 tracker read 8.7% against the Nifty 50."""
+    rules = load_mapping_config(settings)["mappings"]
+    rule = next((r for r in rules if _rule_matches(r, sub_category, scheme_name)), None)
+    assert (rule["benchmark_id"] if rule else None) == benchmark_id
+
+
+def test_no_plan_of_a_fund_is_benchmarked_against_a_proxy_built_from_it(
+    tmp_path: Path, settings: Settings
+) -> None:
+    """The proxy's own fund read a 0.000% tracking error, and its Regular plan 0.018%."""
+    _master(
+        settings,
+        [
+            ("1", "Acme S&P 500 Index Fund - Direct - Growth", "Index Funds"),
+            ("2", "Acme S&P 500 Index Fund - Regular - Growth", "Index Funds"),
+            ("3", "Beta S&P 500 Index Fund - Direct - Growth", "Index Funds"),
+        ],
+    )
+    import_csv(write_csv(tmp_path, "i.csv", valid_body("SP500_TR_INR", "INR")), settings)
+    with connect(settings) as con:
+        con.execute(
+            "UPDATE scheme_master SET fund_family_id = "
+            "CASE scheme_code WHEN '3' THEN 'fam:3' ELSE 'fam:1' END"
+        )
+        con.execute("UPDATE benchmarks SET source = ?", [f"{PROXY_SOURCE_PREFIX}1"])
+    apply_mapping(settings)
+    with connect(settings) as con:
+        mapped = con.execute("SELECT scheme_code FROM scheme_benchmark_map").fetchall()
+    assert mapped == [("3",)]
 
 
 def test_a_proxy_is_always_in_rupees_and_says_so(settings: Settings) -> None:

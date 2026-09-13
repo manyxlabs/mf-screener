@@ -48,6 +48,7 @@ _VARIANT_WORDS = re.compile(
     r"institutional|super|segregated|portfolio)\b",
     re.I,
 )
+_AND = re.compile(r"\band\b", re.I)
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 
 
@@ -60,7 +61,9 @@ def normalise_name(name: object) -> str:
     text = _FORMERLY.sub(" ", str(name))
     text = re.sub(r"\(.*$", " ", text)
     text = _VARIANT_WORDS.sub(" ", text)
-    return re.sub(r"\s+", " ", _NON_ALNUM.sub(" ", text.lower())).strip()
+    # The source and AMFI's master spell one fund "Flexicap" and "Flexi Cap", or
+    # "Large & Mid Cap" and "Large and Mid Cap", so spacing and "&" carry no identity.
+    return _NON_ALNUM.sub("", _AND.sub(" ", text).lower())
 
 
 def fetch_csv(settings: Settings | None = None) -> pd.DataFrame:
