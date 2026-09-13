@@ -195,6 +195,7 @@ make benchmark-proxy CODE=100484 ID=NIFTY50_TRI NAME="Nifty 50 (index-fund proxy
 
 A proxy is net of that fund's expense ratio and tracking error, so it is a floor for the index rather than the index.
 Every metric derived from one is marked `index_fund_proxy` in the API and shown with a `proxy` badge in the UI.
+No plan of the fund a proxy was built from is mapped to it, since that would measure the fund against itself.
 A proxy is always in rupees, with no option to say otherwise: it comes from an AMFI NAV, and even a fund tracking a US index files that NAV in rupees, having already absorbed the exchange rate its investors bore.
 
 ### Mapping and coverage
