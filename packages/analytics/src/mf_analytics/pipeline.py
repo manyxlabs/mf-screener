@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, cast
+from multiprocessing import get_context
+from typing import Any, Final, cast
 
 import numpy as np
 import pandas as pd
 
+from . import classify
 from .config import (
     BASE_CURRENCY,
     HORIZONS,
@@ -35,6 +38,7 @@ from .metrics.series import (
 )
 from .metrics.series import monthly_returns as compute_monthly_returns
 from .quality import Metric, Reason
+from .scoring import score_fund
 from .universe import DEFAULT_UNIVERSE, PeerUniverse
 
 logger = get_logger(__name__)
@@ -90,6 +94,18 @@ def ensure_behaviour_columns(con: Any) -> None:
         con.execute(f"ALTER TABLE scheme_metrics_snapshot ADD COLUMN IF NOT EXISTS {name} {kind}")
 
 
+# The score's momentum component, added the same additive way as BEHAVIOUR_SNAPSHOT_COLUMNS.
+MOMENTUM_SNAPSHOT_COLUMNS: dict[str, str] = {"momentum_12_1": "DOUBLE"}
+# Eleven months is the whole window, so anything short of it is a different window, not
+# a thinner one. A fund with ten months of history has no 12-1 momentum, it has ten months.
+MOMENTUM_MIN_MONTHS: Final[int] = 11
+
+
+def ensure_momentum_columns(con: Any) -> None:
+    for name, kind in MOMENTUM_SNAPSHOT_COLUMNS.items():
+        con.execute(f"ALTER TABLE scheme_metrics_snapshot ADD COLUMN IF NOT EXISTS {name} {kind}")
+
+
 # T1.4's quartile-persistence columns, added the same additive way as BEHAVIOUR_SNAPSHOT_COLUMNS.
 PERSISTENCE_SNAPSHOT_COLUMNS: dict[str, str] = {
     "quartile_now_3y": "INTEGER",
@@ -127,8 +143,8 @@ def ensure_alpha_significance_columns(con: Any) -> None:
 
 
 # --- T2.3: AUM history-derived snapshot columns, added the same additive way as
-# BEHAVIOUR_SNAPSHOT_COLUMNS. Feeds the size_discipline component scoring.py declared
-# but never computed until this landed.
+# BEHAVIOUR_SNAPSHOT_COLUMNS. Screening and display columns: the composite score no
+# longer prices fund size, so nothing downstream breaks if one of them is null.
 AUM_SNAPSHOT_COLUMNS: dict[str, str] = {
     "aum_family_latest": "DOUBLE",
     "aum_growth_4q": "DOUBLE",
@@ -802,6 +818,25 @@ def compute_scheme_row(
         recent = [w for w in windows if w.last_date is not None and w.last_date > drift_floor]
         put("style_drift_3y", style_drift(recent))
 
+    # 12-1 momentum: the eleven months ending one month before the snapshot date. The
+    # skipped month is the convention - the most recent month carries a short-term
+    # reversal that says nothing about the manager - and it is what the backtest
+    # measured (docs/backtest.md), where the unskipped one-year return was noisier.
+    # MonthEnd(1) rather than DateOffset(months=1): a calendar month back from a 30th
+    # lands on a 30th, which silently drops the 31st-dated month-end and leaves ten.
+    momentum_window = scheme.returns[
+        (scheme.returns.index > as_of - pd.DateOffset(years=1))
+        & (scheme.returns.index <= as_of - pd.offsets.MonthEnd(1))
+    ].dropna()
+    if len(momentum_window) >= MOMENTUM_MIN_MONTHS:
+        growth = float(cast(Any, (1.0 + momentum_window).prod()))
+        put("momentum_12_1", Metric(growth - 1.0, len(momentum_window)))
+    else:
+        put(
+            "momentum_12_1",
+            Metric.missing(Reason.INSUFFICIENT_HISTORY, len(momentum_window)),
+        )
+
     cal = _calendar_year_flags(scheme.returns, MIN_CALENDAR_YEARS)
     put("worst_calendar_year_return", cal["worst_calendar_year_return"])
     put("positive_calendar_years_pct", cal["positive_calendar_years_pct"])
@@ -936,10 +971,69 @@ class _RollingWriter:
         return self.written
 
 
+# Everything compute_scheme_row needs that is the same for every scheme. Set once in the
+# parent and inherited by forked workers, so a worker is handed a scheme code and nothing
+# else - the alternative, pickling the category contexts and benchmark frames per task,
+# costs more than the computation it parallelises.
+_SHARED: dict[str, Any] = {}
+
+
+def _init_worker(shared: dict[str, Any]) -> None:
+    _SHARED.update(shared)
+
+
+def _compute_one(code: str) -> tuple[str, dict[str, Any], dict[int, pd.Series]]:
+    """One scheme's snapshot row, from the shared state this process inherited."""
+    sh = _SHARED
+    bid = sh["mapping"].get(code)
+    row, rolling = compute_scheme_row(
+        code,
+        sh["series"][code],
+        sh["master_by_code"].get(code, {}),
+        sh["by_scheme_context"].get(code),
+        bid,
+        sh["benchmark_returns"].get(bid) if bid else None,
+        sh["benchmark_frames"].get(bid) if bid else None,
+        sh["benchmark_currency"].get(bid) if bid else None,
+        {h: d[code] for h, d in sh["drawdowns"].items() if code in d},
+        sh["drawdown_recovery"],
+        code in sh["zero_nav_schemes"],
+        sh["settings"],
+        sh["universe"],
+        sh["as_of"],
+        sh["style_factors"],
+    )
+    return code, row, rolling
+
+
+def _scheme_rows(
+    codes: list[str], shared: dict[str, Any], jobs: int
+) -> Iterator[tuple[str, dict[str, Any], dict[int, pd.Series]]]:
+    """Every scheme's row, computed serially or across `jobs` forked workers.
+
+    Fork rather than spawn: the shared state is gigabytes of NAV series that the
+    children only read, so copy-on-write hands it over for free where pickling it to
+    each worker would not. The store's connection stays in the parent - a worker never
+    touches DuckDB - and all writing stays on the parent's single write lock.
+    """
+    if jobs <= 1:
+        _init_worker(shared)
+        yield from (_compute_one(code) for code in codes)
+        return
+    context = get_context("fork")
+    with ProcessPoolExecutor(
+        max_workers=jobs, mp_context=context, initializer=_init_worker, initargs=(shared,)
+    ) as pool:
+        # Chunked so the per-task overhead does not swamp a fast scheme; the whole
+        # universe in one chunk per worker would instead leave cores idle at the end.
+        yield from pool.map(_compute_one, codes, chunksize=64)
+
+
 def run(
     settings: Settings | None = None,
     universe: PeerUniverse | None = None,
     run_id: str | None = None,
+    jobs: int = 1,
 ) -> dict[str, Any]:
     s = settings or get_settings()
     u = universe or DEFAULT_UNIVERSE
@@ -953,6 +1047,7 @@ def run(
         ensure_exposure_columns(con)
         ensure_alpha_significance_columns(con)
         ensure_aum_columns(con)
+        ensure_momentum_columns(con)
         register_nav_view(con, s)
         master = con.execute("SELECT * FROM scheme_master").fetch_df()
         master["scheme_code"] = master["scheme_code"].astype(str)
@@ -1007,26 +1102,25 @@ def run(
             str(r["scheme_code"]): cast(dict[str, Any], r) for r in master.to_dict("records")
         }
         rolling_writer = _RollingWriter(con, s.mf_methodology_version)
-        total = len(series)
-        for i, (code, scheme) in enumerate(series.items(), start=1):
-            bid = mapping.get(code)
-            row, rolling = compute_scheme_row(
-                code,
-                scheme,
-                master_by_code.get(code, {}),
-                by_scheme_context.get(code),
-                bid,
-                benchmark_returns.get(bid) if bid else None,
-                benchmark_frames.get(bid) if bid else None,
-                benchmark_currency.get(bid) if bid else None,
-                {h: d[code] for h, d in drawdowns.items() if code in d},
-                drawdown_recovery,
-                code in zero_nav_schemes,
-                s,
-                u,
-                as_of,
-                style_factors,
-            )
+        codes = list(series.keys())
+        total = len(codes)
+        shared = {
+            "series": series,
+            "master_by_code": master_by_code,
+            "by_scheme_context": by_scheme_context,
+            "mapping": mapping,
+            "benchmark_returns": benchmark_returns,
+            "benchmark_frames": benchmark_frames,
+            "benchmark_currency": benchmark_currency,
+            "drawdowns": drawdowns,
+            "drawdown_recovery": drawdown_recovery,
+            "zero_nav_schemes": zero_nav_schemes,
+            "settings": s,
+            "universe": u,
+            "as_of": as_of,
+            "style_factors": style_factors,
+        }
+        for i, (code, row, rolling) in enumerate(_scheme_rows(codes, shared, jobs), start=1):
             row["category_resolution"] = category_resolution.get(code, "current")
             rows.append(row)
             rolling_writer.add(code, rolling)
@@ -1089,6 +1183,22 @@ def run(
         con.execute(f"INSERT INTO scheme_metrics_snapshot SELECT {', '.join(columns)} FROM snap")
         con.unregister("snap")
         snapshot.to_parquet(s.processed_dir / "scheme_metrics_snapshot.parquet", index=False)
+
+        ter = {
+            str(code): float(value)
+            for code, value in con.execute(
+                "SELECT scheme_code, expense_ratio FROM scheme_ter"
+            ).fetchall()
+        }
+        scores = compute_scores(snapshot, master, ter, s.mf_min_peers)
+        scores["as_of_date"] = as_of.date()
+        con.register("scores", scores)
+        con.execute("DELETE FROM scheme_score_snapshot WHERE as_of_date = ?", [as_of.date()])
+        con.execute(
+            "INSERT INTO scheme_score_snapshot "
+            "SELECT scheme_code, as_of_date, score, score_coverage, score_status FROM scores"
+        )
+        con.unregister("scores")
 
         # One write call, one category_key namespace: the active=y/n marker already
         # keeps the two universes' rows apart, so merging avoids a second full
@@ -1226,9 +1336,75 @@ def resolve_categories_as_of(
     resolved.loc[matched, "clean_sub_category"] = (
         codes[matched].map(hist["clean_sub_category"]).to_numpy()
     )
+    # peer_group is derived from the two columns just overridden, so it has to follow
+    # them back in time as well - otherwise a reclassified fund would be grouped by the
+    # peer group it carries today against the sub-category it carried then.
+    resolved.loc[matched, "peer_group"] = [
+        classify.peer_group(c, sub, name, band)
+        for c, sub, name, band in zip(
+            resolved.loc[matched, "clean_category"],
+            resolved.loc[matched, "clean_sub_category"],
+            resolved.loc[matched, "scheme_name"],
+            resolved.loc[matched, "cap_band"],
+            strict=True,
+        )
+    ]
     for code in codes[matched]:
         resolution[code] = "history"
     return resolved, resolution
+
+
+# --- Composite score, stored so the screener can sort and filter on it -------------
+#
+# The score is a percentile against a peer group, so it cannot be computed one fund at
+# a time from that fund's own row - it needs the whole group. `GET /score/{code}` builds
+# that group per request, which is fine for one fund and hopeless for a sortable column
+# over 36k of them, so the same `score_fund` runs once here over every peer group.
+#
+# It lands in its own table rather than in scheme_metrics_snapshot because the cost
+# component reads the expense ratio, and T3.1 keeps enrichment out of that table. The
+# screen view left-joins this the same way it left-joins scheme_ter.
+
+
+def compute_scores(
+    snapshot: pd.DataFrame, master: pd.DataFrame, expense_ratio: dict[str, float], min_peers: int
+) -> pd.DataFrame:
+    """One score per scheme, ranked against the active Direct-Growth peers of its group.
+
+    The peer rule is the one `GET /score/{code}` applies - a scheme that is not itself
+    Direct-Growth is still scored, against the Direct-Growth peers a buyer chooses
+    between - so the stored column and the endpoint can never disagree.
+    """
+    keys = ["scheme_code", "peer_group", "clean_plan", "clean_option", "is_active"]
+    frame = snapshot.merge(master.loc[:, keys], on="scheme_code", how="left")
+    frame["expense_ratio"] = frame["scheme_code"].map(expense_ratio)
+    is_peer = (
+        (frame["clean_plan"] == "Direct")
+        & (frame["clean_option"] == "Growth")
+        & frame["is_active"].astype("boolean").fillna(False)
+    )
+
+    rows: list[dict[str, object]] = []
+    for group, members in frame.groupby("peer_group", sort=False):
+        peers = members[is_peer.loc[members.index]].reset_index(drop=True)
+        peer_codes = set(peers["scheme_code"])
+        for code in members["scheme_code"]:
+            pool = (
+                peers
+                if code in peer_codes
+                else pd.concat([peers, members[members["scheme_code"] == code]], ignore_index=True)
+            )
+            result = score_fund(pool, str(code), min_peers=min_peers)
+            rows.append(
+                {
+                    "scheme_code": code,
+                    "score": result.total,
+                    "score_coverage": result.coverage,
+                    "score_status": result.status,
+                }
+            )
+        del group
+    return pd.DataFrame(rows, columns=["scheme_code", "score", "score_coverage", "score_status"])
 
 
 # --- T2.1: fund family grouping report, for `make validate` -----------------------

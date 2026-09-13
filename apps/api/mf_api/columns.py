@@ -777,6 +777,62 @@ NUMERIC_COLUMNS: Final[tuple[ColumnSpec, ...]] = (
         )
     ),
     ColumnSpec(
+        "score",
+        "Composite score",
+        "score",
+        "Weighted percentile decomposition against the fund's own peer group, 0-100. "
+        "Computed by the same scoring module GET /score/{scheme_code} returns in full.",
+        "3y / 5y / 10y blend",
+        "monthly",
+        "higher_is_better",
+        "A description of the past against a declared weight table, never a rating or a "
+        "recommendation. It is a percentile inside one peer group, so it does not compare "
+        "across groups: a fund scoring 80 among 34 small-cap funds and one scoring 60 among "
+        "16 US feeders are not ranked against each other. Blank where the peer group is too "
+        "thin to rank in, or where the fund answers less than half the weight table.",
+        plain_label="Score against similar funds",
+        plain_definition=(
+            "A 0-100 summary of how this fund compares with similar funds on the measures "
+            "in the weight table. It compares like with like, so scores from two different "
+            "groups of funds do not line up with each other."
+        ),
+        group="Vs similar funds",
+    ),
+    ColumnSpec(
+        "score_coverage",
+        "Score coverage",
+        "percent",
+        "Share of the composite score's weight table this fund could answer; the score is "
+        "renormalised over it.",
+        "as of the snapshot",
+        "monthly",
+        "context",
+        "A young fund answers less of the table, so its score rests on fewer measures. Below "
+        "half the table no score is published at all.",
+        plain_label="How much of the score this fund could answer",
+        plain_definition=(
+            "How much of the scoring table this fund has enough history for. A lower figure "
+            "means the score rests on fewer measures."
+        ),
+        group="Vs similar funds",
+    ),
+    ColumnSpec(
+        "momentum_12_1",
+        "Momentum 12-1",
+        "percent",
+        "Total return over the eleven months ending one month before the snapshot date.",
+        "months -12 to -1",
+        "monthly",
+        "higher_is_better",
+        "The most recent month is deliberately left out: it carries a short-term reversal "
+        "that says nothing about the manager. Blank below eleven months of history.",
+        plain_label="Recent run, last year minus last month",
+        plain_definition=(
+            "How much the fund gained over the last year, ignoring the most recent month."
+        ),
+        group="Returns",
+    ),
+    ColumnSpec(
         "expense_ratio",
         "Expense ratio",
         "percent",
@@ -1061,8 +1117,18 @@ STARTER_COLUMNS: Final[tuple[str, ...]] = (
     "missing_reasons",
 )
 
+# The "Standard" set: the composite score, then every metric it reads, at the horizons
+# it reads them - so a screen can be checked against the score that ranks it, column
+# by column, rather than having to take the number on trust.
+# Each family runs 3/5/10 years - a fund that beat its peers over three years and lost
+# to them over ten is the case this set exists to make visible. `missing_reasons` is
+# never rendered; it is what every blank cell's tooltip reads.
 DEFAULT_COLUMNS: Final[tuple[str, ...]] = (
     *PINNED_COLUMNS,
+    # First after the fund's own identity: the rest of this set is the decomposition
+    # behind it, so it reads as the summary and then the workings.
+    "score",
+    "score_coverage",
     "amc",
     "clean_sub_category",
     "cap_band",
@@ -1072,27 +1138,34 @@ DEFAULT_COLUMNS: Final[tuple[str, ...]] = (
     "latest_aum",
     "fund_age_years",
     "expense_ratio",
-    "cagr_1y",
     "cagr_3y",
     "cagr_5y",
     "cagr_10y",
     "fund_minus_category_3y",
     "fund_minus_category_5y",
     "fund_minus_category_10y",
-    "rolling_1y_median",
     "rolling_3y_median",
     "rolling_5y_median",
     "rolling_10y_median",
-    "rolling_5y_min",
-    "information_ratio_vs_category_5y",
+    "sharpe_3y",
     "sharpe_5y",
+    "sharpe_10y",
+    "sortino_3y",
     "sortino_5y",
+    "sortino_10y",
+    "volatility_3y",
     "volatility_5y",
-    "max_drawdown_5y",
-    "downside_capture_5y",
+    "volatility_10y",
+    "alpha_3y",
     "alpha_5y",
+    "alpha_10y",
+    # Alpha read without the fit it came out of is a half-truth: a large alpha off a
+    # low R-squared regression is noise, so both travel with it.
     "beta_5y",
     "r_squared_5y",
+    "information_ratio_vs_category_5y",
+    "information_ratio_vs_benchmark_5y",
+    "max_drawdown_5y",
     "benchmark_id",
     "data_quality_flags",
     "missing_reasons",

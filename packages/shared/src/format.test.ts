@@ -39,6 +39,9 @@ describe("formatting", () => {
     expect(formatByUnit(null, "percent")).toBe(MISSING);
     expect(formatByUnit(true, "ratio")).toBe("Yes");
     expect(formatByUnit("Mid Cap Fund", "text")).toBe("Mid Cap Fund");
+    // A blend of percentiles: the digits past one decimal are precision the inputs lack.
+    expect(formatByUnit(64.13456, "score")).toBe("64.1");
+    expect(formatByUnit(null, "score")).toBe(MISSING);
   });
 });
 

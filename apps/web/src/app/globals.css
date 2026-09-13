@@ -94,6 +94,16 @@ select option {
   color: var(--color-ink-900);
 }
 
+/*
+ * Wide tables scroll sideways. The standard scrollbar properties win over any
+ * ::-webkit-scrollbar rules in Chrome, so the bar is coloured here and nowhere else: an
+ * overlay bar that fades out leaves no sign the columns continue.
+ */
+.scroll-x {
+  scrollbar-width: auto;
+  scrollbar-color: var(--color-ink-300) var(--color-ink-100);
+}
+
 /* Tabular figures keep every number column aligned on the decimal point. */
 .numeric {
   font-variant-numeric: tabular-nums;
@@ -113,8 +123,7 @@ select option {
     margin: 10mm;
   }
   body > header,
-  body > footer,
-  body > .border-warn-200 {
+  body > footer {
     display: none !important;
   }
   main {

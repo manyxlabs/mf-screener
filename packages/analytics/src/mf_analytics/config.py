@@ -44,6 +44,11 @@ class Settings(BaseSettings):
         "https://raw.githubusercontent.com/captn3m0/india-mutual-fund-ter-tracker/main/data.csv"
     )
 
+    # AMFI's own site, used for one thing only: the scheme-wise quarterly AAUM history
+    # its JSON endpoint serves. The NAV feed carries the latest quarter alone, so this
+    # is the only way to have a fund's assets as a series rather than a point.
+    mf_amfi_base_url: str = "https://www.amfiindia.com"
+
     # Bulk ingestion streams through DuckDB and spills to disk past this ceiling,
     # so the 37M-row history loads on a laptop rather than needing the RAM to hold it.
     mf_duckdb_memory_limit: str = "3GB"

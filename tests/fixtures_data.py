@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from mf_analytics.classify import cap_band, derive_fund_family_ids, style
+from mf_analytics.classify import cap_band, derive_fund_family_ids, peer_group, style
 from mf_analytics.config import Settings
 from mf_analytics.db import connect, init_schema
 from mf_analytics.ingest.master import CANONICAL_COLUMNS, load_master
@@ -221,6 +221,7 @@ def build(settings: Settings) -> None:
                 # Derived by the production classifier, so the fixture cannot drift from it.
                 "cap_band": cap_band(sub, name),
                 "style": style("Equity Scheme", sub, name),
+                "peer_group": peer_group("Equity Scheme", sub, name, cap_band(sub, name)),
                 "plan": plan,
                 "option": option,
                 "clean_plan": plan,

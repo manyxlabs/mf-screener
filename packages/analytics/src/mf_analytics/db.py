@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Final
 
 import duckdb
+import pandas as pd
 
 from .config import ROLLING_HORIZONS, TRAILING_HORIZONS, Settings, get_settings
 from .enrich import REGISTRY as ENRICH_REGISTRY
@@ -56,6 +57,7 @@ CREATE TABLE IF NOT EXISTS scheme_master (
     clean_category     VARCHAR,
     clean_sub_category VARCHAR,
     cap_band           VARCHAR,
+    peer_group         VARCHAR,
     style              VARCHAR,
     plan               VARCHAR,
     option             VARCHAR,
@@ -212,6 +214,15 @@ CREATE TABLE IF NOT EXISTS scheme_metrics_snapshot (
 
 -- TER is disclosed per fund and plan, never per scheme code, so this table is the
 -- result of a name match and carries what it matched on for anyone auditing a value.
+CREATE TABLE IF NOT EXISTS scheme_score_snapshot (
+    scheme_code    VARCHAR NOT NULL,
+    as_of_date     DATE NOT NULL,
+    score          DOUBLE,
+    score_coverage DOUBLE,
+    score_status   VARCHAR,
+    PRIMARY KEY (scheme_code, as_of_date)
+);
+
 CREATE TABLE IF NOT EXISTS scheme_ter (
     scheme_code        VARCHAR PRIMARY KEY,
     expense_ratio      DOUBLE NOT NULL,
@@ -315,6 +326,7 @@ def connect(
 
 MASTER_ADDED_COLUMNS: Final[dict[str, str]] = {
     "cap_band": "VARCHAR",
+    "peer_group": "VARCHAR",
     "style": "VARCHAR",
     "search_text": "VARCHAR",
     "fund_family_id": "VARCHAR",
@@ -507,21 +519,27 @@ def append_aum_history_rows(con: duckdb.DuckDBPyConnection, rows: list[dict[str,
     if not rows:
         return 0
     before = scalar(con, "SELECT count(*) FROM scheme_aum_history")
-    recorded_at = datetime.now(UTC).replace(tzinfo=None)
-    con.executemany(
-        "INSERT OR IGNORE INTO scheme_aum_history "
-        "(scheme_code, aum_quarter, aum_date, latest_aum, recorded_at) VALUES (?, ?, ?, ?, ?)",
-        [
-            [
-                r["scheme_code"],
-                r["aum_quarter"],
-                r.get("aum_date"),
-                r.get("latest_aum"),
-                recorded_at,
-            ]
-            for r in rows
-        ],
+    # One statement over a registered frame rather than executemany: a quarter of AMFI
+    # history is 8,000 rows, and a round trip each was most of the import's wall clock.
+    frame = pd.DataFrame(
+        {
+            "scheme_code": [str(r["scheme_code"]) for r in rows],
+            "aum_quarter": [r["aum_quarter"] for r in rows],
+            "aum_date": [r.get("aum_date") for r in rows],
+            "latest_aum": [r.get("latest_aum") for r in rows],
+            "recorded_at": datetime.now(UTC).replace(tzinfo=None),
+        }
     )
+    con.register("aum_history_new", frame)
+    try:
+        con.execute(
+            "INSERT OR IGNORE INTO scheme_aum_history "
+            "(scheme_code, aum_quarter, aum_date, latest_aum, recorded_at) "
+            "SELECT scheme_code, aum_quarter, aum_date, latest_aum, recorded_at "
+            "FROM aum_history_new"
+        )
+    finally:
+        con.unregister("aum_history_new")
     after = scalar(con, "SELECT count(*) FROM scheme_aum_history")
     return int(after - before)
 

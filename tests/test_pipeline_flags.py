@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from mf_analytics.classify import peer_group
 from mf_analytics.config import ROLLING_HORIZONS, Settings
 from mf_analytics.metrics import risk
 from mf_analytics.metrics.series import calendar_year_returns, monthly_returns
@@ -42,6 +43,9 @@ def master_frame(codes: list[str]) -> pd.DataFrame:
                 "scheme_code": code,
                 "clean_sub_category": "Mid Cap Fund",
                 "clean_category": "Equity Scheme",
+                "peer_group": peer_group(
+                    "Equity Scheme", "Mid Cap Fund", f"{code} Fund", "Mid Cap"
+                ),
                 "clean_plan": "Direct",
                 "clean_option": "Growth",
                 "is_active": True,
@@ -281,6 +285,59 @@ def test_worst_calendar_year_and_positive_share_ignore_partial_years() -> None:
     assert row["worst_calendar_year"] == 2019
     assert row["worst_calendar_year_return"] == pytest.approx(-0.30)
     assert row["positive_calendar_years_pct"] == pytest.approx(3 / 4)
+
+
+def test_momentum_skips_the_most_recent_month() -> None:
+    """12-1, not 12-0: the last month must not reach the number at all."""
+    scheme = series(COHORT_START, 240)
+    months = pd.date_range("2025-07-31", periods=12, freq="ME")  # the year ending AS_OF
+    # 1% a month for eleven months, then a crash in the month that must be excluded.
+    scheme.returns = pd.Series([0.01] * 11 + [-0.50], index=months)
+
+    row, _ = compute_scheme_row(
+        "X",
+        scheme,
+        {},
+        None,
+        None,
+        None,
+        None,
+        None,
+        {},
+        {},
+        False,
+        Settings(),
+        DEFAULT_UNIVERSE,
+        AS_OF,
+    )
+
+    assert row["momentum_12_1"] == pytest.approx(1.01**11 - 1.0)
+    assert "momentum_12_1" not in json.loads(row["missing_reasons"])
+
+
+def test_momentum_is_null_below_a_full_eleven_months() -> None:
+    scheme = series(COHORT_START, 240)
+    scheme.returns = pd.Series([0.01] * 6, index=pd.date_range("2025-12-31", periods=6, freq="ME"))
+
+    row, _ = compute_scheme_row(
+        "X",
+        scheme,
+        {},
+        None,
+        None,
+        None,
+        None,
+        None,
+        {},
+        {},
+        False,
+        Settings(),
+        DEFAULT_UNIVERSE,
+        AS_OF,
+    )
+
+    assert row["momentum_12_1"] is None
+    assert json.loads(row["missing_reasons"])["momentum_12_1"] == Reason.INSUFFICIENT_HISTORY
 
 
 def test_worst_calendar_year_is_null_below_the_minimum_complete_years() -> None:

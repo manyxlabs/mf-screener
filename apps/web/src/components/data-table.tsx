@@ -3,7 +3,7 @@
 import type { MetricSpec, ScreenRow } from "@mf/shared";
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { MetricHeader, MetricValue } from "./metric-cell";
 
 // The non-metric columns. Metric headers get their plain label from the API's
@@ -42,6 +42,33 @@ export type DataTableProps = {
   onToggleSelect?: (code: string) => void;
 };
 
+/**
+ * Keeps the scroll region's bottom edge - and with it the horizontal scrollbar - inside the
+ * viewport at every page scroll position. A fixed max-height cannot: the region starts lower
+ * on the page when a banner or a filter summary is showing, and a bar below the fold is a bar
+ * nobody drags.
+ */
+function useFittedToViewport() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const fit = () => {
+      const top = Math.max(element.getBoundingClientRect().top, 0);
+      // Rows below this get so few that paging beats scrolling; the bar stays reachable anyway.
+      element.style.maxHeight = `${Math.max(window.innerHeight - top - 24, 240)}px`;
+    };
+    fit();
+    window.addEventListener("scroll", fit, { passive: true });
+    window.addEventListener("resize", fit);
+    return () => {
+      window.removeEventListener("scroll", fit);
+      window.removeEventListener("resize", fit);
+    };
+  }, []);
+  return ref;
+}
+
 function reasonFor(row: ScreenRow, column: string): string | undefined {
   const reasons = row["missing_reasons"];
   if (reasons && typeof reasons === "object") {
@@ -63,6 +90,7 @@ export function DataTable({
   onToggleSelect,
 }: DataTableProps) {
   const visible = useMemo(() => columns.filter((c) => !HIDDEN_COLUMNS.has(c)), [columns]);
+  const scroller = useFittedToViewport();
 
   const columnDefs = useMemo<ColumnDef<ScreenRow>[]>(
     () =>
@@ -136,18 +164,26 @@ export function DataTable({
 
   return (
     <div
+      ref={scroller}
+      // A scroll region a mouse can only reach by dragging a hairline overlay bar is one
+      // most people never find, so it is focusable: arrow keys scroll it once tabbed to.
+      role="region"
+      aria-label="Results table, scrolls sideways"
+      tabIndex={0}
       // `relative` makes this the containing block for the sticky cells; without it their
       // layout overflow escapes onto the root document and the whole page scrolls sideways.
-      className="relative overflow-x-auto rounded-lg border border-ink-200 bg-surface"
+      // Height is capped to the viewport (see the hook), so the sideways scrollbar stays on
+      // screen instead of sitting below fifty rows; rows scroll under the pinned header.
+      className="scroll-x relative overflow-auto rounded-lg border border-ink-200 bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
     >
       <table className="min-w-full border-collapse text-sm">
-        <thead className="bg-ink-50">
+        <thead>
           {table.getHeaderGroups().map((group) => (
             <tr key={group.id}>
               {onToggleSelect ? (
                 // The pinned column next to this one is offset by exactly 40px, so this has to
                 // hold that width; under auto layout a width alone settles at 37px.
-                <th className="sticky left-0 z-20 w-10 max-w-10 min-w-10 border-b border-ink-200 bg-ink-50 px-3 py-2" />
+                <th className="sticky top-0 left-0 z-30 w-10 max-w-10 min-w-10 border-b border-ink-200 bg-ink-50 px-3 py-2" />
               ) : null}
               {group.headers.map((header, index) => {
                 const name = header.column.id;
@@ -160,9 +196,9 @@ export function DataTable({
                     aria-sort={
                       active ? (active.direction === "asc" ? "ascending" : "descending") : "none"
                     }
-                    className={`whitespace-nowrap border-b border-ink-200 px-3 py-2 text-left align-bottom text-xs font-semibold text-ink-700 ${
+                    className={`sticky top-0 z-20 border-b border-ink-200 bg-ink-50 px-3 py-2 text-left align-bottom text-xs font-semibold whitespace-nowrap text-ink-700 ${
                       isSticky
-                        ? `sticky ${onToggleSelect ? "left-10" : "left-0"} z-20 w-[280px] min-w-[280px] max-w-[280px] border-r border-ink-200 bg-ink-50`
+                        ? `${onToggleSelect ? "left-10" : "left-0"} z-30 w-[280px] min-w-[280px] max-w-[280px] border-r border-ink-200`
                         : ""
                     }`}
                   >

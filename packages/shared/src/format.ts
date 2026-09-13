@@ -65,6 +65,10 @@ export function formatByUnit(value: unknown, unit: string): string {
       return formatYears(value);
     case "days":
       return formatDuration(value);
+    case "score":
+      // One decimal: the score is a blend of percentiles, and the digits past it are
+      // precision the inputs do not have.
+      return value.toFixed(1);
     default:
       return String(value);
   }

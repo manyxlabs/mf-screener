@@ -82,6 +82,28 @@ export function presetToFilters(
   };
 }
 
+/**
+ * Whether a screen still stands on exactly one preset's rules. Derived rather than
+ * remembered, so editing any rule drops the preset label instead of leaving a card that
+ * describes a screen the user has since changed. Sort and columns are the user's to move.
+ */
+export function matchesPreset(preset: Preset, filters: ScreenFilters): boolean {
+  const rules = presetToFilters(preset, filters);
+  const same = (a: string[], b: string[]) =>
+    a.length === b.length && a.every((value, index) => value === b[index]);
+  return (
+    rules.search === filters.search &&
+    same(rules.subCategories, filters.subCategories) &&
+    same(rules.capBands, filters.capBands) &&
+    same(rules.styles, filters.styles) &&
+    same(rules.plans, filters.plans) &&
+    same(rules.options, filters.options) &&
+    rules.activeOnly === filters.activeOnly &&
+    rules.dedupeFamilies === filters.dedupeFamilies &&
+    JSON.stringify(rules.ranges) === JSON.stringify(filters.ranges)
+  );
+}
+
 /** Multi-column sort tokens, kept in the order the user clicked them. */
 export function toggleSort(sort: string, column: string, additive: boolean): string {
   const tokens = sort ? sort.split(",").filter(Boolean) : [];

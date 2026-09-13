@@ -241,13 +241,13 @@ Result-line plain English: "342 funds match" gains, on preset load, one sentence
 
 `id` values are unchanged, so `/screener?preset=`, `PRESETS_BY_ID`, `GET /presets/{id}` and `/picks` slot filtering all keep working.
 
-| `id` (unchanged)        | New `name`                                                      | New `subtitle`                                |
-| ----------------------- | --------------------------------------------------------------- | --------------------------------------------- |
-| `long-term-consistency` | Funds that have delivered steadily for a decade                 | Long-term Indian equity consistency           |
-| `mid-multi-momentum`    | Newer momentum funds in mid and multi-cap                       | Mid / multi-cap momentum, short track records |
-| `small-cap-quality`     | Small-cap funds judged on how they fell, not just how they rose | Small-cap quality, 5Y+                        |
-| `value-mandates`        | Value and contra funds with a long record                       | Value and contra mandates, 7Y+                |
-| `sp500-comparison`      | US S&P 500 funds, ranked on how closely they track              | S&P 500 comparison, tracking-quality ranked   |
+| `id` (unchanged)        | New `name`                                                      | New `subtitle`                                  |
+| ----------------------- | --------------------------------------------------------------- | ----------------------------------------------- |
+| `long-term-consistency` | Funds that have delivered steadily for a decade                 | Long-term Indian equity consistency             |
+| `mid-multi-momentum`    | Newer momentum funds in mid and multi-cap                       | Mid / multi-cap momentum, short track records   |
+| `small-cap-quality`     | Small-cap funds judged on how they fell, not just how they rose | Small-cap quality, 5Y+                          |
+| `value-mandates`        | Value and contra funds with a long record                       | Value and contra mandates, 7Y+                  |
+| `sp500-comparison`      | US index funds, ranked on how closely they track                | S&P 500 and Nasdaq 100, tracking-quality ranked |
 
 New fields per preset:
 

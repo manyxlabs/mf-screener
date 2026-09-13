@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
@@ -12,7 +13,7 @@ import typer
 from .config import get_settings
 from .db import StoreLockedError, connect, init_schema, scalar
 from .enrich import holdings
-from .ingest import benchmarks, master, nav, sample, ter
+from .ingest import aum_history, benchmarks, master, nav, sample, ter
 from .ingest.nav import register_nav_view
 from .logging_setup import configure_logging
 from .pipeline import fund_family_grouping_summary
@@ -152,9 +153,18 @@ def data_refresh(days: int = 45) -> None:
 
 
 @app.command("metrics-build")
-def metrics_build() -> None:
+def metrics_build(
+    jobs: int = typer.Option(
+        1,
+        "--jobs",
+        "-j",
+        help="Worker processes for the per-scheme metrics. 0 uses every core but one.",
+        min=0,
+    ),
+) -> None:
     """Compute category series and the per-scheme metrics snapshot."""
-    typer.echo(json.dumps(run_metrics(), indent=2, default=str))
+    workers = max((os.cpu_count() or 2) - 1, 1) if jobs == 0 else jobs
+    typer.echo(json.dumps(run_metrics(jobs=workers), indent=2, default=str))
 
 
 @app.command("benchmark-validate")
@@ -233,6 +243,27 @@ def benchmark_proxy(
 def benchmark_map() -> None:
     """Apply the sub-category -> benchmark mapping config."""
     typer.echo(json.dumps(benchmarks.apply_mapping(), indent=2, default=str))
+
+
+@app.command("aum-history-import")
+def aum_history_import(
+    financial_years: int = typer.Option(
+        aum_history.MAX_FINANCIAL_YEARS,
+        "--financial-years",
+        help="How many financial years back to walk. 1 is the current year only.",
+        min=1,
+        max=aum_history.MAX_FINANCIAL_YEARS,
+    ),
+) -> None:
+    """Import AMFI's scheme-wise quarterly AAUM history into scheme_aum_history."""
+    info = aum_history.run(get_settings(), financial_years=financial_years)
+    typer.echo(json.dumps(info, indent=2, default=str))
+    if not info["quarters"]:
+        typer.secho(
+            "warning: AMFI returned no quarter at all; nothing was imported.",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
 
 
 @app.command("ter-import")

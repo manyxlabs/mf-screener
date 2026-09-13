@@ -92,9 +92,10 @@ export function PicksClient({
           <p className="mt-0.5 text-xs text-ink-500">
             One fund per sleeve. Each sleeve is ranked by the criteria that suit its mandate, so the
             columns differ between them on purpose. Editable as a preset in the screener. The number
-            beside each fund is its composite score out of 100, a weighted percentile against its
-            own sub-category peers - hover it for the breakdown; * marks a score missing a component
-            (never imputed).
+            beside each fund is its composite score out of 100: a weighted percentile against its
+            own sub-category peers, blending the 3-, 5- and 10-year reading of each component. Hover
+            it for the breakdown; * marks a score missing a component (named, never imputed, and the
+            remaining weights renormalised so a short record is not itself a penalty).
           </p>
         </div>
         <span className="text-xs text-ink-500">
@@ -139,40 +140,44 @@ export function PicksClient({
                   const code = String(row["scheme_code"]);
                   const picked = picks[preset.id] === code;
                   return (
-                    <li key={code}>
+                    // The metric line sits outside the select button, not inside it: a
+                    // blank metric carries an explain-tooltip, which is itself a button,
+                    // and a button inside a button is invalid HTML that fails hydration.
+                    <li
+                      key={code}
+                      className={`rounded-md border px-3 py-2 transition-colors ${
+                        picked
+                          ? "border-accent-500 bg-accent-50"
+                          : "border-ink-200 hover:bg-ink-100"
+                      }`}
+                    >
                       <button
                         type="button"
                         aria-pressed={picked}
                         onClick={() => choose(preset.id, code)}
-                        className={`w-full rounded-md border px-3 py-2 text-left transition-colors ${
-                          picked
-                            ? "border-accent-500 bg-accent-50"
-                            : "border-ink-200 hover:bg-ink-100"
-                        }`}
+                        className="flex w-full items-start gap-2 text-left"
                       >
-                        <div className="flex items-start gap-2">
-                          <span className="flex-1 text-sm font-medium text-ink-900">
-                            {String(row["scheme_name"])}
-                          </span>
-                          <ScoreBadge score={scores[code]} />
-                          {picked ? <Badge tone="good">Picked</Badge> : null}
-                        </div>
-                        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                          {(preset.highlight ?? []).map((name) => (
-                            <span key={name} className="text-ink-500">
-                              {metrics[name]?.label ?? name}{" "}
-                              <MetricValue
-                                value={row[name]}
-                                spec={metrics[name]}
-                                reason={reasonFor(row, name)}
-                                reasonDescription={
-                                  columnsMeta.missing_reasons[reasonFor(row, name) ?? ""]
-                                }
-                              />
-                            </span>
-                          ))}
-                        </div>
+                        <span className="flex-1 text-sm font-medium text-ink-900">
+                          {String(row["scheme_name"])}
+                        </span>
+                        <ScoreBadge score={scores[code]} />
+                        {picked ? <Badge tone="good">Picked</Badge> : null}
                       </button>
+                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                        {(preset.highlight ?? []).map((name) => (
+                          <span key={name} className="text-ink-500">
+                            {metrics[name]?.label ?? name}{" "}
+                            <MetricValue
+                              value={row[name]}
+                              spec={metrics[name]}
+                              reason={reasonFor(row, name)}
+                              reasonDescription={
+                                columnsMeta.missing_reasons[reasonFor(row, name) ?? ""]
+                              }
+                            />
+                          </span>
+                        ))}
+                      </div>
                     </li>
                   );
                 })}

@@ -106,10 +106,15 @@ def _where(request: ScreenRequest) -> tuple[str, list[Any]]:
         if values:
             clauses.append(f"{column} IN ({', '.join('?' * len(values))})")
             params.extend(values)
-    if request.search:
-        clauses.append("(lower(scheme_name) LIKE ? OR lower(amc) LIKE ? OR scheme_code LIKE ?)")
-        needle = f"%{request.search.lower()}%"
-        params.extend([needle, needle, f"%{request.search}%"])
+    # Comma-separated terms are alternatives, so one screen can hold funds that share a
+    # mandate but no common word in their names ("s&p 500, nasdaq").
+    terms = [t.strip() for t in (request.search or "").split(",") if t.strip()]
+    if terms:
+        matches = []
+        for term in terms:
+            matches.append("(lower(scheme_name) LIKE ? OR lower(amc) LIKE ? OR scheme_code LIKE ?)")
+            params.extend([f"%{term.lower()}%", f"%{term.lower()}%", f"%{term}%"])
+        clauses.append("(" + " OR ".join(matches) + ")")
     for column, (low, high) in request.ranges.items():
         if low is not None:
             clauses.append(f"{column} >= ?")

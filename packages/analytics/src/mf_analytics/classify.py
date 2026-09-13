@@ -196,6 +196,125 @@ def style(category: object, sub_category: object, scheme_name: object) -> str | 
     return STYLE_BLEND if str(category or "").strip() == "Equity Scheme" else None
 
 
+# --- Peer grouping -----------------------------------------------------------
+#
+# SEBI files a fund by its legal wrapper, not by what it holds, and for the passive
+# and fund-of-funds wrappers that makes `clean_sub_category` useless as a peer group:
+# on 2026-09-12 "Fund of Funds Scheme (Domestic)" held 52 active Direct-Growth funds
+# spanning gold, silver, US equity, Hang Seng tech and bonds, and "Index Funds" held
+# 272 tracking everything from the Nifty 50 to a midcap momentum index. A percentile
+# inside either is a number without a meaning.
+#
+# The peer group therefore refines the sub-category by what the fund actually holds:
+# the asset class, and then the one axis that separates mandates inside that asset
+# class - the market-cap band for Indian equity, the region for an overseas mandate.
+# For genuine SEBI categories this changes nothing (every Small Cap Fund is Indian
+# equity, small cap) and it is only the wrapper categories that split.
+
+ASSET_INDIA_EQUITY = "India Equity"
+ASSET_INTERNATIONAL_EQUITY = "International Equity"
+ASSET_DEBT = "Debt"
+ASSET_COMMODITY = "Commodity"
+ASSET_HYBRID = "Hybrid"
+
+# What SEBI's own scheme type settles without consulting a name. Everything it files
+# under "Other Scheme" - every index fund, ETF and fund-of-funds - it leaves open, and
+# only those fall through to the name patterns below.
+_CATEGORY_ASSET_CLASS = {
+    "Equity Scheme": ASSET_INDIA_EQUITY,
+    "Debt Scheme": ASSET_DEBT,
+    "Hybrid Scheme": ASSET_HYBRID,
+}
+
+# Order matters: a multi-asset fund holding gold is hybrid, not a commodity fund, and
+# an "Income Plus Arbitrage" FoF is debt whatever else its name carries.
+_NAME_ASSET_CLASS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (ASSET_HYBRID, re.compile(r"multi[- ]asset|asset allocation|\bhybrid\b|\bbalanced\b", re.I)),
+    (ASSET_COMMODITY, re.compile(r"\bgold\b|\bsilver\b|precious metal", re.I)),
+    (
+        ASSET_DEBT,
+        re.compile(
+            r"\bbond\b|\bg-?sec\b|treasury|\bdebt\b|\bgilt\b|\bcredit\b"
+            r"|income plus arbitrage|\bliquid\b|\bovernight\b",
+            re.I,
+        ),
+    ),
+    (
+        ASSET_INTERNATIONAL_EQUITY,
+        re.compile(
+            r"\b(us|u\.s\.|usa|nasdaq|global|world|overseas|international|asean|europe"
+            r"|china|japan|fang)\b|s&p\s*500|hang seng|emerging market|ex us|developed market",
+            re.I,
+        ),
+    ),
+)
+
+# The region an overseas mandate buys. A cap band is an Indian-index axis and says
+# nothing useful about a US or China feeder, so this stands in for it there.
+_REGION_GLOBAL = "Global"
+_NAME_REGION: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("US", re.compile(r"\b(us|u\.s\.|usa|nasdaq|fang)\b|s&p\s*500", re.I)),
+    ("Greater China", re.compile(r"\bchina\b|hang seng", re.I)),
+    ("Europe", re.compile(r"\beurope", re.I)),
+    ("Japan", re.compile(r"\bjapan", re.I)),
+    ("Asia", re.compile(r"\basean\b|\basia", re.I)),
+    ("Emerging Markets", re.compile(r"emerging market", re.I)),
+)
+
+# The wrappers whose own name says nothing about the mandate. Funds under these are
+# pooled into one base so that US feeders filed as "FoF Domestic" and as "FoF Overseas"
+# - the same fund to a buyer - are peers rather than two thin groups.
+_PASSIVE_WRAPPER = re.compile(r"fund of funds?|\bfof\b|index fund|\betfs?\b", re.I)
+PASSIVE_WRAPPER_GROUP = "Passive/FoF"
+
+PEER_GROUP_SEPARATOR = " \u00b7 "
+
+
+def asset_class(category: object, scheme_name: object) -> str:
+    """What the fund holds. SEBI's scheme type decides it wherever it commits to one."""
+    declared = _CATEGORY_ASSET_CLASS.get(str(category or "").strip())
+    if declared:
+        return declared
+    name = _PARENTHETICAL.sub(" ", str(scheme_name or ""))
+    for label, pattern in _NAME_ASSET_CLASS:
+        if pattern.search(name):
+            return label
+    return ASSET_INDIA_EQUITY
+
+
+def overseas_region(scheme_name: object) -> str:
+    """The region an overseas mandate buys, `Global` where it names none."""
+    name = _PARENTHETICAL.sub(" ", str(scheme_name or ""))
+    for label, pattern in _NAME_REGION:
+        if pattern.search(name):
+            return label
+    return _REGION_GLOBAL
+
+
+def peer_group(
+    category: object, sub_category: object, scheme_name: object, cap_band_value: object
+) -> str:
+    """The funds this one is ranked against: sub-category refined by what it holds.
+
+    Thin groups are left thin on purpose. The peer machinery already withholds a
+    percentile below `min_peers`, and no number at all beats a percentile against
+    funds that were never alternatives to each other.
+    """
+    sub = str(sub_category or "").strip() or "Unclassified"
+    base = PASSIVE_WRAPPER_GROUP if _PASSIVE_WRAPPER.search(sub) else sub
+    held = asset_class(category, scheme_name)
+    if held == ASSET_INDIA_EQUITY:
+        # A cap band read back off a frame arrives as a float NaN, not None, and
+        # str() would put the word "nan" in the label.
+        band = str(cap_band_value or "").strip()
+        axis = band if band and band.lower() != "nan" else None
+    elif held == ASSET_INTERNATIONAL_EQUITY:
+        axis = overseas_region(scheme_name)
+    else:
+        axis = None
+    return PEER_GROUP_SEPARATOR.join(p for p in (base, held, axis) if p)
+
+
 # T2.1 fund family identity: Direct/Regular and Growth/IDCW are separate scheme codes
 # for one economic fund. These strip the plan/option vocabulary above (and generic
 # filler words) so the remaining text names the fund itself, not how it is sold.
@@ -330,7 +449,7 @@ def derive_fund_family_ids(df: pd.DataFrame) -> pd.Series:
 
 
 def classify_frame(df: pd.DataFrame) -> pd.DataFrame:
-    """Add the clean_* normalisation columns and the two style-box axes."""
+    """Add the clean_* normalisation columns, the two style-box axes and the peer group."""
     out = df.copy()
     out["clean_plan"] = [
         clean_plan(p, n) for p, n in zip(out["scheme_plan"], out["scheme_name"], strict=True)
@@ -352,6 +471,16 @@ def classify_frame(df: pd.DataFrame) -> pd.DataFrame:
         style(c, s, n)
         for c, s, n in zip(
             out["clean_category"], out["clean_sub_category"], out["scheme_name"], strict=True
+        )
+    ]
+    out["peer_group"] = [
+        peer_group(c, s, n, b)
+        for c, s, n, b in zip(
+            out["clean_category"],
+            out["clean_sub_category"],
+            out["scheme_name"],
+            out["cap_band"],
+            strict=True,
         )
     ]
     out["fund_family_id"] = derive_fund_family_ids(out)

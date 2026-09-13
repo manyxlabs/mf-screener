@@ -28,6 +28,7 @@ SCREEN_VIEW_SQL = """
 CREATE OR REPLACE VIEW screen_base AS
 SELECT m.*, s.* EXCLUDE (scheme_code, missing_reasons),
        t.expense_ratio,
+       sc.score, sc.score_coverage, sc.score_status,
        a.riskometer, a.exit_load_pct, a.exit_load_period_days, a.lock_in_days,
        a.min_investment, a.min_sip, a.benchmark_name, a.fund_manager,
        date_diff('day', a.manager_start_date, current_date) / 365.25 AS manager_tenure_years,
@@ -40,6 +41,8 @@ JOIN scheme_metrics_snapshot s
   ON s.scheme_code = m.scheme_code
  AND s.as_of_date = (SELECT max(as_of_date) FROM scheme_metrics_snapshot)
 LEFT JOIN scheme_ter t ON t.scheme_code = m.scheme_code
+LEFT JOIN scheme_score_snapshot sc
+  ON sc.scheme_code = m.scheme_code AND sc.as_of_date = s.as_of_date
 LEFT JOIN scheme_attributes a ON a.scheme_code = m.scheme_code
 """
 
@@ -57,23 +60,31 @@ def open_connection(settings: Settings | None = None) -> duckdb.DuckDBPyConnecti
         if _CONNECTION is None:
             s = settings or get_settings()
             s.ensure_dirs()
-            # A rebuild holds DuckDB's file lock exclusively, which blocks a read-only
-            # connection too, so there is nothing to serve until it finishes. Saying that
-            # beats letting the driver's lock message escape as a 500.
+            # The views have to be (re)created through a write connection, which any
+            # other process holding the file blocks - a rebuild, but equally a read-only
+            # analysis script such as scripts/backtest_score.py. The views are persisted
+            # in the file, so a store that already has them can still be served read-only;
+            # only a file that cannot be opened at all leaves nothing to serve.
             try:
                 with duckdb.connect(str(s.mf_duckdb_path)) as bootstrap:
                     init_schema(bootstrap)
                     register_nav_view(bootstrap, s)
                     bootstrap.execute(SCREEN_VIEW_SQL)
+            except duckdb.IOException:
+                pass
+            try:
                 _CONNECTION = duckdb.connect(str(s.mf_duckdb_path), read_only=True)
                 # Extensions are per-connection; the fts macros built on the bootstrap
                 # connection need loading again here for match_bm25 to resolve.
                 _CONNECTION.execute("LOAD fts")
-            except duckdb.IOException as exc:
+                _CONNECTION.execute("SELECT 1 FROM screen_base LIMIT 1")
+            except (duckdb.IOException, duckdb.CatalogException) as exc:
+                _CONNECTION = None
                 raise StoreLockedError(
-                    "The local data store is being rebuilt by another process "
-                    "(make metrics, data-nav or data-refresh). It is locked for writing, "
-                    "which DuckDB also blocks reads behind. Retry once that finishes."
+                    "The local data store is held by another process (make metrics, "
+                    "data-nav, data-refresh, or an analysis script). A rebuild takes the "
+                    "file lock exclusively, which DuckDB blocks reads behind. Retry once "
+                    "that finishes."
                 ) from exc
         return _CONNECTION
 

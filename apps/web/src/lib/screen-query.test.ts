@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_FILTERS,
   describeSort,
+  matchesPreset,
   presetToFilters,
   sortDirection,
   toQueryString,
@@ -109,6 +110,18 @@ describe("presetToFilters", () => {
     expect(filters.sort).toBe("rolling_5y_median:desc");
     expect(filters.columns).toEqual(["scheme_name", "cagr_5y"]);
     expect(filters.page).toBe(1);
+  });
+
+  it("recognises its own screen, and drops the label once a rule is edited", () => {
+    const filters = presetToFilters(preset);
+    expect(matchesPreset(preset, filters)).toBe(true);
+    // Sorting and re-columning are the user's to do without disowning the preset.
+    expect(matchesPreset(preset, { ...filters, sort: "cagr_5y:desc", columns: [] })).toBe(true);
+    expect(
+      matchesPreset(preset, { ...filters, ranges: { ...filters.ranges, fund_age_years_min: 3 } }),
+    ).toBe(false);
+    expect(matchesPreset(preset, { ...filters, subCategories: [] })).toBe(false);
+    expect(matchesPreset(preset, { ...filters, search: "hdfc" })).toBe(false);
   });
 
   it("copies the ranges so editing the screen cannot mutate the preset", () => {
