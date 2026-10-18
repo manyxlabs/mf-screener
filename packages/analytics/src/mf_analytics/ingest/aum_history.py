@@ -36,7 +36,7 @@ import httpx
 
 from ..config import Settings, get_settings
 from ..db import append_aum_history_rows, connect, init_schema
-from ..http_client import client
+from ..http_client import client, get_with_retry
 from ..logging_setup import log_event
 
 logger = logging.getLogger(__name__)
@@ -114,17 +114,14 @@ def rows_from_payload(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], st
 
 
 def fetch_quarter(
-    http: httpx.Client, base_url: str, financial_year: int, period: int
+    http: httpx.Client, settings: Settings, financial_year: int, period: int
 ) -> dict[str, Any] | None:
     """One quarter, or None where AMFI has not published that combination."""
-    response = http.get(
-        f"{base_url.rstrip('/')}{AAUM_PATH}",
-        params={
-            "strType": "Categorywise",
-            "fyId": financial_year,
-            "periodId": period,
-            "MF_ID": 0,
-        },
+    response = get_with_retry(
+        http,
+        f"{settings.mf_amfi_base_url.rstrip('/')}{AAUM_PATH}",
+        {"strType": "Categorywise", "fyId": financial_year, "periodId": period, "MF_ID": 0},
+        settings,
     )
     if response.status_code == 400:
         return None
@@ -150,7 +147,7 @@ def run(
     with client(s) as http:
         for financial_year in range(1, financial_years + 1):
             for period in PERIODS:
-                payload = fetch_quarter(http, s.mf_amfi_base_url, financial_year, period)
+                payload = fetch_quarter(http, s, financial_year, period)
                 if payload is None:
                     continue
                 label = str(payload.get("selectedPeriod") or "")

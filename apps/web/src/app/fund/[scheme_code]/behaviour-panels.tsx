@@ -194,7 +194,7 @@ export function CostPanel({ behaviour }: { behaviour: Behaviour }) {
       {expense_ratio === null || category_median === null ? (
         <p className="text-sm text-ink-500">
           {expense_ratio === null
-            ? "No expense ratio published for this scheme, so no comparison is possible. The TER source covers only part of the industry and is matched by name, so a value is never inferred from a similar fund."
+            ? "No expense ratio published for this scheme, so no comparison is possible. AMFI's TER disclosure carries no scheme code, so it is matched by name, and a value is never inferred from a similar fund."
             : `Only ${pluralise(category_count, "peer")} in this sub-category publish an expense ratio, which is too few for a median.`}
         </p>
       ) : (

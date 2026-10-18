@@ -372,9 +372,10 @@ Check anything that matters against AMFI directly.
 These are real and they affect what you can conclude:
 
 - **Survivorship bias.** The default universe is today's active schemes. Screening history over it cannot see funds that closed or merged, which flatters every category average. Turn off "active only" in the filter drawer to include matured schemes - the source keeps them, with their final NAVs. The bias is quantified, not just documented (T2.4): every category aggregate is computed and stored twice, active-only and all-schemes, and `GET /categories/{category_key}/metrics` returns both plus `survivorship_gap_pp`, the gap in percentage points at each CAGR horizon. The screener shows the same gap next to any category-average column once results are narrowed to one sub-category; the methodology page explains how to read it.
-- **Expense ratio covers part of the industry.** The NAV source does not publish it, so TER comes from a separate daily scrape of AMFI's per-AMC disclosures, configured as `MF_TER_CSV_URL`.
-  That source carries no scheme code and no ISIN, only a fund name, so values are joined by an exact normalised name match and a fund is left blank rather than paired with a similar name.
-  At the time of writing it priced 4,343 scheme codes, 44% of active schemes, and covered 14 of 52 AMCs - SBI, HDFC, Axis, Kotak and others are absent entirely.
+- **Expense ratio is matched by name.** The NAV source does not publish it, so `make ter-import` reads each AMC's latest daily disclosure from AMFI's own TER endpoint (see [docs/data-policy.md](docs/data-policy.md#why-ter-is-a-second-source)).
+  The disclosure carries an NSDL scheme code but no AMFI code and no ISIN, so values are joined by an exact normalised name match and a fund is left blank rather than paired with a similar name.
+  On 2026-09-13 it read all 57 AMCs, TER dates 2026-09-02 to 2026-09-14, and priced 6,777 scheme codes, 73.1% of active schemes; most of the rest are funds renamed on one side and not the other.
+  SEBI's 2026 Total TER includes brokerage, transaction cost and statutory levies, so it is not comparable with a TER from before that change: an arbitrage fund's levies alone can exceed 2%.
   A blank means not published, never zero, and carries the reason `ter_not_published`.
   Run `make ter-import` to refresh it and print the coverage it achieved.
   Returns and every risk metric are unaffected either way, because NAV is already net of expenses; TER is there for cost comparison, not to be subtracted again.

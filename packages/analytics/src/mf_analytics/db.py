@@ -234,6 +234,22 @@ CREATE TABLE IF NOT EXISTS scheme_ter (
     imported_at        TIMESTAMP NOT NULL
 );
 
+-- scheme_ter as it stood at each past month-end, so a backtest prices a past ranking
+-- with the fee charged then. Same name match; matched against today's names, so a fund
+-- renamed since is absent for the months before its rename rather than mispriced.
+CREATE TABLE IF NOT EXISTS scheme_ter_history (
+    ter_month          DATE NOT NULL,
+    scheme_code        VARCHAR NOT NULL,
+    expense_ratio      DOUBLE NOT NULL,
+    base_ter           DOUBLE,
+    plan               VARCHAR NOT NULL,
+    source_scheme_name VARCHAR NOT NULL,
+    match_key          VARCHAR NOT NULL,
+    source_url         VARCHAR NOT NULL,
+    imported_at        TIMESTAMP NOT NULL,
+    PRIMARY KEY (scheme_code, ter_month)
+);
+
 -- T2.1 fund family identity: maps a retired scheme code to the successor that
 -- carries its fund_family_id forward. Populated only where the evidence (a shared
 -- ISIN, or one unambiguous name match) is unambiguous, so an unmapped retired code

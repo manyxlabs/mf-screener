@@ -269,9 +269,9 @@ def methodology_document(settings: Settings) -> dict[str, Any]:
                 "Raw CAGR carries no weight of its own: measured on the live universe it "
                 "ranks funds identically to fund_minus_category inside a sub-category "
                 "(Spearman 1.000), so counting both would be counting returns twice. "
-                "Sortino likewise only stands in for a null Sharpe (0.990). Expense ratio "
-                "and AUM carry no weight here at all - they are columns to read beside "
-                "the score, not part of it."
+                "Sortino likewise only stands in for a null Sharpe (0.990). AUM carries no "
+                "weight here at all - it is a column to read beside the score, not part "
+                "of it."
             ),
             "missing_component_handling": (
                 "A fund missing a component is scored on the components it has: the "
@@ -413,8 +413,8 @@ def methodology_document(settings: Settings) -> dict[str, Any]:
             "nav_original": "AMFI (Association of Mutual Funds in India), public records",
             "nav_delivery": "TigZig MF NAV API (api.tigzig.com/mf/v1)",
             "expense_ratio": (
-                "AMFI per-AMC TER disclosures, via the daily scrape configured as "
-                "MF_TER_CSV_URL. Partial coverage; matched to schemes by name."
+                "AMFI's daily per-AMC TER disclosures (amfiindia.com/ter-of-mf-schemes), "
+                "latest day per scheme; matched to schemes by name."
             ),
             "scheme_attributes": (
                 "Riskometer, exit load, lock-in, minimum investment/SIP, SID benchmark and fund "

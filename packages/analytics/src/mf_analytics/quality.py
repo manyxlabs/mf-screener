@@ -57,9 +57,9 @@ DESCRIPTIONS: Final[dict[str, str]] = {
         "basis does not cover, such as one investing outside India, or in gold or debt."
     ),
     Reason.TER_NOT_PUBLISHED: (
-        "No usable expense ratio for this scheme. The TER source is a daily scrape of "
-        "AMFI's per-AMC disclosures, covers only part of the industry, and is matched by "
-        "name, so a value is never inferred from a similar one. A fund is also withheld "
+        "No usable expense ratio for this scheme. TER comes from AMFI's daily per-AMC "
+        "disclosures, which carry no AMFI scheme code, so it is matched by name and a "
+        "value is never inferred from a similar one. A fund is also withheld "
         "when its disclosure contradicts itself, such as a Direct plan priced above the "
         "Regular plan it cannot cost more than."
     ),

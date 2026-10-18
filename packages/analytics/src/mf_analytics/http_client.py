@@ -44,28 +44,40 @@ def _sleep_for(resp: httpx.Response | None, attempt: int, backoff: float) -> flo
     return backoff * (2**attempt)
 
 
+def get_with_retry(
+    c: httpx.Client, url: str, params: dict[str, Any] | None, settings: Settings
+) -> httpx.Response:
+    """GET, retrying a timeout, a dropped connection or a transient status with backoff.
+
+    Any other status is returned for the caller to judge: a 400 can be a source's way of
+    saying "nothing published here", and retrying it would only wait to hear it again.
+    """
+    last: Exception | None = None
+    for attempt in range(settings.mf_http_retries):
+        resp = None
+        try:
+            resp = c.get(url, params=params)
+            if resp.status_code in RETRY_STATUS:
+                raise DownloadError(f"HTTP {resp.status_code} for {url}")
+            return resp
+        except (httpx.TransportError, DownloadError) as exc:
+            last = exc
+            wait = _sleep_for(resp, attempt, settings.mf_http_backoff)
+            log_event(
+                logger, "http.retry", url=url, attempt=attempt + 1, wait_s=wait, error=str(exc)
+            )
+            time.sleep(wait)
+    raise DownloadError(f"GET {url} failed after {settings.mf_http_retries} attempts: {last}")
+
+
 def request_json(
     url: str, params: dict[str, Any] | None = None, settings: Settings | None = None
 ) -> Any:
     s = settings or get_settings()
-    last: Exception | None = None
     with client(s) as c:
-        for attempt in range(s.mf_http_retries):
-            resp = None
-            try:
-                resp = c.get(url, params=params)
-                if resp.status_code in RETRY_STATUS:
-                    raise DownloadError(f"HTTP {resp.status_code} for {url}")
-                resp.raise_for_status()
-                return resp.json()
-            except (httpx.HTTPError, DownloadError) as exc:
-                last = exc
-                wait = _sleep_for(resp, attempt, s.mf_http_backoff)
-                log_event(
-                    logger, "http.retry", url=url, attempt=attempt + 1, wait_s=wait, error=str(exc)
-                )
-                time.sleep(wait)
-    raise DownloadError(f"GET {url} failed after {s.mf_http_retries} attempts: {last}")
+        resp = get_with_retry(c, url, params, s)
+    resp.raise_for_status()
+    return resp.json()
 
 
 def sha256_file(path: Path, chunk: int = 1 << 22) -> str:
