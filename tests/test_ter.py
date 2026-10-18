@@ -2,22 +2,118 @@
 
 from __future__ import annotations
 
+from datetime import date
+from io import BytesIO
+
 import pandas as pd
 import pytest
 
-from mf_analytics.ingest.ter import build_lookup, match_schemes, normalise_name
+from mf_analytics.ingest.ter import (
+    DATE_COLUMN,
+    SCHEME_CODE_COLUMN,
+    SCHEME_NAME_COLUMN,
+    TER_COLUMNS,
+    TerSourceError,
+    build_lookup,
+    disclosure_months,
+    match_schemes,
+    normalise_name,
+    read_disclosure,
+)
 
-SOURCE_URL = "https://example.invalid/ter.csv"
+SOURCE_URL = "https://example.invalid/api/populate-te-rdata-revised"
 
 
 def source_row(name: str, direct: float, regular: float) -> dict[str, object]:
+    (direct_total, direct_base), (regular_total, regular_base) = (
+        TER_COLUMNS["Direct"],
+        TER_COLUMNS["Regular"],
+    )
     return {
-        "Scheme Name": name,
-        "Direct Plan - Total TER (%)": direct,
-        "Direct Plan - Base TER (%)": direct - 0.03,
-        "Regular Plan - Total TER (%)": regular,
-        "Regular Plan - Base TER (%)": regular - 0.03,
+        SCHEME_NAME_COLUMN: name,
+        direct_total: direct,
+        direct_base: direct - 0.03,
+        regular_total: regular,
+        regular_base: regular - 0.03,
     }
+
+
+def excel(rows: list[dict[str, object]]) -> bytes:
+    buffer = BytesIO()
+    pd.DataFrame(rows).to_excel(buffer, index=False)
+    return buffer.getvalue()
+
+
+def test_only_each_schemes_latest_day_is_kept() -> None:
+    """AMFI files a row per scheme per day, and TER moves within a month."""
+    content = excel(
+        [
+            {
+                SCHEME_CODE_COLUMN: "A/1",
+                DATE_COLUMN: "2026-09-10",
+                **source_row("Acme Fund", 0.50, 1.50),
+            },
+            {
+                SCHEME_CODE_COLUMN: "A/1",
+                DATE_COLUMN: "2026-09-11",
+                **source_row("Acme Fund", 0.45, 1.40),
+            },
+            {
+                SCHEME_CODE_COLUMN: "B/1",
+                DATE_COLUMN: "2026-09-09",
+                **source_row("Beta Fund", 0.30, 1.10),
+            },
+        ]
+    )
+    frame = read_disclosure(content).set_index(SCHEME_CODE_COLUMN)
+    assert len(frame) == 2
+    assert frame.loc["A/1", TER_COLUMNS["Direct"][0]] == pytest.approx(0.45)
+    # A scheme that did not file on the newest day keeps its own latest disclosure.
+    assert frame.loc["B/1", DATE_COLUMN] == pd.Timestamp("2026-09-09")
+
+
+def test_an_archived_month_is_read_by_name_under_its_old_column_names() -> None:
+    """Before 2025 AMFI left the NSDL code blank and filed the base figure as Base TER."""
+
+    def archived(name: str, day: str, direct: float) -> dict[str, object]:
+        row = {SCHEME_CODE_COLUMN: None, DATE_COLUMN: day, **source_row(name, direct, 1.5)}
+        for plan, (_, base) in TER_COLUMNS.items():
+            row[f"{plan} Plan - Base TER (%)"] = row.pop(base)
+        return row
+
+    content = excel(
+        [
+            archived("Acme Fund", "2019-08-30", 0.50),
+            archived("Acme Fund", "2019-08-31", 0.45),
+            archived("Beta Fund", "2019-08-31", 0.30),
+        ]
+    )
+    frame = read_disclosure(content).set_index(SCHEME_NAME_COLUMN)
+    assert len(frame) == 2
+    assert frame.loc["Acme Fund", TER_COLUMNS["Direct"][0]] == pytest.approx(0.45)
+    assert frame.loc["Beta Fund", TER_COLUMNS["Direct"][1]] == pytest.approx(0.27)
+
+
+def test_an_amc_with_nothing_filed_reads_as_empty_not_as_an_error() -> None:
+    """AMFI answers that case with the header over blank rows."""
+    header = {SCHEME_CODE_COLUMN: None, DATE_COLUMN: None, **source_row("", 0, 0)}
+    header[SCHEME_NAME_COLUMN] = None
+    assert read_disclosure(excel([header])).empty
+
+
+def test_a_disclosure_missing_a_ter_column_is_refused() -> None:
+    row = {
+        SCHEME_CODE_COLUMN: "A/1",
+        DATE_COLUMN: "2026-09-10",
+        **source_row("Acme Fund", 0.5, 1.5),
+    }
+    del row[TER_COLUMNS["Direct"][0]]
+    with pytest.raises(TerSourceError, match="Direct Plan - Total TER"):
+        read_disclosure(excel([row]))
+
+
+def test_the_first_days_of_a_month_fall_back_to_the_previous_month() -> None:
+    assert disclosure_months(date(2026, 1, 2)) == ("01-2026", "12-2025")
 
 
 def schemes(*rows: tuple[str, str, str]) -> pd.DataFrame:
@@ -33,6 +129,12 @@ def schemes(*rows: tuple[str, str, str]) -> pd.DataFrame:
         ("Acme Flexicap Fund (Formerly Known as Zeta Flexicap)", "Acme Flexicap Fund"),
         ("Acme Flexi Cap Fund - Direct Plan - Growth", "Acme Flexicap Fund"),
         ("Acme Large & Mid Cap Fund - Direct - Growth", "Acme Large and Mid Cap Fund"),
+        # SEBI's debt category renames: the master can lag AMFI's disclosure.
+        ("Acme Ultra Short Duration Fund - Direct - Growth", "Acme Ultra Short Term Fund"),
+        ("Acme Medium to Long Duration Fund - Regular", "Acme Medium to Long Term Fund"),
+        ("Acme Dynamic Bond Fund - Direct Plan", "Acme Dynamic Term Fund"),
+        ("Acme Floating Rate Fund - Direct - IDCW", "Acme Floating Interest Rates Fund"),
+        ("Acme Gilt Securities Fund - Regular Plan", "Acme Gilt Fund"),
     ],
 )
 def test_plan_and_option_variants_reduce_to_one_fund(filed_as: str, disclosed_as: str) -> None:

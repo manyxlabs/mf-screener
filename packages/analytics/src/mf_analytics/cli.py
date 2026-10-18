@@ -266,6 +266,12 @@ def aum_history_import(
         )
 
 
+@app.command("ter-history-import")
+def ter_history_import() -> None:
+    """Import every past month-end's expense ratios into scheme_ter_history (resumable)."""
+    typer.echo(json.dumps(ter.run_history(get_settings()), indent=2, default=str))
+
+
 @app.command("ter-import")
 def ter_import() -> None:
     """Refresh expense ratios from the configured TER source and report the coverage."""

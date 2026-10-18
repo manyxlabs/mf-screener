@@ -14,7 +14,7 @@ TigZig's free AMFI NAV API is the primary source and the only one that returns a
 | Full NAV history      | `https://api.tigzig.com/mf/v1/download?format=parquet`              | `MF_API_BASE`, `MF_NAV_FORMAT`              |
 | Source schema         | `https://api.tigzig.com/mf/v1/openapi.json` and `/mf/v1/` (catalog) | `MF_API_BASE`                               |
 | Download manifest     | `https://api.tigzig.com/mf/v1/downloads/manifest`                   | `MF_API_BASE`                               |
-| Expense ratio         | A CSV of AMFI's per-AMC TER disclosures                             | `MF_TER_CSV_URL`                            |
+| Expense ratio         | `https://www.amfiindia.com/api/populate-te-rdata-revised` (per AMC) | `MF_AMFI_BASE_URL`                          |
 | Benchmark index level | A total-return CSV you supply, or a labelled index-fund proxy       | `make benchmark-import` / `benchmark-proxy` |
 
 The format values are the provider's own, read from its manifest: `parquet` for the full history and `latest.parquet` for the master.
@@ -72,9 +72,21 @@ T1.2's after-tax-and-load figure reads `exit_load_pct` and `exit_load_period_day
 
 ### Why TER is a second source
 
-AMFI mandates daily TER disclosure but serves it per AMC behind a form, so there is no consolidated feed to read.
-`MF_TER_CSV_URL` points at a scrape of those pages and covers part of the industry, not all of it.
-It is join-only: it never enters a return, a risk metric or a ranking, and a fund the source does not carry shows a blank carrying the reason `ter_not_published`, never a zero.
+AMFI mandates daily TER disclosure, and its TER page reads each AMC's filings from a JSON endpoint that also serves them as an Excel file:
+
+    GET https://www.amfiindia.com/api/populate-te-rdata-revised?MF_ID={amc}&Month={MM-YYYY}&strCat=-1&strType=-1&excel=true
+
+This is the second AMFI exception, on the same terms as the AAUM one below, and again the owner's call: a documented endpoint rather than a page to parse, a path `robots.txt` does not disallow, and a command a person runs (`make ter-import`).
+It replaced a third-party CSV scrape of the same disclosures whose last update was 2024-10-07, so every TER in the store was two years old while it was shown as current, and funds renamed since then could not be matched at all.
+
+The file is one row per scheme per day, and only each scheme's latest day is kept.
+`MF_ID=-1`, the page's own "All" option, answers an empty file, so each of the AMCs AMFI lists at `/api/populate-mf` is read by id, one request apiece with a second's pause; the JSON form pages 100 rows at a time sorted by scheme, which would cost hundreds of requests a month.
+The disclosure carries an NSDL scheme code but no AMFI code, so it is still joined by exact normalised name.
+It never enters a return or a risk metric; it is the composite score's cost component and a column beside it, and a fund that no disclosure matches shows a blank carrying the reason `ter_not_published`, never a zero.
+
+`make data-ter-history` reads the same endpoint for every past month back to June 2018, the first month AMFI's archive holds, into `scheme_ter_history`, so the backtests price a past ranking with the fee charged then rather than today's.
+Archived months carry no NSDL code and file the base figure as "Base TER", the name SEBI's 2026 regulations replaced; both are read.
+It is append-only and resumable: a stored month is never fetched again, so after the first run it costs one month's requests a month.
 Returns are already net of expenses, so TER is there for cost comparison and is never subtracted again.
 
 ### AUM history: AMFI's own JSON endpoint, read directly

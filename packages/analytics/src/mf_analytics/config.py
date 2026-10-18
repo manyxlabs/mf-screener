@@ -37,16 +37,9 @@ class Settings(BaseSettings):
     mf_http_backoff: float = 2.0
     mf_user_agent: str = "mf-screener/0.1 (local research tool)"
 
-    # AMFI requires every AMC to publish TER daily, but only per AMC behind a form, so
-    # there is no consolidated feed to read. This is a daily scrape of those pages. It
-    # is partial - see `mf ter-import`, which reports exactly what it covered.
-    mf_ter_csv_url: str = (
-        "https://raw.githubusercontent.com/captn3m0/india-mutual-fund-ter-tracker/main/data.csv"
-    )
-
-    # AMFI's own site, used for one thing only: the scheme-wise quarterly AAUM history
-    # its JSON endpoint serves. The NAV feed carries the latest quarter alone, so this
-    # is the only way to have a fund's assets as a series rather than a point.
+    # AMFI's own site, read for two things the NAV feed does not carry: the scheme-wise
+    # quarterly AAUM history (the feed has the latest quarter alone) and the daily
+    # per-AMC TER disclosures.
     mf_amfi_base_url: str = "https://www.amfiindia.com"
 
     # Bulk ingestion streams through DuckDB and spills to disk past this ceiling,
