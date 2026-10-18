@@ -25,6 +25,7 @@ import logging
 import re
 import time
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
 from io import BytesIO
 from typing import Any, Final
@@ -278,13 +279,19 @@ def run(settings: Settings | None = None, pause_seconds: float = 1.0) -> dict[st
 HISTORY_START: Final = date(2018, 6, 1)
 
 
-def run_history(settings: Settings | None = None, pause_seconds: float = 1.0) -> dict[str, Any]:
+def run_history(
+    settings: Settings | None = None, pause_seconds: float = 1.0, workers: int = 4
+) -> dict[str, Any]:
     """Each fund's TER as it stood at every past month-end, for point-in-time backtests.
 
     `scheme_ter` holds only today's price, so a backtest reading it prices a 2019 ranking
     with a 2026 fee. Append-only and resumable: a month already stored is never fetched
     again, and a month AMFI has nothing for is skipped and retried on the next run rather
     than failing the rest. The current month is left to `run`, since it is still filing.
+
+    Months are fetched `workers` at a time - each still one request per AMC with a pause,
+    so AMFI sees a few requests a second - and written one at a time, since the store
+    takes a single writer.
     """
     s = settings or get_settings()
     source_url = f"{s.mf_amfi_base_url.rstrip('/')}{TER_PATH}"
@@ -299,27 +306,36 @@ def run_history(settings: Settings | None = None, pause_seconds: float = 1.0) ->
         schemes = con.execute(
             "SELECT scheme_code, scheme_name, clean_plan FROM scheme_master"
         ).fetch_df()
-    written, empty = 0, []
-    for month_end in months:
-        if month_end.date() in stored:
-            continue
+
+    def fetch_month(month_end: pd.Timestamp) -> pd.DataFrame | None:
         try:
             raw, _, _ = fetch_disclosures(s, pause_seconds, (f"{month_end:%m-%Y}",))
         except TerSourceError:
-            empty.append(f"{month_end:%Y-%m}")
-            continue
-        rows = match_schemes(build_lookup(raw), schemes, source_url).assign(
+            return None
+        return match_schemes(build_lookup(raw), schemes, source_url).assign(
             ter_month=month_end.date()
         )
-        with connect(s) as con:
-            con.register("ter_month_new", rows)
-            con.execute(
-                f"INSERT INTO scheme_ter_history SELECT ter_month, {', '.join(_COLUMNS)} "
-                "FROM ter_month_new"
-            )
-            con.unregister("ter_month_new")
-        written += 1
-        log_event(logger, "ter_history.month", month=f"{month_end:%Y-%m}", schemes=len(rows))
+
+    pending = [m for m in months if m.date() not in stored]
+    written, empty = 0, []
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for month_end, rows in zip(pending, pool.map(fetch_month, pending), strict=True):
+            if rows is None:
+                empty.append(f"{month_end:%Y-%m}")
+                continue
+            _store_month(s, rows)
+            written += 1
+            log_event(logger, "ter_history.month", month=f"{month_end:%Y-%m}", schemes=len(rows))
     info = {"months_written": written, "months_already_stored": len(stored), "months_empty": empty}
     log_event(logger, "ter_history.imported", **info)
     return info
+
+
+def _store_month(s: Settings, rows: pd.DataFrame) -> None:
+    with connect(s) as con:
+        con.register("ter_month_new", rows)
+        con.execute(
+            f"INSERT INTO scheme_ter_history SELECT ter_month, {', '.join(_COLUMNS)} "
+            "FROM ter_month_new"
+        )
+        con.unregister("ter_month_new")
