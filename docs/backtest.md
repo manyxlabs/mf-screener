@@ -36,6 +36,7 @@ Within-category is the only comparison that matters here: a signal that merely p
 
 `expense_ratio` is the one signal here that is **not point-in-time**: `scheme_ter` holds a single current snapshot with no history, so this reads today's fee against a past formation date.
 Fees move slowly, so the measurement is worth having, but it is contaminated by look-ahead and is treated as corroboration of the outside evidence rather than as evidence itself.
+Both scripts now read the fee disclosed in the formation month from `scheme_ter_history` (`make data-ter-history`), so a re-run measures it point-in-time; the figures in this section were taken before that table existed.
 It also covers fewer funds (1,055 fund-observations against ~2,200), since the TER source covers only part of the industry.
 
 `cagr_1y` scores a higher IC than the 12-1 version but with the right sign at only two of four dates: the unskipped month adds return and noise together.
@@ -43,7 +44,7 @@ That is why the pipeline computes `momentum_12_1` rather than reusing the stored
 
 Four things follow, and the weight table in `scoring.py` follows them:
 
-1. **Momentum was the strongest signal measured**, which is also what the machine-learning literature finds survives out of sample (Kaniel et al., NBER 2022, reduce their model to investor sentiment, fund flow and 12-1 momentum with almost no loss). It is weighted at only 0.05 all the same: it was right at three dates of four, it turns over fast, and chasing it has a trading cost this tool cannot see.
+1. **Momentum was the strongest signal measured**, which is also what the machine-learning literature finds survives out of sample (Kaniel et al., NBER 2022, reduce their model to investor sentiment, fund flow and 12-1 momentum with almost no loss). It is weighted at only 0.10 all the same: it was right at three dates of four, it turns over fast, and chasing it has a trading cost this tool cannot see. (It began at 0.05; the walk-forward search below doubled it.)
 2. **Cost was the most stable signal**, right at all four dates, and it is the one with independent corroboration: Morningstar's repeated study finds the cheapest quintile beats the priciest in every period tested, while past-performance measures do not. It is also the only mechanical input - a fee is deducted whatever the market does - which is why it is weighted at 0.20, above its IC rank.
 3. **The typical rolling window beat the point-to-point return at every date.** `rolling_*_median` was right at all four formations, which is why `consistency` carries the largest weight (0.30) rather than raw or peer-relative return.
 4. **Ranking the calmer fund higher was wrong at every single formation date.** Low volatility had an IC of about -0.2 in all four windows: within a sub-category, the more volatile fund reliably went on to return more. Over 2019-2025 Indian equity rose almost throughout, and in a rising market that is what beta does. `steadiness` therefore keeps only 0.02, and it is there as a stated preference for a smoother ride, not as a claim about return.
@@ -70,7 +71,7 @@ Where three years does win clearly is coverage: it exists for 2,234 fund-observa
 
 The reason it does not lead outright is visible in the per-date detail.
 At the 2022 formation date `cagr_3y` scored +0.340, beside `cagr_1y` +0.339 and `momentum_12_1` +0.291.
-At short horizons the return column _is_ the momentum signal, and this table prices momentum at 0.05 on purpose because it is unstable and expensive to chase.
+At short horizons the return column _is_ the momentum signal, and this table prices momentum at 0.10 on purpose because it is unstable and expensive to chase.
 A 3-year-led score would buy that same bet back at several times the weight, without saying so.
 
 Ten years is unmeasured here: too few funds owned a decade of history at a past formation date to correlate against, so its weight rests on the same reasoning it always did rather than on evidence.
@@ -102,16 +103,19 @@ Re-run `scripts/backtest_score.py --mode ic` when a different regime is in the d
 Universe-wide quintiles of the score are not a meaningful test and are printed only for completeness - a score of 80 in Liquid Fund and 80 in Small Cap are percentiles in different populations, so a universe-wide ladder mostly reports which categories did well.
 The line to read is the within-peer-group one: how often the top quintile of a group beat that group's median.
 
-The table has been re-weighted three times on these measurements. Where the composite stood at each step:
+The table has been re-weighted four times on these measurements. Where the composite stood at each step:
 
 | Weight table                                                                                                                                 |    2019 |    2020 |    2021 |    2022 |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | ------: | ------: | ------: | ------: |
 | First try (peer excess .30 / consistency .20 / risk-adj .20 / steadiness .15 / index skill .15)                                              |       - |       - |     53% |     67% |
 | Second (consistency .35 / peer excess .25 / risk-adj .20 / steadiness .10 / index skill .10)                                                 |     57% |     63% |     59% |     67% |
-| Current (consistency .33 / cost .20 / peer excess .20 / risk-adj .15 / momentum .05 / steadiness .02 / index skill .05), within `peer_group` | **67%** | **66%** | **63%** | **69%** |
+| Third (consistency .33 / cost .20 / peer excess .20 / risk-adj .15 / momentum .05 / steadiness .02 / index skill .05), within `peer_group`   |     67% | **66%** |     63% |     69% |
+| Current (consistency .33 / cost .20 / peer excess .20 / risk-adj .10 / momentum .10 / steadiness .02 / index skill .05), within `peer_group` | **70%** |     62% | **71%** | **75%** |
 
 The percentage is how often the top quintile of a peer group beat that group's median over the next three years, against 50% for a coin.
-The current row is measured within the refined peer groups, so it is not strictly comparable with the two above it - part of the improvement is that the groups now hold funds that were actually alternatives to each other.
+The third row is measured within the refined peer groups, so it is not strictly comparable with the two above it - part of the improvement is that the groups now hold funds that were actually alternatives to each other.
+The current row was measured on NAV data through October 2026 and the third on data through August 2026, so the last step is not a same-data comparison either; the walk-forward search below is, and it agrees.
+Median edge on the current row ran +0.25, +0.17, +0.19 and +0.10 percentage points a year.
 Median edge ran +0.18, +0.16, +0.12 and +0.04 percentage points a year: consistently positive, consistently small.
 
 ### Where the score is and is not informative
@@ -137,6 +141,48 @@ Read the numbers honestly.
 The direction is right at every date and at no date is it dramatic: a tilt, not a winner-picker.
 Anyone reading a single fund's score should take it as "this fund has been in the better part of its peer group on the things that have been worth something", not as a forecast.
 There is deliberately no threshold anywhere in this project at which a score becomes a recommendation - the score is a percentile, so it is relative by construction, and the top of a peer group that lost money is still a fund that lost money.
+
+## Walk-forward weight search
+
+`scripts/optimize_weights.py` asks whether a different weight table would have ranked better, without letting the answer see its own test.
+
+```
+uv run python scripts/optimize_weights.py --build       # point-in-time percentiles, 28 quarterly dates
+uv run python scripts/optimize_weights.py               # grid search on train dates, judged on test dates
+uv run python scripts/optimize_weights.py --neighbours  # small moves around the live table
+```
+
+The build forms the ranking at every quarter-end from December 2018 to September 2025, the same way the backtest above does, and stores each fund's percentile on each component.
+Weights only enter at the final blend, so all 3,003 tables on a 0.1 grid can be scored from that one cache.
+Tables are chosen on early formation dates and then read on later ones they never saw:
+
+| Forward return | Train formations  | Held-out formations |
+| -------------- | ----------------- | ------------------- |
+| 3 years        | Dec 2018-Dec 2020 | Dec 2021-Sep 2023   |
+| 1 year         | Dec 2018-Dec 2022 | Dec 2023-Sep 2025   |
+
+The 1-year split's held-out dates cover the 2024-25 correction, which no window in the four-date backtest reached.
+
+**The grid search's winners lost.**
+At 3 years the best training tables put 60-80% on consistency, and on the held-out dates they scored an IC of +0.11 to +0.18 against the live table's +0.214.
+At 1 year they put 70-90% on momentum, and scored +0.145 to +0.167 against +0.186.
+Which single signal leads changes with the market phase, and a table built around one of them is fitting that phase.
+The diversified table was the robust one.
+
+**One small move helped everywhere.**
+Moving 0.05 from risk-adjusted return to momentum raised IC on all four reads - train and test, both horizons - and was the largest such move:
+
+| Table                       |   3y train |    3y test | 3y test hit | 3y worst test date |   1y train |    1y test | 1y test hit |
+| --------------------------- | ---------: | ---------: | ----------: | -----------------: | ---------: | ---------: | ----------: |
+| risk-adj .15 / momentum .05 |     +0.090 |     +0.214 |         66% |             +0.108 |     +0.119 |     +0.186 |         70% |
+| risk-adj .10 / momentum .10 | **+0.096** | **+0.227** |     **69%** |         **+0.168** | **+0.131** | **+0.189** |         69% |
+| risk-adj .05 / momentum .15 |     +0.098 |     +0.240 |         70% |             +0.152 |     +0.140 |     +0.190 |         67% |
+
+Going further kept improving the 3-year read and started costing the 1-year one, so the table stops at .10 / .10.
+The gain is small - a hundredth of an IC point at 1 year - and it is adopted because it is consistent, not because it is large.
+
+Moving steadiness's 0.02 to any other component also helped on all four reads, which is the walk-forward test agreeing with the four-date one that the calmer fund returned less.
+It stays at 0.02 for the reason given above: it is a declared preference, not a prediction.
 
 ## Biases, none of them corrected
 
