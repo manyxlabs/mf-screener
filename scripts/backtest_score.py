@@ -29,19 +29,33 @@ import pandas as pd
 
 from mf_analytics.config import get_settings
 from mf_analytics.metrics.risk import sharpe, sortino, volatility
-from mf_analytics.metrics.series import monthly_returns, rolling_cagr, trailing_cagr
+from mf_analytics.metrics.series import (
+    comparable_grid,
+    monthly_returns,
+    rolling_cagr,
+    trailing_cagr,
+)
 from mf_analytics.scoring import HORIZONS, score_fund
 
 # The score's peer group. A fund is ranked against the funds a buyer would have been
-# choosing between, which is why plan and option are pinned rather than pooled.
+# choosing between, which is why plan and option are pinned rather than pooled. The fee is
+# the one disclosed for the formation month, not today's.
 UNIVERSE_SQL = """
 SELECT m.scheme_code, m.scheme_name, m.peer_group, m.clean_plan, m.clean_option,
        t.expense_ratio
 FROM scheme_master m
-LEFT JOIN scheme_ter t ON t.scheme_code = m.scheme_code
+LEFT JOIN scheme_ter_history t
+  ON t.scheme_code = m.scheme_code AND t.ter_month = last_day(CAST(? AS DATE))
 WHERE m.clean_plan = 'Direct' AND m.clean_option = 'Growth'
   AND m.peer_group IS NOT NULL
 """
+
+
+def universe_as_of(con: duckdb.DuckDBPyConnection, as_of: pd.Timestamp) -> pd.DataFrame:
+    universe = con.execute(UNIVERSE_SQL, [as_of.date()]).df()
+    universe["scheme_code"] = universe["scheme_code"].astype(str)
+    return universe
+
 
 NAV_SQL = """
 SELECT scheme_code, date, nav, obs_date
@@ -65,12 +79,15 @@ def _features_as_of(
     universe: pd.DataFrame,
     as_of: pd.Timestamp,
     rf_monthly: float,
+    jump_ratio: float,
     flow: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Recompute every score input from NAV up to `as_of`, one row per fund."""
     rows: list[dict[str, object]] = []
     for code, frame in nav.groupby("scheme_code", sort=False):
-        monthly = frame.set_index("date")[["nav", "obs_date"]].sort_index()
+        # The live pipeline's own grid, so a face-value redenomination before `as_of`
+        # starts the history rather than compounding into a fake return.
+        monthly, _ = comparable_grid(frame, jump_ratio)
         if len(monthly) < 36:  # nothing to say about a fund with under three years
             continue
         returns = monthly_returns(monthly)["monthly_return"].dropna()
@@ -158,26 +175,35 @@ def _flow_as_of(con: duckdb.DuckDBPyConnection, as_of: pd.Timestamp) -> pd.DataF
 
 
 def _forward_cagr(
-    con: duckdb.DuckDBPyConnection, as_of: pd.Timestamp, horizon_years: int
+    con: duckdb.DuckDBPyConnection, as_of: pd.Timestamp, horizon_years: int, jump_ratio: float
 ) -> pd.Series:
     """Realised annualised return from `as_of` to `as_of + horizon_years`.
 
     Month-end NAV on both ends, so this is the return a buyer at the formation date
     would have seen, not a return measured to today for some funds and to T+3 for others.
+    A window spanning a NAV scale break has no comparable return and is left out: one
+    liquid fund redenominated 2,200 -> 25 read as -77% a year without this.
     """
-    end = as_of + pd.DateOffset(years=horizon_years)
+    finish = (as_of + pd.DateOffset(years=horizon_years) + pd.offsets.MonthEnd(0)).date()
     frame = con.execute(
         """
         WITH start AS (
             SELECT scheme_code, nav FROM nav_monthly WHERE date = ?
         ), finish AS (
             SELECT scheme_code, nav FROM nav_monthly WHERE date = ?
+        ), steps AS (
+            SELECT scheme_code,
+                   nav / lag(nav) OVER (PARTITION BY scheme_code ORDER BY date) AS ratio
+            FROM nav_monthly WHERE date BETWEEN ? AND ?
         )
         SELECT s.scheme_code, s.nav AS start_nav, f.nav AS end_nav
         FROM start s JOIN finish f USING (scheme_code)
         WHERE s.nav > 0 AND f.nav > 0
+          AND s.scheme_code NOT IN (
+              SELECT scheme_code FROM steps WHERE ratio >= ? OR ratio <= 1.0 / ?
+          )
         """,
-        [as_of.date(), (end + pd.offsets.MonthEnd(0)).date()],
+        [as_of.date(), finish, as_of.date(), finish, jump_ratio, jump_ratio],
     ).df()
     if frame.empty:
         return pd.Series(dtype="float64")
@@ -271,9 +297,7 @@ SIGNALS: dict[str, bool] = {
     **{f"sharpe_{h}": True for h in HORIZONS},
     **{f"sortino_{h}": True for h in HORIZONS},
     **{f"volatility_{h}": False for h in HORIZONS},
-    # The one signal here that is not point-in-time: TER is stored as a single current
-    # snapshot with no history, so this reads today's fee against a past formation date.
-    # Fees move slowly, so it is worth measuring - but it is suggestive, not clean.
+    # The fee disclosed in the formation month, from scheme_ter_history.
     "expense_ratio": False,
     "momentum_12_1": True,
     "momentum_vs_peers": True,
@@ -334,21 +358,20 @@ def main() -> None:
     settings = get_settings()
     rf_monthly = settings.risk_free_monthly
     con = duckdb.connect(str(settings.mf_duckdb_path), read_only=True)
-    universe = con.execute(UNIVERSE_SQL).df()
-    universe["scheme_code"] = universe["scheme_code"].astype(str)
-    print(f"universe: {len(universe)} Direct-Growth schemes with a peer group")
     ic_frames: list[pd.DataFrame] = []
 
     for formation in args.formation:
         as_of = pd.Timestamp(formation)
+        universe = universe_as_of(con, as_of)
         nav = con.execute(NAV_SQL, [as_of.date()]).df()
         nav["scheme_code"] = nav["scheme_code"].astype(str)
         nav["date"] = pd.to_datetime(nav["date"])
-        features = _features_as_of(nav, universe, as_of, rf_monthly, _flow_as_of(con, as_of))
+        jump = settings.mf_nav_jump_ratio
+        features = _features_as_of(nav, universe, as_of, rf_monthly, jump, _flow_as_of(con, as_of))
         if features.empty:
             print(f"\n{formation}: no fund had three years of NAV by then")
             continue
-        forward = _forward_cagr(con, as_of, args.horizon)
+        forward = _forward_cagr(con, as_of, args.horizon, jump)
         if args.mode in ("score", "both"):
             _report(f"formed {formation}", _score_universe(features), forward, args.horizon)
         if args.mode in ("ic", "both"):

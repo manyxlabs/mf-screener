@@ -55,8 +55,8 @@ HORIZONS: Final[tuple[str, ...]] = ("3y", "5y", "10y")
 # So three years is raised toward five rather than past it. The reason it does not lead
 # outright is what carried it at the 2022 formation date, where cagr_3y scored +0.340
 # beside cagr_1y +0.339 and momentum_12_1 +0.291: at short horizons the return column
-# *is* the momentum signal, which this table deliberately prices at 0.05 because it is
-# unstable. A 3-year-led score would buy that same bet back at six times the weight.
+# *is* the momentum signal, which this table deliberately prices at 0.10 because it is
+# unstable. A 3-year-led score would buy that same bet back at several times the weight.
 #
 # Ten years is unmeasured - too few funds owned a decade of history at a past formation
 # date to correlate - and holds the remainder on the same reasoning it always did.
@@ -128,12 +128,20 @@ class Component:
 # dates, but the rolling median is measured point-in-time while the expense ratio is
 # read from today's snapshot against a past formation date, so only one of the two is
 # uncontaminated evidence.
+#
+# Momentum took 0.05 from risk-adjusted return on `scripts/optimize_weights.py`: 28
+# quarterly formation dates, tables chosen on early dates and judged on later held-out
+# ones, at 1y and 3y forward. That move raised IC in all four (train and test, both
+# horizons) and lifted the worst held-out 3y date from +0.11 to +0.17. A further 0.05
+# kept helping at 3y but cut the 1y held-out hit rate from 70% to 66%, so it stops here;
+# the grid search's own winners, 70-80% on a single component, all lost to this table on
+# the held-out dates.
 COMPONENT_WEIGHTS: Final[dict[str, float]] = {
     "consistency": 0.33,
     "cost": 0.20,
     "peer_excess": 0.20,
-    "risk_adjusted_return": 0.15,
-    "momentum": 0.05,
+    "risk_adjusted_return": 0.10,
+    "momentum": 0.10,
     "steadiness": 0.02,
     # Untested by the backtest: it needs a benchmark series mapped as of the formation
     # date, which the stored map does not carry. Priced at the low end until it is.
