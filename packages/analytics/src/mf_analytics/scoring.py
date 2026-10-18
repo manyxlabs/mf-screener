@@ -105,16 +105,20 @@ class Component:
 # three years, within sub-category (docs/backtest.md):
 #
 #   12-1 momentum                  IC +0.17, right sign at 3 of 4 dates
-#   expense ratio (lower better)   IC +0.14, right sign at 4 of 4
+#   expense ratio (lower better)   IC -0.02, right sign at 2 of 4 (fee as charged then;
+#                                  +0.14 at 4 of 4 when today's fee was read instead)
 #   rolling median (consistency)   IC +0.13, right sign at 4 of 4
 #   peer excess / CAGR             IC +0.09, right sign at 3 of 4
 #   Sharpe / Sortino               IC +0.05, right sign at 2 of 4
 #   low volatility (steadiness)    IC -0.21, WRONG sign at 4 of 4
 #
-# Cost is weighted above its IC rank because it is the one signal with outside
-# corroboration: Morningstar's repeated study finds the cheapest quintile beats the
-# priciest in every period tested, while past-performance measures do not. It is also
-# the only input here that is mechanical - a fee is deducted whatever the market does.
+# Cost is weighted far above its IC. Read point-in-time it predicts nothing within a
+# peer group here: the +0.14 it once showed was look-ahead, since funds that did well
+# grew and SEBI's slabs then cut their fee. It keeps 0.20 because it is the one input
+# that is mechanical - a fee is deducted whatever the market does - because Morningstar's
+# repeated study finds the cheapest quintile beats the priciest in every period tested,
+# and because cutting it measured worse, not better: 0.20 -> 0 moved to consistency took
+# the 3y held-out walk-forward IC from +0.201 to +0.159.
 #
 # Steadiness keeps a weight in spite of its sign, and the reason is not that the
 # measurement is doubted: over a window where Indian equity rose almost throughout, the
@@ -132,8 +136,10 @@ class Component:
 # Momentum took 0.05 from risk-adjusted return on `scripts/optimize_weights.py`: 28
 # quarterly formation dates, tables chosen on early dates and judged on later held-out
 # ones, at 1y and 3y forward. That move raised IC in all four (train and test, both
-# horizons) and lifted the worst held-out 3y date from +0.11 to +0.17. A further 0.05
-# kept helping at 3y but cut the 1y held-out hit rate from 70% to 66%, so it stops here;
+# horizons) and lifted the worst held-out 3y date from +0.11 to +0.17; re-measured with
+# point-in-time fees it still raises three of the four and leaves the fourth flat
+# (1y held-out +0.162 -> +0.161). A further 0.05 kept helping at 3y but cut the 1y
+# held-out hit rate from 70% to 66%, so it stops here;
 # the grid search's own winners, 70-80% on a single component, all lost to this table on
 # the held-out dates.
 COMPONENT_WEIGHTS: Final[dict[str, float]] = {
