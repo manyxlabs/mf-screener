@@ -22,7 +22,8 @@ Within-category is the only comparison that matters here: a signal that merely p
 | --------------------------------------------------- | ---------: | ------------: |
 | `momentum_12_1` (11 months ending one month back)   | **+0.172** |  3 of 4 dates |
 | `cagr_1y` (the same idea without the skipped month) |     +0.180 |        2 of 4 |
-| `expense_ratio` (lower better)                      | **+0.135** |    **4 of 4** |
+| `expense_ratio` (lower better), as charged then     |     -0.024 |        2 of 4 |
+| `expense_ratio` (lower better), today's fee         |    +0.135* |       4 of 4* |
 | `rolling_3y_median`                                 |     +0.127 |        4 of 4 |
 | `rolling_5y_median`                                 |     +0.118 |        4 of 4 |
 | `cagr_3y` (= peer excess)                           |     +0.088 |        3 of 4 |
@@ -34,9 +35,10 @@ Within-category is the only comparison that matters here: a signal that merely p
 | `volatility_5y` (lower better)                      | **-0.202** |        0 of 4 |
 | `volatility_3y` (lower better)                      | **-0.229** |        0 of 4 |
 
-`expense_ratio` is the one signal here that is **not point-in-time**: `scheme_ter` holds a single current snapshot with no history, so this reads today's fee against a past formation date.
-Fees move slowly, so the measurement is worth having, but it is contaminated by look-ahead and is treated as corroboration of the outside evidence rather than as evidence itself.
-Both scripts now read the fee disclosed in the formation month from `scheme_ter_history` (`make data-ter-history`), so a re-run measures it point-in-time; the figures in this section were taken before that table existed.
+\* The starred row read today's fee against every past formation date, before `scheme_ter_history` existed, and the cost signal did not survive being measured properly.
+Read from the fee disclosed in the formation month (`make data-ter-history`), it predicts nothing within a peer group, on 619 fund-observations rather than 1,055 - historical names match today's master less often.
+The +0.135 was look-ahead: a fund that did well grew, and SEBI's TER slabs charge a bigger fund less, so today's low fee was partly a record of past success.
+The other rows here were taken with the fee read the old way but do not use it; the 2026 re-run moved none of them by more than 0.03.
 It also covers fewer funds (1,055 fund-observations against ~2,200), since the TER source covers only part of the industry.
 
 `cagr_1y` scores a higher IC than the 12-1 version but with the right sign at only two of four dates: the unskipped month adds return and noise together.
@@ -45,7 +47,7 @@ That is why the pipeline computes `momentum_12_1` rather than reusing the stored
 Four things follow, and the weight table in `scoring.py` follows them:
 
 1. **Momentum was the strongest signal measured**, which is also what the machine-learning literature finds survives out of sample (Kaniel et al., NBER 2022, reduce their model to investor sentiment, fund flow and 12-1 momentum with almost no loss). It is weighted at only 0.10 all the same: it was right at three dates of four, it turns over fast, and chasing it has a trading cost this tool cannot see. (It began at 0.05; the walk-forward search below doubled it.)
-2. **Cost was the most stable signal**, right at all four dates, and it is the one with independent corroboration: Morningstar's repeated study finds the cheapest quintile beats the priciest in every period tested, while past-performance measures do not. It is also the only mechanical input - a fee is deducted whatever the market does - which is why it is weighted at 0.20, above its IC rank.
+2. **Cost looked like the most stable signal, and measured point-in-time it is not one** (see the starred row). It keeps 0.20 for reasons that do not depend on that measurement: it is the only mechanical input - a fee is deducted whatever the market does - Morningstar's repeated study finds the cheapest quintile beats the priciest in every period tested, and removing it measured worse on held-out dates (below).
 3. **The typical rolling window beat the point-to-point return at every date.** `rolling_*_median` was right at all four formations, which is why `consistency` carries the largest weight (0.30) rather than raw or peer-relative return.
 4. **Ranking the calmer fund higher was wrong at every single formation date.** Low volatility had an IC of about -0.2 in all four windows: within a sub-category, the more volatile fund reliably went on to return more. Over 2019-2025 Indian equity rose almost throughout, and in a rising market that is what beta does. `steadiness` therefore keeps only 0.02, and it is there as a stated preference for a smoother ride, not as a claim about return.
    It is the one component whose measured sign is wrong, so it carries the smallest weight in the table; it is not zero because a score with no risk term at all would rank a fund that fell 60% and recovered above one that never fell, and say nothing about the difference.
@@ -110,12 +112,14 @@ The table has been re-weighted four times on these measurements. Where the compo
 | First try (peer excess .30 / consistency .20 / risk-adj .20 / steadiness .15 / index skill .15)                                              |       - |       - |     53% |     67% |
 | Second (consistency .35 / peer excess .25 / risk-adj .20 / steadiness .10 / index skill .10)                                                 |     57% |     63% |     59% |     67% |
 | Third (consistency .33 / cost .20 / peer excess .20 / risk-adj .15 / momentum .05 / steadiness .02 / index skill .05), within `peer_group`   |     67% | **66%** |     63% |     69% |
-| Current (consistency .33 / cost .20 / peer excess .20 / risk-adj .10 / momentum .10 / steadiness .02 / index skill .05), within `peer_group` | **70%** |     62% | **71%** | **75%** |
+| Current, fee read from today (look-ahead)                                                                                                    | **70%** |     62% | **71%** | **75%** |
+| Current (consistency .33 / cost .20 / peer excess .20 / risk-adj .10 / momentum .10 / steadiness .02 / index skill .05), fee as charged then |     60% |     59% |     65% |     62% |
 
 The percentage is how often the top quintile of a peer group beat that group's median over the next three years, against 50% for a coin.
 The third row is measured within the refined peer groups, so it is not strictly comparable with the two above it - part of the improvement is that the groups now hold funds that were actually alternatives to each other.
-The current row was measured on NAV data through October 2026 and the third on data through August 2026, so the last step is not a same-data comparison either; the walk-forward search below is, and it agrees.
-Median edge on the current row ran +0.25, +0.17, +0.19 and +0.10 percentage points a year.
+The last row is the honest one: the same table, with each fund priced at the fee it charged at the formation date.
+The points it gives up against the row above it are what reading today's fee had been worth. The third row read today's fee as well, so it is flattered the same way; the first two carried no cost component.
+Median edge on the last row ran +0.14, +0.12, +0.15 and +0.03 percentage points a year.
 Median edge ran +0.18, +0.16, +0.12 and +0.04 percentage points a year: consistently positive, consistently small.
 
 ### Where the score is and is not informative
@@ -183,6 +187,12 @@ The gain is small - a hundredth of an IC point at 1 year - and it is adopted bec
 
 Moving steadiness's 0.02 to any other component also helped on all four reads, which is the walk-forward test agreeing with the four-date one that the calmer fund returned less.
 It stays at 0.02 for the reason given above: it is a declared preference, not a prediction.
+
+**Re-measured with the fee charged at each formation date.**
+The figures above read today's fee. With `scheme_ter_history` the live table scores 3y held-out IC +0.201 (hit 58%) and 1y +0.161 (63%).
+The momentum move still holds: against risk-adj .15 / momentum .05 it raises three of the four reads and leaves the fourth flat (1y held-out +0.162 to +0.161).
+Cost alone now reads -0.029 and -0.013 at 3 years, train and held-out; yet every table that cut it scored worse on the held-out dates (0.20 to 0 into consistency: +0.201 to +0.159), so no cost move passes the four-read rule and the table is unchanged.
+A fee is rankable for only 12-23% of fund-dates, because a peer group needs six priced funds and historical names often fail the exact match; this is the thinnest measurement in this document.
 
 ## Biases, none of them corrected
 
