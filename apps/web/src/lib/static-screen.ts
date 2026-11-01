@@ -15,18 +15,8 @@ import type {
   schemeListSchema,
 } from "@mf/shared";
 import type { z } from "zod";
+import { ApiError } from "./api-error";
 import { loadJson, loadScreenColumn } from "@/lib/static-data";
-
-/** Defined here, not in api.ts, which imports this module: api.ts re-exports it. */
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
 
 type SchemeList = z.infer<typeof schemeListSchema>;
 type Value = string | number | boolean | null;

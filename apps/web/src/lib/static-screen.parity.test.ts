@@ -17,7 +17,8 @@ import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { DEFAULT_FILTERS, presetToFilters, toQueryString } from "./screen-query";
 import { loadScreenColumn } from "./static-data";
-import { ApiError, exportCsv, listSchemes, screen, search } from "./static-screen";
+import { ApiError } from "./api-error";
+import { exportCsv, listSchemes, screen, search } from "./static-screen";
 
 const API = process.env.MF_PARITY_API;
 const DATA = fileURLToPath(new URL("../../public/data/", import.meta.url));

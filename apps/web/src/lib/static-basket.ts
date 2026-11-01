@@ -5,7 +5,7 @@
  */
 import type { BasketResponse } from "@mf/shared";
 import { z } from "zod";
-import { ApiError } from "./api";
+import { ApiError } from "./api-error";
 import { loadFund, loadJson, loadScreenColumn } from "./static-data";
 
 // BasketRequest in main.py, and MIN_OBS / ZERO_TOLERANCE in mf_analytics, which no
