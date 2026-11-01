@@ -287,10 +287,17 @@ make test-py        # pytest only
 make test-js        # vitest only
 make lint           # ruff check, ruff format --check, mypy, eslint, prettier
 make typecheck      # tsc across the workspace
+make e2e            # production build, then Playwright drives it in a browser
 ```
 
 The Python tests cover the metric definitions against hand-computed values (CAGR, rolling windows, Sharpe, Sortino, volatility, tracking error, information ratio, alpha/beta on synthetic linear data, the alpha t-statistic against a closed-form OLS formula and its false-positive rate on pure noise, maximum drawdown, leave-one-out peer averages, ratio behaviour on a non-positive denominator, single-scheme categories, monthly resampling with gaps, SIP XIRR against a constant-growth series and an independently-solved irregular one, capture ratios, drawdown recovery days and calendar-year summaries, quartile ranking and persistence on synthetic categories, and universe filtering), plus an end-to-end suite that builds a synthetic lake, runs the real pipeline over it, and exercises the API's filtering, sorting, pagination, column selection and CSV export.
 No test touches the network.
+
+`make e2e` runs `apps/web/e2e` against whatever store is loaded, sample or full, picking its funds from the live data.
+It starts the API and the production build itself, or reuses them if they are already running.
+It covers header search, a preset with its CSV export, column sorting, compare, basket weights, the overlap page without holdings, and every page at desktop and phone width with no console errors, broken values or sideways scroll.
+Screenshots and the exported CSV land in `apps/web/test-results/artifacts/`.
+Playwright's own browser is used unless `CHROMIUM` points at one, for example `CHROMIUM=/usr/bin/chromium make e2e`.
 
 ## Methodology summary
 
