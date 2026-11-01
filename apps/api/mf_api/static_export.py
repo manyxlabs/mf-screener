@@ -12,8 +12,7 @@ live API can never disagree about a number. Three kinds of file:
   page shows the same reason the API would.
 
 Floats are cut to 6 significant figures, more than any figure on the site displays: the
-site has to fit GitHub Pages' 1 GB. Monthly returns are the exception: the browser
-compounds them into basket figures, where rounded inputs drift past 6 figures.
+site has to fit GitHub Pages' 1 GB. `EXACT` lists the exceptions.
 """
 
 from __future__ import annotations
@@ -61,21 +60,25 @@ FROM scheme_attributes
 """
 
 
+# Left unrounded: NAVs are shown to 4 decimals (a 4281.8909 NAV would print 4281.8900),
+# and the browser compounds monthly returns into basket figures, where rounded inputs
+# drift past 6 figures.
+EXACT = {"nav", "latest_nav", "monthly_returns"}
+
+
 def compact(value: Any) -> Any:
     if isinstance(value, float):
         return float(f"{value:.6g}") if math.isfinite(value) else None
     if isinstance(value, dict):
-        return {k: compact(v) for k, v in value.items()}
+        return {k: v if k in EXACT else compact(v) for k, v in value.items()}
     if isinstance(value, list):
         return [compact(v) for v in value]
     return value
 
 
-def write(path: Path, payload: Any, rounded: bool = False) -> int:
-    """`rounded` means the caller already applied `compact` where it wanted it."""
+def write(path: Path, payload: Any) -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = payload if rounded else compact(payload)
-    text = json.dumps(data, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+    text = json.dumps(payload, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
     path.write_text(text, encoding="utf-8")
     return len(text.encode())
 
@@ -98,21 +101,18 @@ def _answer(path: str) -> Any:
     response = _client.get(path)
     if response.status_code == 200:
         return response.json()
+    # A refusal is part of the answer; a server error is a bug, and baking it into the
+    # site would publish it as if it were the scheme's data.
+    if response.status_code >= 500:
+        raise RuntimeError(f"GET {path}: {response.status_code} {response.text[:500]}")
     detail = response.json().get("detail") if response.content else None
     return {"error": response.status_code, "detail": detail}
 
 
-EXACT = {"monthly_returns"}
-
-
 def _export_fund(job: tuple[str, str]) -> int:
     code, out = job
-    bundle = {
-        key: answer if key in EXACT else compact(answer)
-        for key, path in FUND.items()
-        for answer in [_answer(path.format(c=code))]
-    }
-    return write(Path(out) / "fund" / f"{code}.json", bundle, rounded=True)
+    bundle = {key: _answer(path.format(c=code)) for key, path in FUND.items()}
+    return write(Path(out) / "fund" / f"{code}.json", compact(bundle))
 
 
 def _screen_table() -> Any:
@@ -132,9 +132,10 @@ def _column(values: list[Any]) -> Any:
     (missing_reasons is 29 MB plain), so it is stored once per value plus a row index."""
     if not any(isinstance(v, dict) for v in values):
         return values
-    keys = [json.dumps(v, sort_keys=True) for v in values]
-    distinct = {k: i for i, k in enumerate(dict.fromkeys(keys))}
-    return {"distinct": [json.loads(k) for k in distinct], "rows": [distinct[k] for k in keys]}
+    # Key order is kept: the CSV writes each object as JSON text, as the API does.
+    keys = [json.dumps(v) for v in values]
+    index = {k: i for i, k in enumerate(dict.fromkeys(keys))}
+    return {"distinct": [json.loads(k) for k in index], "rows": [index[k] for k in keys]}
 
 
 def run(out: Path, jobs: int, limit: int | None = None) -> dict[str, Any]:
@@ -144,16 +145,23 @@ def run(out: Path, jobs: int, limit: int | None = None) -> dict[str, Any]:
     _init_worker()
     sizes: dict[str, int] = {}
     for name in GLOBAL:
-        sizes[f"global/{name}"] = write(out / "global" / f"{name}.json", _answer(f"/{name}"))
+        sizes[f"global/{name}"] = write(
+            out / "global" / f"{name}.json", compact(_answer(f"/{name}"))
+        )
 
     records, columns = _screen_table()
     for column in columns:
+        values = [r[column] for r in records]
         sizes[f"screen/{column}"] = write(
-            out / "screen" / f"{column}.json", _column([r[column] for r in records])
+            out / "screen" / f"{column}.json",
+            _column(values if column in EXACT else compact(values)),
         )
     write(out / "screen" / "index.json", {"columns": columns, "count": len(records)})
 
-    codes = [r["scheme_code"] for r in records][:limit]
+    # Every active scheme gets a page, not only those in the screener: a scheme with no
+    # metrics snapshot is still linked as a peer and has its own "no metrics" page.
+    active = query_df("SELECT scheme_code FROM scheme_master WHERE is_active ORDER BY 1")
+    codes = [str(c) for c in active["scheme_code"]][:limit]
     # Spawn, not fork: the parent already holds a DuckDB connection and its threads.
     context = multiprocessing.get_context("spawn")
     fund_bytes = 0
