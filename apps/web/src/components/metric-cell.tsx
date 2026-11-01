@@ -54,6 +54,7 @@ export function MissingValue({ reason, description }: { reason?: string; descrip
   return (
     <InfoTooltip
       align="right"
+      name="Explain why this value is missing"
       label={<span className="text-ink-500 underline decoration-dotted">{MISSING}</span>}
     >
       <span className="block font-semibold text-ink-900">Not available</span>

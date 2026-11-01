@@ -9,10 +9,13 @@ import { useId, useState, type ReactNode } from "react";
 export function InfoTooltip({
   children,
   label,
+  name,
   align = "left",
 }: {
   children: ReactNode;
   label: ReactNode;
+  /** Accessible name, for when the visible label is not one (a bare dash). */
+  name?: string;
   align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
@@ -39,7 +42,7 @@ export function InfoTooltip({
       <button
         type="button"
         aria-describedby={open ? id : undefined}
-        aria-label="Explain this metric"
+        aria-label={name}
         className="cursor-help text-left"
         onClick={() => setOpen((v) => !v)}
       >
