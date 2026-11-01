@@ -30,9 +30,10 @@ export default function OverlapPage() {
         <p className="max-w-3xl text-sm text-ink-700">
           This site publishes no holdings data: AMFI publishes none, and the one free third-party
           source was unreachable on every probe. So no overlap figure is shown here, rather than a
-          0% that would read as two funds having nothing in common. In the local app you can import
-          your own with{" "}
-          <code className="rounded bg-ink-100 px-1">make holdings-import FILE=...</code> - the CSV
+          0% that would read as two funds having nothing in common. Running the API yourself, you
+          can import your own with{" "}
+          <code className="rounded bg-ink-100 px-1">make holdings-import FILE=...</code> and read
+          overlap from <code className="rounded bg-ink-100 px-1">GET /overlap</code> - the CSV
           contract is in the README, and nothing is written unless the whole file passes.
         </p>
       </Card>

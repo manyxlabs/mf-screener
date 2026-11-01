@@ -236,10 +236,11 @@ export default async function MethodologyPage() {
             <li key={item}>{item}</li>
           ))}
           <li>
-            Survivorship bias: the default universe is today&apos;s active schemes. Historical
-            screening over it will not see funds that closed or merged. Turn off &quot;active
-            only&quot; in the screener to include them, or see &quot;Survivorship bias,
-            quantified&quot; above for the measured gap, per category, in percentage points.
+            Survivorship bias: this site publishes today&apos;s active schemes only, so historical
+            screening here will not see funds that closed or merged. The API (
+            <code className="rounded bg-ink-100 px-1">make api</code>) keeps them, and
+            &quot;Survivorship bias, quantified&quot; above shows how it measures the gap per
+            category.
           </li>
         </ul>
       </Card>

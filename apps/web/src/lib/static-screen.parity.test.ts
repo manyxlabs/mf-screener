@@ -413,10 +413,8 @@ describe.skipIf(!API)("static-screen parity with the live API", () => {
       "invalid and edge input",
       screenCases(queries.filter((q) => q !== "active_only=false")),
     );
-    // Inactive schemes are not exported: active_only=false answers as the active screen.
-    expect(
-      diff(await screen("active_only=false"), (await live("/screen?active_only=true")).body),
-    ).toBeNull();
+    // Inactive schemes are not exported, so the static site refuses to pretend otherwise.
+    await expect(screen("active_only=false")).rejects.toMatchObject({ status: 400 });
   }, 600_000);
 
   it("exports the same CSV", async () => {

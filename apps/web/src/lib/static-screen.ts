@@ -219,8 +219,10 @@ function parseRequest(query: string, universe: Universe, paged: boolean): Screen
   rejectUnknown(last, paged ? SCREEN_PARAMS : EXPORT_PARAMS);
   const page = paged ? intParam(last, "page", 1, 1, Infinity) : 1;
   const pageSize = paged ? intParam(last, "page_size", 50, 1, 500) : 1;
-  // active_only is validated but cannot widen anything: inactive schemes are not exported.
-  boolParam(last, "active_only", true);
+  // Refused rather than ignored, so a link can't claim a universe the site doesn't hold.
+  if (!boolParam(last, "active_only", true)) {
+    throw bad("Only active schemes are published; active_only=false needs the local API");
+  }
   const dedupe = boolParam(last, "dedupe_families", true);
   const attributes: ScreenRequest["attributes"] = {};
   if (paged) {

@@ -12,7 +12,6 @@ export type ScreenFilters = {
   amcs: string[];
   plans: string[];
   options: string[];
-  activeOnly: boolean;
   dedupeFamilies: boolean;
   ranges: Record<string, number>;
 };
@@ -29,7 +28,6 @@ export const DEFAULT_FILTERS: ScreenFilters = {
   amcs: [],
   plans: ["Direct"],
   options: ["Growth"],
-  activeOnly: true,
   dedupeFamilies: true,
   ranges: {},
 };
@@ -50,7 +48,6 @@ export function toQueryString(filters: ScreenFilters, options?: { omitPaging?: b
   for (const value of filters.amcs) params.append("amc", value);
   for (const value of filters.plans) params.append("plan", value);
   for (const value of filters.options) params.append("option", value);
-  params.set("active_only", String(filters.activeOnly));
   params.set("dedupe_families", String(filters.dedupeFamilies));
   for (const [key, value] of Object.entries(filters.ranges)) {
     if (value !== null && value !== undefined && !Number.isNaN(value)) {
@@ -76,7 +73,6 @@ export function presetToFilters(
     amcs: [],
     plans: preset.filters.plans ?? base.plans,
     options: preset.filters.options ?? base.options,
-    activeOnly: preset.filters.active_only ?? base.activeOnly,
     dedupeFamilies: preset.filters.dedupe_families ?? base.dedupeFamilies,
     ranges: { ...preset.filters.ranges },
   };
@@ -98,7 +94,6 @@ export function matchesPreset(preset: Preset, filters: ScreenFilters): boolean {
     same(rules.styles, filters.styles) &&
     same(rules.plans, filters.plans) &&
     same(rules.options, filters.options) &&
-    rules.activeOnly === filters.activeOnly &&
     rules.dedupeFamilies === filters.dedupeFamilies &&
     JSON.stringify(rules.ranges) === JSON.stringify(filters.ranges)
   );

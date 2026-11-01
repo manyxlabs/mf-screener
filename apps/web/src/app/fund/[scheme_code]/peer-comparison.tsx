@@ -16,8 +16,8 @@ export function PeerComparison({ comparison }: { comparison: ComparisonResponse 
       subtitle="Against the mean of active Direct Growth peers in the fund's peer group, with the fund itself left out."
     >
       <p className="mb-3 text-xs text-ink-500">
-        Other peer groups (whole category, Regular plans, IDCW options, median) are recomputed live
-        and need the local app.
+        Other peer groups (whole category, Regular plans, IDCW options, median) are recomputed on
+        request, so only the API (<code>make api</code>) serves them.
       </p>
       {error ? <p className="text-sm text-bad-700">{error}</p> : null}
       {data ? (

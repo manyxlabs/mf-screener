@@ -15,7 +15,6 @@ describe("toQueryString", () => {
     const params = new URLSearchParams(toQueryString(DEFAULT_FILTERS));
     expect(params.getAll("plan")).toEqual(["Direct"]);
     expect(params.getAll("option")).toEqual(["Growth"]);
-    expect(params.get("active_only")).toBe("true");
     // T2.1: the screener asks for one row per fund unless told otherwise.
     expect(params.get("dedupe_families")).toBe("true");
   });
