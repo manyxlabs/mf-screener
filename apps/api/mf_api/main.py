@@ -481,6 +481,27 @@ def scheme_nav(
     return {"scheme_code": scheme_code, "frequency": frequency, "points": _clean_records(rows)}
 
 
+@app.get("/schemes/{scheme_code}/monthly-returns", tags=["schemes"])
+def scheme_monthly_returns(scheme_code: str) -> dict[str, Any]:
+    """The stored monthly returns /basket blends, which a rounded NAV cannot reproduce.
+
+    Two aligned columns rather than a list of points: the static export ships one of
+    these per fund, and repeating the keys would double its size.
+    """
+    _scheme_or_404(scheme_code)
+    rows = _clean_records(
+        query_df(
+            "SELECT date, monthly_return FROM monthly_returns WHERE scheme_code = ? ORDER BY date",
+            [scheme_code],
+        )
+    )
+    return {
+        "scheme_code": scheme_code,
+        "dates": [r["date"] for r in rows],
+        "values": [r["monthly_return"] for r in rows],
+    }
+
+
 @app.get("/schemes/{scheme_code}/metrics", tags=["metrics"])
 def scheme_metrics(scheme_code: str) -> dict[str, Any]:
     _scheme_or_404(scheme_code)
