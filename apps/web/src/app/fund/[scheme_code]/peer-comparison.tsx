@@ -1,5 +1,3 @@
-"use client";
-
 import {
   formatPercent,
   formatPercentagePoints,
@@ -7,127 +5,20 @@ import {
   type ComparisonResponse,
 } from "@mf/shared";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { Card, inputClass } from "@/components/ui";
-import { getComparison } from "@/lib/api";
+import { Card } from "@/components/ui";
 
-type Toggles = {
-  level: "sub_category" | "category";
-  plan_scope: "direct" | "direct_regular" | "all";
-  option_scope: "growth" | "all";
-  active_only: boolean;
-  aggregation: "mean" | "median";
-  exclude_self: boolean;
-};
-
-const DEFAULTS: Toggles = {
-  level: "sub_category",
-  plan_scope: "direct",
-  option_scope: "growth",
-  active_only: true,
-  aggregation: "mean",
-  exclude_self: true,
-};
-
-export function PeerComparison({ schemeCode }: { schemeCode: string }) {
-  const [toggles, setToggles] = useState<Toggles>(DEFAULTS);
-  const [data, setData] = useState<ComparisonResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const query = useMemo(
-    () => new URLSearchParams(Object.entries(toggles).map(([k, v]) => [k, String(v)])).toString(),
-    [toggles],
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-    getComparison(schemeCode, query)
-      .then((response) => !cancelled && setData(response))
-      .catch((err: Error) => !cancelled && setError(err.message));
-    return () => {
-      cancelled = true;
-    };
-  }, [schemeCode, query]);
-
-  const set = <K extends keyof Toggles>(key: K, value: Toggles[K]) =>
-    setToggles((t) => ({ ...t, [key]: value }));
-
+/** Only the default peer group is published; a string is the API's refusal of it. */
+export function PeerComparison({ comparison }: { comparison: ComparisonResponse | string }) {
+  const [data, error] = typeof comparison === "string" ? [null, comparison] : [comparison, null];
   return (
     <Card
       title="Peer comparison"
-      subtitle="Recomputed live for the methodology you choose here, not read from the stored snapshot."
+      subtitle="Against the mean of active Direct Growth peers in the fund's peer group, with the fund itself left out."
     >
-      <div className="mb-4 flex flex-wrap gap-4 text-sm">
-        <label className="flex items-center gap-2">
-          Compare against
-          <select
-            className={inputClass}
-            value={toggles.level}
-            onChange={(e) => set("level", e.target.value as Toggles["level"])}
-          >
-            <option value="sub_category">sub-category</option>
-            <option value="category">category</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2">
-          Plans
-          <select
-            className={inputClass}
-            value={toggles.plan_scope}
-            onChange={(e) => set("plan_scope", e.target.value as Toggles["plan_scope"])}
-          >
-            <option value="direct">Direct only</option>
-            <option value="direct_regular">Direct + Regular</option>
-            <option value="all">All plans</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2">
-          Options
-          <select
-            className={inputClass}
-            value={toggles.option_scope}
-            onChange={(e) => set("option_scope", e.target.value as Toggles["option_scope"])}
-          >
-            <option value="growth">Growth only</option>
-            <option value="all">All options</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2">
-          Peer average
-          <select
-            className={inputClass}
-            value={toggles.aggregation}
-            onChange={(e) => set("aggregation", e.target.value as Toggles["aggregation"])}
-          >
-            <option value="mean">equal-weighted mean</option>
-            <option value="median">median</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={toggles.exclude_self}
-            onChange={(e) => set("exclude_self", e.target.checked)}
-          />
-          Leave the fund out of its own peer average
-        </label>
-        <label className="flex items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={toggles.active_only}
-            onChange={(e) => set("active_only", e.target.checked)}
-          />
-          Active peers only
-        </label>
-      </div>
-
-      {toggles.plan_scope !== "direct" || toggles.option_scope !== "growth" ? (
-        <p className="mb-3 rounded bg-warn-50 p-2 text-xs text-warn-900">
-          You are comparing across plans or options. Regular plans carry distributor commission and
-          IDCW options pay out of NAV, so these peers are not measuring the same thing.
-        </p>
-      ) : null}
-
+      <p className="mb-3 text-xs text-ink-500">
+        Other peer groups (whole category, Regular plans, IDCW options, median) are recomputed live
+        and need the local app.
+      </p>
       {error ? <p className="text-sm text-bad-700">{error}</p> : null}
       {data ? (
         <>
@@ -180,9 +71,7 @@ export function PeerComparison({ schemeCode }: { schemeCode: string }) {
             ))}
           </ul>
         </>
-      ) : (
-        <p className="text-sm text-ink-500">Loading peer comparison...</p>
-      )}
+      ) : null}
     </Card>
   );
 }

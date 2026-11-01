@@ -121,7 +121,7 @@ validate: ## Report row counts, coverage and data-quality warnings
 api: ## Start the FastAPI backend on :8000
 	$(UV) run uvicorn mf_api.main:app --host $${MF_API_HOST:-127.0.0.1} --port $${MF_API_PORT:-8000} --reload
 
-web: ## Start the Next.js frontend on :3000
+web: ## Start the Next.js frontend on :3000 over the exported data in apps/web/public/data
 	$(PNPM) --filter @mf/web dev
 
 dev: ## Start backend and frontend together
@@ -138,7 +138,8 @@ test-js: ## Run the TypeScript tests
 static-export: ## Export the store as the static site's JSON: make static-export OUT=apps/web/public/data [LIMIT=200]
 	$(UV) run python -m mf_api.static_export --out $(or $(OUT),apps/web/public/data) $(if $(LIMIT),--limit $(LIMIT),)
 
-e2e: build ## Drive the production web build in a browser against the local store (CHROMIUM=path to use a system browser)
+e2e: ## Build the static site and drive it in a browser from a plain file server (CHROMIUM=path to use a system browser)
+	$(PNPM) --filter @mf/shared build
 	cd apps/web && $(PNPM) exec playwright test
 
 lint: lint-py lint-js ## Lint everything
@@ -159,9 +160,9 @@ format: ## Apply formatters
 	$(UV) run ruff format .
 	$(PNPM) format
 
-build: ## Production build of the frontend, into .next-build so `make web` keeps serving
+build: ## Build the static site into apps/web/out (needs `make static-export` first)
 	$(PNPM) --filter @mf/shared build
-	NEXT_DIST_DIR=.next-build $(PNPM) --filter @mf/web build
+	$(PNPM) --filter @mf/web build
 
 clean-data: ## Delete every downloaded and derived artefact (keeps .env)
 	rm -rf data/raw/* data/processed/* data/cache/* data/exports/*

@@ -3,8 +3,6 @@ import Link from "next/link";
 import { Card, Stat } from "@/components/ui";
 import { getBenchmarks, getMetadata } from "@/lib/api";
 
-export const dynamic = "force-dynamic";
-
 /**
  * What the landing page used to open on: dataset counts, the default peer universe,
  * benchmark coverage and the ingest log. All of it is a question about the store

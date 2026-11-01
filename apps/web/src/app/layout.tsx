@@ -2,29 +2,31 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SchemeSearch } from "@/components/scheme-search";
 import { THEME_INIT_SCRIPT, ThemeToggle } from "@/components/theme-toggle";
+import { getMetadata } from "@/lib/api";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Indian Mutual Fund Screener",
   description:
-    "Local-first screener for Indian mutual funds: trailing and rolling returns, peer-relative and risk-adjusted metrics. Research only, not investment advice.",
+    "Screener for Indian mutual funds: trailing and rolling returns, peer-relative and risk-adjusted metrics. Research only, not investment advice.",
 };
 
-// "Shortlist" rather than "Picks", because /picks is a workspace you fill in and
-// "picks" reads as though the site made them. /benchmarks moves to the footer: it is
-// a data-coverage page for whoever maintains the store, not a research entry point.
+// /benchmarks is in the footer: it is a data-coverage page for whoever maintains the
+// store, not a research entry point.
 const NAV = [
   { href: "/", label: "Start" },
   { href: "/screener", label: "Screener" },
   { href: "/compare", label: "Compare" },
   { href: "/basket", label: "Basket" },
   { href: "/overlap", label: "Overlap" },
-  { href: "/picks", label: "Shortlist" },
   { href: "/glossary", label: "Glossary" },
   { href: "/methodology", label: "Methodology" },
 ];
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const { coverage } = await getMetadata();
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased">
@@ -33,9 +35,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-8 gap-y-2 px-4 py-3 sm:px-6">
             <Link href="/" className="shrink-0 text-sm font-semibold tracking-tight">
               MF Screener
-              <span className="ml-2 rounded bg-ink-100 px-1.5 py-0.5 text-[10px] font-medium text-ink-500">
-                local
-              </span>
             </Link>
             {/* Below xl the links get their own scrolling row rather than pushing the page wide. */}
             <nav className="-mx-3 order-last flex w-[calc(100%+1.5rem)] gap-1 overflow-x-auto text-sm xl:order-none xl:mx-0 xl:w-auto">
@@ -69,6 +68,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link className="underline hover:text-ink-700" href="/data-status">
               Data status
             </Link>
+          </p>
+          <p>
+            Rebuilt daily from AMFI&rsquo;s published NAVs.{" "}
+            {`Latest NAV ${coverage.latest_nav_date ?? "-"}, metrics as of ${coverage.metrics_as_of ?? "-"}.`}
           </p>
           <p>
             NAV data originates from AMFI public records, delivered through the TigZig MF NAV API.
