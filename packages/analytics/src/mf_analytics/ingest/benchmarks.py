@@ -389,6 +389,28 @@ STYLE_BASIS: Final[tuple[tuple[str, str, str], ...]] = (
 )
 
 
+# The index each mapping rule in benchmark_map.yaml points at, proxied by the longest
+# running index fund tracking it. Declared here so a fresh store (the daily published
+# build) gets the same benchmarks as one built by hand.
+MAPPED_PROXIES: Final[tuple[tuple[str, str, str], ...]] = (
+    ("100484", "NIFTY50_TRI", "Nifty 50 (index-fund proxy)"),
+    ("147625", "NIFTY500_TRI", "Nifty 500 (index-fund proxy)"),
+    ("147622", "NIFTY_MIDCAP150_TRI", "Nifty Midcap 150 (index-fund proxy)"),
+    ("147623", "NIFTY_SMALLCAP250_TRI", "Nifty Smallcap 250 (index-fund proxy)"),
+    ("152875", "NIFTY500_MOMENTUM50_TRI", "Nifty 500 Momentum 50 (index-fund proxy)"),
+    ("151739", "NIFTY500_VALUE50_TRI", "Nifty 500 Value 50 (index-fund proxy)"),
+    ("148381", "SP500_TR_INR", "S&P 500 INR (index-fund proxy)"),
+)
+
+
+def build_mapped_proxies(settings: Settings | None = None) -> list[dict[str, Any]]:
+    """Build every benchmark the mapping config refers to, in one command."""
+    return [
+        build_index_fund_proxy(code, benchmark_id, name, settings=settings)
+        for code, benchmark_id, name in MAPPED_PROXIES
+    ]
+
+
 def build_style_basis(settings: Settings | None = None) -> list[dict[str, Any]]:
     """Build every style-factor proxy, so the basis is reproducible from one command."""
     return [

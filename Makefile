@@ -61,8 +61,11 @@ data-refresh: ## Incrementally top up recent NAVs, then rebuild metrics
 data-build: ## Full pipeline: master + NAV + benchmarks + metrics + validation
 	$(MAKE) data-master
 	$(MAKE) data-nav
+	$(PY) benchmark-proxies
+	$(PY) style-basis
 	$(MAKE) benchmark-map
 	$(MAKE) benchmark-coverage
+	$(MAKE) data-aum-history
 	$(MAKE) ter-import
 	$(MAKE) data-ter-history
 	$(MAKE) metrics

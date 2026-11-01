@@ -239,6 +239,12 @@ def benchmark_proxy(
     typer.echo(json.dumps(info, indent=2, default=str))
 
 
+@app.command("benchmark-proxies")
+def benchmark_proxies() -> None:
+    """Build every benchmark proxy the mapping config refers to."""
+    typer.echo(json.dumps(benchmarks.build_mapped_proxies(), indent=2, default=str))
+
+
 @app.command("benchmark-map")
 def benchmark_map() -> None:
     """Apply the sub-category -> benchmark mapping config."""
