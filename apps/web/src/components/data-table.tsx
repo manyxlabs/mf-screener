@@ -208,6 +208,7 @@ export function DataTable({
                         <button
                           type="button"
                           onClick={(event) => onSort(name, event.shiftKey)}
+                          aria-label={`Sort by ${metrics[name]?.plain_label || metrics[name]?.label || TEXT_LABELS[name] || name}`}
                           className="rounded px-1 text-ink-500 hover:bg-ink-200"
                           title="Sort. Hold shift to add a secondary sort."
                         >
