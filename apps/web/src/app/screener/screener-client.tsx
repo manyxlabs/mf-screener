@@ -1,13 +1,14 @@
 "use client";
 
 import type { ColumnsResponse, Facets, MetricSpec, Preset, ScreenResponse } from "@mf/shared";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ColumnPicker } from "@/components/column-picker";
 import { DataTable } from "@/components/data-table";
 import { FilterDrawer } from "@/components/filter-drawer";
 import { Button, Card, inputClass } from "@/components/ui";
-import { API_BASE, exportCsvUrl, getScreen } from "@/lib/api";
+import { exportCsv, getScreen } from "@/lib/api";
 import {
   DEFAULT_FILTERS,
   describeSort,
@@ -20,38 +21,9 @@ import {
 import { deleteScreen, loadSavedScreens, saveScreen, type SavedScreen } from "@/lib/saved-screens";
 
 // Any column whose value is itself a category average, or is measured against one.
-// T2.4: wherever one of these is on screen, the active-only vs. all-schemes gap
-// belongs next to it.
+// T2.4: wherever one of these is on screen, the survivorship caveat belongs next to it.
 const CATEGORY_AVERAGE_COLUMN =
   /^(category_return_|fund_minus_category_|fund_div_category_|rolling_\d+y_beat_category_pct)/;
-
-// Mirrors PeerUniverse.category_key in packages/analytics/src/mf_analytics/universe.py
-// (documented in docs/api.md) - there is no shared TS/Python module to import this
-// format from, so it is asserted here as a match for that one source of truth.
-function categoryKeyFor(
-  subCategory: string,
-  peerUniverse: ScreenResponse["methodology"]["peer_universe"],
-): string {
-  return (
-    `sub_category=${subCategory}|plan=${peerUniverse.plan_scope}` +
-    `|option=${peerUniverse.option_scope}|active=${peerUniverse.active_only ? "y" : "n"}` +
-    `|agg=${peerUniverse.aggregation}`
-  );
-}
-
-const GAP_HORIZONS = ["cagr_10y", "cagr_5y", "cagr_3y", "cagr_1y"] as const;
-
-function headlineGap(
-  gap: Record<string, number | null> | null,
-): { horizon: string; pp: number } | null {
-  if (!gap) return null;
-  for (const horizon of GAP_HORIZONS) {
-    const pp = gap[horizon];
-    if (typeof pp === "number")
-      return { horizon: horizon.replace("cagr_", "").replace("y", "Y"), pp };
-  }
-  return null;
-}
 
 export function ScreenerClient({
   columnsMeta,
@@ -139,41 +111,27 @@ export function ScreenerClient({
     };
   }, [query]);
 
-  // T2.4: the screener's category-average columns are active-only by default. Once
-  // the results narrow to one sub-category, the exact survivorship gap for it can be
-  // looked up and shown next to those columns rather than left as a general caveat.
-  const [survivorshipGap, setSurvivorshipGap] = useState<Record<string, number | null> | null>(
-    null,
-  );
   const categoryAverageShown = filters.columns.some((c) => CATEGORY_AVERAGE_COLUMN.test(c));
 
-  useEffect(() => {
-    const subCategory = filters.subCategories.length === 1 ? filters.subCategories[0] : undefined;
-    if (!categoryAverageShown || !subCategory || !data) {
-      setSurvivorshipGap(null);
-      return;
-    }
-    const peerUniverse = data.methodology.peer_universe;
-    if (peerUniverse.level !== "sub_category") {
-      setSurvivorshipGap(null);
-      return;
-    }
-    let cancelled = false;
-    const key = categoryKeyFor(subCategory, peerUniverse);
-    fetch(`${API_BASE}/categories/${encodeURIComponent(key)}/metrics`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json: { survivorship_gap_pp?: Record<string, number | null> } | null) => {
-        if (!cancelled) setSurvivorshipGap(json?.survivorship_gap_pp ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setSurvivorshipGap(null);
+  const [exporting, setExporting] = useState(false);
+  const downloadCsv = async () => {
+    setExporting(true);
+    try {
+      const csv = await exportCsv(toQueryString(filters, { omitPaging: true }));
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      const link = Object.assign(document.createElement("a"), {
+        href: url,
+        download: "mf-screen.csv",
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [categoryAverageShown, filters.subCategories, data]);
-
-  const gap = headlineGap(survivorshipGap);
+      link.click();
+      // Revoked on the next tick: some browsers resolve the URL after click() returns.
+      setTimeout(() => URL.revokeObjectURL(url));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const onSort = useCallback((column: string, additive: boolean) => {
     setFilters((f) => ({ ...f, sort: toggleSort(f.sort, column, additive), page: 1 }));
@@ -273,12 +231,9 @@ export function ScreenerClient({
           Columns ({filters.columns.length}
           {onStarterColumns ? " · starter" : ""})
         </Button>
-        <a
-          className="rounded-md border border-ink-300 bg-surface px-3 py-1.5 text-sm font-medium hover:bg-ink-100"
-          href={exportCsvUrl(toQueryString(filters, { omitPaging: true }))}
-        >
-          Export CSV
-        </a>
+        <Button disabled={exporting} onClick={downloadCsv}>
+          {exporting ? "Exporting..." : "Export CSV"}
+        </Button>
       </header>
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-ink-500">
@@ -296,12 +251,12 @@ export function ScreenerClient({
           </span>
         ) : null}
         {selected.size ? (
-          <a
+          <Link
             className="rounded border border-accent-500 px-2 py-0.5 text-accent-600"
             href={`/compare?codes=${[...selected].join(",")}`}
           >
             Compare {selected.size} selected
-          </a>
+          </Link>
         ) : (
           <span>Select up to five funds to compare.</span>
         )}
@@ -345,14 +300,9 @@ export function ScreenerClient({
 
       {categoryAverageShown ? (
         <p className="text-xs text-ink-500">
-          {gap
-            ? `Category averages above are active-only. Including matured/closed schemes, ` +
-              `this sub-category's ${gap.horizon} CAGR is ${gap.pp >= 0 ? "" : "-"}` +
-              `${Math.abs(gap.pp).toFixed(2)} pp ${gap.pp >= 0 ? "lower" : "higher"} ` +
-              `(survivorship bias).`
-            : "Category averages above are active-only and do not include funds that " +
-              "closed or merged. Filter to a single sub-category to see its measured " +
-              "survivorship gap, or see the methodology page."}
+          Category averages above are active-only and do not include funds that closed or merged,
+          which flatters them (survivorship bias). The methodology page has the measured size of
+          that gap.
         </p>
       ) : null}
 
@@ -360,8 +310,7 @@ export function ScreenerClient({
         <Card>
           <p className="text-sm text-bad-700">{error}</p>
           <p className="mt-2 text-xs text-ink-500">
-            If this is a filter error, clear the offending range in the filter drawer. If the API is
-            not running, start it with <code>make api</code>.
+            If this is a filter error, clear the offending range in the filter drawer.
           </p>
         </Card>
       ) : null}

@@ -1,43 +1,6 @@
 import { formatByUnit, MISSING } from "@mf/shared";
-import { z } from "zod";
 import { Badge, Card } from "@/components/ui";
-import { API_BASE, ApiError } from "@/lib/api";
-
-// T3.2: riskometer, exit load, lock-in, minimums, SID benchmark and fund manager -
-// third-party per docs/data-policy.md, so this is its own fetch and its own panel
-// rather than folded into the metrics-backed sections above, which are computed from
-// AMFI NAV alone.
-
-const attributeCellSchema = z.object({
-  value: z.union([z.string(), z.number(), z.boolean()]).nullable(),
-  as_of: z.string().nullable(),
-  stale: z.boolean(),
-  reason: z.string().nullable(),
-  reason_description: z.string().nullable(),
-});
-
-const schemeAttributesSchema = z.object({
-  scheme_code: z.string(),
-  fields: z.record(z.string(), attributeCellSchema),
-  source: z.string().nullable(),
-  source_url: z.string().nullable(),
-  disclaimer: z.string(),
-});
-
-export type SchemeAttributesResponse = z.infer<typeof schemeAttributesSchema>;
-type AttributeCell = z.infer<typeof attributeCellSchema>;
-
-export async function getSchemeAttributes(code: string): Promise<SchemeAttributesResponse | null> {
-  const response = await fetch(`${API_BASE}/schemes/${code}/attributes`, {
-    headers: { Accept: "application/json" },
-    next: { revalidate: 0 },
-  });
-  if (!response.ok) {
-    if (response.status === 404) return null;
-    throw new ApiError(response.statusText, response.status);
-  }
-  return schemeAttributesSchema.parse(await response.json());
-}
+import type { AttributeCell, SchemeAttributes } from "@/lib/api";
 
 const FIELD_SPECS: { key: string; label: string; unit?: string }[] = [
   { key: "riskometer", label: "Riskometer" },
@@ -72,11 +35,7 @@ function AttributeValue({ cell, unit }: { cell: AttributeCell; unit?: string }) 
   );
 }
 
-export function SchemeAttributesPanel({
-  attributes,
-}: {
-  attributes: SchemeAttributesResponse | null;
-}) {
+export function SchemeAttributesPanel({ attributes }: { attributes: SchemeAttributes | null }) {
   return (
     <Card
       title="Scheme attributes"

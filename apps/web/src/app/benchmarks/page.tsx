@@ -3,8 +3,6 @@ import Link from "next/link";
 import { getBenchmarks } from "@/lib/api";
 import { Badge, Card } from "@/components/ui";
 
-export const dynamic = "force-dynamic";
-
 /**
  * A benchmark whose currency differs from the fund's is shown, never hidden, but it is
  * never shown as usable either: the row states that no benchmark-relative metric is
