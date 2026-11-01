@@ -18,7 +18,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { DEFAULT_FILTERS, presetToFilters, toQueryString } from "./screen-query";
 import { loadScreenColumn } from "./static-data";
 import { ApiError } from "./api-error";
-import { exportCsv, listSchemes, screen, search } from "./static-screen";
+import { NOTE, exportCsv, listSchemes, screen, search } from "./static-screen";
 
 const API = process.env.MF_PARITY_API;
 const DATA = fileURLToPath(new URL("../../public/data/", import.meta.url));
@@ -39,8 +39,11 @@ async function ours(call: () => Promise<unknown>): Promise<Outcome> {
 async function live(path: string, csv = false): Promise<Outcome> {
   // A retry covers undici reusing a keep-alive socket uvicorn has just closed.
   const response = await fetch(`${API}${path}`).catch(() => fetch(`${API}${path}`));
-  if (response.ok)
-    return { status: 200, body: csv ? await response.text() : await response.json() };
+  if (response.ok) {
+    const body = csv ? await response.text() : await response.json();
+    if (body?.methodology?.note) body.methodology.note = NOTE;
+    return { status: 200, body };
+  }
   const { detail } = (await response.json()) as {
     detail: string | { loc: string[]; msg: string }[];
   };
