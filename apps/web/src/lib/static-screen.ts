@@ -49,9 +49,10 @@ const EXPORT_PARAMS = [
   "sort",
 ];
 const SCREEN_PARAMS = [...EXPORT_PARAMS, "page", "page_size", ...Object.keys(ATTRIBUTES)];
-const NOTE =
+/** The API's note, less its advice to recompute on a fund page: the static site can't. */
+export const NOTE =
   "Peer-relative metrics come from the stored snapshot, which uses the default " +
-  "peer universe. Change the universe on a fund page to recompute it live.";
+  "peer universe. Other universes are recomputed only by the API.";
 
 const loadGlobal = async () => {
   const [columns, metadata, methodology] = await Promise.all([
