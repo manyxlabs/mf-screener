@@ -38,6 +38,7 @@ FUND = {
     "scheme": "/schemes/{c}",
     "metrics": "/schemes/{c}/metrics",
     "nav": "/schemes/{c}/nav?frequency=monthly",
+    "monthly_returns": "/schemes/{c}/monthly-returns",
     "rolling_1": "/schemes/{c}/rolling-returns?horizon=1",
     "rolling_3": "/schemes/{c}/rolling-returns?horizon=3",
     "rolling_5": "/schemes/{c}/rolling-returns?horizon=5",
