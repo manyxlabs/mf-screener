@@ -12,7 +12,8 @@ live API can never disagree about a number. Three kinds of file:
   page shows the same reason the API would.
 
 Floats are cut to 6 significant figures, more than any figure on the site displays: the
-site has to fit GitHub Pages' 1 GB.
+site has to fit GitHub Pages' 1 GB. Monthly returns are the exception: the browser
+compounds them into basket figures, where rounded inputs drift past 6 figures.
 """
 
 from __future__ import annotations
@@ -70,9 +71,11 @@ def compact(value: Any) -> Any:
     return value
 
 
-def write(path: Path, payload: Any) -> int:
+def write(path: Path, payload: Any, rounded: bool = False) -> int:
+    """`rounded` means the caller already applied `compact` where it wanted it."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(compact(payload), separators=(",", ":"), ensure_ascii=False)
+    data = payload if rounded else compact(payload)
+    text = json.dumps(data, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
     path.write_text(text, encoding="utf-8")
     return len(text.encode())
 
@@ -99,10 +102,17 @@ def _answer(path: str) -> Any:
     return {"error": response.status_code, "detail": detail}
 
 
+EXACT = {"monthly_returns"}
+
+
 def _export_fund(job: tuple[str, str]) -> int:
     code, out = job
-    bundle = {key: _answer(path.format(c=code)) for key, path in FUND.items()}
-    return write(Path(out) / "fund" / f"{code}.json", bundle)
+    bundle = {
+        key: answer if key in EXACT else compact(answer)
+        for key, path in FUND.items()
+        for answer in [_answer(path.format(c=code))]
+    }
+    return write(Path(out) / "fund" / f"{code}.json", bundle, rounded=True)
 
 
 def _screen_table() -> Any:
