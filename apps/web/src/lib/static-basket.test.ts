@@ -7,7 +7,7 @@
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { ApiError } from "./api";
+import { ApiError } from "./api-error";
 import { basket } from "./static-basket";
 
 const API = process.env.MF_PARITY_API;

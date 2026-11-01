@@ -19,20 +19,13 @@ import {
   searchResponseSchema,
 } from "@mf/shared";
 import { z } from "zod";
+import { ApiError } from "./api-error";
 import { basket } from "./static-basket";
 import { loadJson } from "#static-data";
 import type { FundBundle } from "./static-data";
 import { exportCsv, listSchemes, screen, search } from "./static-screen";
 
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
+export { ApiError };
 
 // Server components run once, at build time, and read public/data from disk; the
 // browser fetches the same files. package.json maps `#static-data` to the disk reader
