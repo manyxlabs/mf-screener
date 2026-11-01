@@ -7,7 +7,7 @@ import {
 } from "@mf/shared";
 import { StyleDriftChart } from "@/components/charts";
 import { Card } from "@/components/ui";
-import type { NetReturns, RollingExposure } from "@/lib/api";
+import type { RollingExposure } from "@/lib/api";
 
 const MISSING_DASH = "-";
 
@@ -350,71 +350,5 @@ export function StyleDriftPanel({ rolling }: { rolling: RollingExposure }) {
       ) : null}
       <p className="mt-2 border-t border-ink-100 pt-2 text-[11px] text-ink-500">{rolling.caveat}</p>
     </Card>
-  );
-}
-
-const ORIENTATION_LABEL: Record<string, string> = {
-  equity_oriented: "Equity-oriented",
-  debt_oriented: "Debt-oriented",
-};
-
-/**
- * Gross, after-tax and after-tax-and-load side by side. A display layer over the gross
- * return above, never a ranking column: the rate that applies depends on who is
- * holding the fund, not on anything the fund itself did.
- */
-export function NetReturnsPanel({ netReturns }: { netReturns: NetReturns }) {
-  const { orientation, gross_return, after_tax_return, after_tax_and_load_return, assumptions } =
-    netReturns;
-  return (
-    <Card
-      title="Return after tax and exit load"
-      subtitle={`${netReturns.horizon_years}-year ${netReturns.mode === "sip" ? "SIP" : "lumpsum"}, ${netReturns.clean_category} / ${netReturns.clean_sub_category}. Not a ranking figure: the rate that applies is the holder's, not the fund's.`}
-    >
-      {orientation === null ? (
-        <p className="text-sm text-ink-500">
-          {after_tax_return.reason_description ??
-            "Whether this scheme is equity- or debt-oriented for tax cannot be determined from its category."}
-        </p>
-      ) : (
-        <p className="mb-3 text-xs text-ink-500">
-          {ORIENTATION_LABEL[orientation] ?? orientation} for capital gains tax.
-        </p>
-      )}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <NetReturnFigure label="Gross" metric={gross_return} />
-        <NetReturnFigure label="After tax" metric={after_tax_return} />
-        <NetReturnFigure label="After tax and exit load" metric={after_tax_and_load_return} />
-      </div>
-      <div className="mt-3 space-y-1 border-t border-ink-100 pt-3 text-[11px] text-ink-500">
-        <p>
-          Assumed rates: LTCG {formatPercent(assumptions.ltcg_rate, 1)} above an exemption of{" "}
-          {assumptions.ltcg_exemption.toLocaleString("en-IN")} per year, STCG{" "}
-          {formatPercent(assumptions.stcg_rate, 1)} below {assumptions.lt_holding_months} months
-          held, slab rate {formatPercent(assumptions.slab_rate, 1)} for debt-oriented gains.
-        </p>
-        <p>{assumptions.slab_rate_note}</p>
-      </div>
-    </Card>
-  );
-}
-
-function NetReturnFigure({ label, metric }: { label: string; metric: NetReturns["gross_return"] }) {
-  return (
-    <div className="rounded-md border border-ink-200 px-3 py-2">
-      <div className="text-[11px] uppercase tracking-wide text-ink-500">{label}</div>
-      <div className="mt-0.5 text-lg font-semibold numeric text-ink-900">
-        {metric.value === null ? (
-          <span
-            className="cursor-help underline decoration-dotted"
-            title={metric.reason_description ?? metric.reason ?? undefined}
-          >
-            {MISSING_DASH}
-          </span>
-        ) : (
-          formatPercent(metric.value)
-        )}
-      </div>
-    </div>
   );
 }

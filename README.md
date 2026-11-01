@@ -12,7 +12,8 @@ This is an analytics and research tool.
 Nothing it produces is advice, a recommendation, or a solicitation.
 Historical returns do not guarantee future returns, and every metric here is a description of the past.
 The preset screens are editable starting points, not shortlists.
-The composite score on `/picks` is a declared-weight percentile decomposition against peer-group peers, not a rating or a recommendation.
+The composite score (`GET /score/{code}`) is a declared-weight percentile decomposition against peer-group peers, not a rating or a recommendation.
+The published site carries no ranked shortlist, so it cannot read as investment research.
 
 ## Architecture
 
@@ -48,11 +49,14 @@ flowchart LR
   end
 
   J --> P["apps/api - FastAPI<br/>read-only DuckDB"]
-  P --> Q["apps/web - Next.js<br/>screener / fund / compare<br/>basket / overlap / glossary"]
+  P --> S["make static-export<br/>apps/web/public/data/*.json"]
+  S --> Q["apps/web - static Next.js export<br/>screener / fund / compare<br/>basket / overlap / glossary"]
   P --> R["CSV export"]
 ```
 
-The frontend never reads the data files: it only calls the API, and the API only reads whitelisted columns through parameterised SQL.
+The web app is a fully static site with no server.
+`make static-export` asks the API for every answer the pages need and writes it as JSON, so a page and the API can never disagree about a number.
+The API only reads whitelisted columns through parameterised SQL, and stays available for programmatic use.
 
 ## Prerequisites
 
@@ -74,16 +78,31 @@ cd mf-screener
 make bootstrap      # installs dependencies, creates data dirs, copies .env.example to .env
 make data-sample    # ~70 representative schemes with full NAV history, a few MB
 make test           # Python + TypeScript test suites
+make static-export  # the site's JSON, into apps/web/public/data
 make dev            # API on :8000, web UI on :3000
 ```
 
 Open <http://localhost:3000>.
 API docs are at <http://localhost:8000/docs> (OpenAPI JSON at `/openapi.json`).
+The web UI reads only the exported JSON, so re-run `make static-export` after the store changes.
 
 `make data-sample` picks the longest-history Direct Growth funds across Mid Cap, Small Cap, Flexi Cap, Large Cap, Value, Multi Cap and Index Funds, plus a few Regular / IDCW / matured schemes so the universe filters have something to exclude, and it builds two clearly-labelled benchmark proxies from index funds.
 
 To run the frontend on another port:
-`PORT=3001 make web` (add that origin to `MF_CORS_ORIGINS` in `.env`).
+`PORT=3001 make web`.
+
+## Publishing the static site
+
+```bash
+make static-export  # every answer the pages need, as JSON (LIMIT=n for fund files for only n schemes)
+make build          # the site, into apps/web/out
+```
+
+`apps/web/out` is plain files for any static host, GitHub Pages included: every route is a directory with an `index.html`, and an unknown fund is the static 404 page.
+There is one prerendered page per fund with a fund file, each with its own title and description, and `sitemap.xml` lists them all.
+Set `NEXT_PUBLIC_SITE_URL` before building when the site is not served from `https://screener.manyxlabs.com`.
+A fund page prerenders only its header and loads the rest of its figures from `data/fund/<code>.json` in the browser, which keeps a page near 25 KB: prerendering everything came to about 250 KB per fund, too much for GitHub Pages' 1 GB across every scheme.
+The fund page's peer comparison is the default peer group only; choosing another one recomputes live and needs the local API.
 
 ## The full dataset
 
@@ -276,7 +295,7 @@ A scheme with no computable metrics still prints its one-card "no metrics for th
 make api            # uvicorn on :8000
 make web            # next dev on :3000 (or PORT=3001 make web)
 make dev            # both
-make build          # production build of the frontend
+make build          # the static site, into apps/web/out
 ```
 
 ## Tests and checks
@@ -287,15 +306,15 @@ make test-py        # pytest only
 make test-js        # vitest only
 make lint           # ruff check, ruff format --check, mypy, eslint, prettier
 make typecheck      # tsc across the workspace
-make e2e            # production build, then Playwright drives it in a browser
+make e2e            # static build, then Playwright drives it in a browser
 ```
 
 The Python tests cover the metric definitions against hand-computed values (CAGR, rolling windows, Sharpe, Sortino, volatility, tracking error, information ratio, alpha/beta on synthetic linear data, the alpha t-statistic against a closed-form OLS formula and its false-positive rate on pure noise, maximum drawdown, leave-one-out peer averages, ratio behaviour on a non-positive denominator, single-scheme categories, monthly resampling with gaps, SIP XIRR against a constant-growth series and an independently-solved irregular one, capture ratios, drawdown recovery days and calendar-year summaries, quartile ranking and persistence on synthetic categories, and universe filtering), plus an end-to-end suite that builds a synthetic lake, runs the real pipeline over it, and exercises the API's filtering, sorting, pagination, column selection and CSV export.
 No test touches the network.
 
-`make e2e` runs `apps/web/e2e` against whatever store is loaded, sample or full, picking its funds from the live data.
-It starts the API and the production build itself, or reuses them if they are already running.
-It covers header search, a preset with its CSV export, column sorting, compare, basket weights, the overlap page without holdings, and every page at desktop and phone width with no console errors, broken values or sideways scroll.
+`make e2e` runs `apps/web/e2e` against whatever `make static-export` wrote, sample or full, picking its funds from that data.
+It builds the static site and serves `apps/web/out` from a plain file server, as GitHub Pages would, with no Next server and no API; a server already on :3000 is reused instead.
+It covers header search, a preset with its CSV export, column sorting, compare, basket weights, a fund page loading its figures, the overlap page without holdings, and every page at desktop and phone width with no console errors, broken values or sideways scroll.
 Screenshots and the exported CSV land in `apps/web/test-results/artifacts/`.
 Playwright's own browser is used unless `CHROMIUM` points at one, for example `CHROMIUM=/usr/bin/chromium make e2e`.
 
@@ -339,7 +358,7 @@ A test asserts every metric has a non-empty plain label and a group from the all
 
 **`/columns` serves two column sets.**
 `starter` is the eight-column opening view - one headline return, the typical and worst five-year window that qualify it, the worst fall, one peer-relative number and cost.
-`default` is the fuller 34-column set the presets and `/picks` already depend on, and is unchanged.
+`default` is the fuller 34-column set the presets already depend on, and is unchanged.
 The screener opens on `starter` with one "Show advanced columns" button to `default`, and the column picker offers Starter, Standard and Everything with the full 168 grouped rather than listed flat.
 
 **The filter drawer takes whole percents.**
@@ -439,7 +458,7 @@ Nothing is hard-coded and there are no secrets.
 | `MF_ENRICH_STALE_DAYS`                                                         | `45`                                          | Past this many days since an enrichment row's `as_of`, the UI labels it stale                                                  |
 | `MF_ATTRIBUTES_SOURCE_URL` / `MF_HOLDINGS_SOURCE_URL`                          | `https://mfdata.in/api/v1`                    | The candidate enrichment source. Unreachable on every probe, so nothing fetches from it; both adapters are dormant             |
 | `MF_CORS_ORIGINS`                                                              | `http://localhost:3000,http://localhost:3001` | Allowed frontend origins                                                                                                       |
-| `NEXT_PUBLIC_API_BASE`                                                         | `http://localhost:8000`                       | Where the browser calls the API                                                                                                |
+| `NEXT_PUBLIC_SITE_URL`                                                         | `https://screener.manyxlabs.com`              | Origin the static site's sitemap, robots.txt and page metadata point at                                                        |
 
 ## License
 

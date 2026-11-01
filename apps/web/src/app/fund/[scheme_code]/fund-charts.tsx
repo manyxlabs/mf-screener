@@ -4,9 +4,7 @@ import { formatPercent, type RollingResponse } from "@mf/shared";
 import { useEffect, useState } from "react";
 import { NavChart, RollingReturnChart } from "@/components/charts";
 import { Button, Card } from "@/components/ui";
-import { getRollingReturns } from "@/lib/api";
-
-const HORIZONS = [1, 3, 5, 10];
+import { getRollingReturns, ROLLING_HORIZONS, type RollingHorizon } from "@/lib/api";
 
 function ScaleBreakNote({ at }: { at: string | null }) {
   if (!at) return null;
@@ -26,7 +24,7 @@ export function FundCharts({
   schemeCode: string;
   navPoints: { date: string; nav: number }[];
 }) {
-  const [horizon, setHorizon] = useState(5);
+  const [horizon, setHorizon] = useState<RollingHorizon>(5);
   const [rolling, setRolling] = useState<RollingResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,7 +46,7 @@ export function FundCharts({
         subtitle="Each point is the annualised return of the window ending on that month."
       >
         <div className="mb-3 flex gap-2">
-          {HORIZONS.map((h) => (
+          {ROLLING_HORIZONS.map((h) => (
             <Button
               key={h}
               variant={h === horizon ? "primary" : "secondary"}
