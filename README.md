@@ -440,3 +440,8 @@ Nothing is hard-coded and there are no secrets.
 | `MF_ATTRIBUTES_SOURCE_URL` / `MF_HOLDINGS_SOURCE_URL`                          | `https://mfdata.in/api/v1`                    | The candidate enrichment source. Unreachable on every probe, so nothing fetches from it; both adapters are dormant             |
 | `MF_CORS_ORIGINS`                                                              | `http://localhost:3000,http://localhost:3001` | Allowed frontend origins                                                                                                       |
 | `NEXT_PUBLIC_API_BASE`                                                         | `http://localhost:8000`                       | Where the browser calls the API                                                                                                |
+
+## License
+
+MIT, see [LICENSE](LICENSE).
+The licence covers the code only: the NAV, TER and AUM data it downloads stay under their sources' terms.
