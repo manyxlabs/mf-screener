@@ -1,0 +1,113 @@
+# Rebuilds the store from AMFI every night and publishes the static site to GitHub Pages.
+# A push to main republishes from the newest export the pushed code can read, so a web
+# change goes live in minutes; a push that changes what the export writes rebuilds it.
+name: Publish
+
+on:
+  schedule:
+    # 02:00 IST, after AMFI has published the day's NAVs.
+    - cron: "30 20 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# One group per kind: GitHub keeps a single pending run per group, so a shared group
+# would let a queued push cancel a queued nightly rebuild.
+concurrency:
+  group: publish-${{ github.event_name == 'push' && 'push' || 'data' }}
+  cancel-in-progress: false
+
+jobs:
+  data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v4
+      # Everything that decides the export's shape or numbers. An export is only ever
+      # paired with code of the same hash: new web code over an old-format export builds
+      # cleanly and then fails in the browser.
+      - id: key
+        run: echo "key=static-data-${{ hashFiles('apps/api/**', 'packages/analytics/**', 'uv.lock', '.env.example') }}" >> "$GITHUB_OUTPUT"
+      - id: existing
+        if: github.event_name == 'push'
+        uses: actions/cache/restore@v4
+        with:
+          path: apps/web/public/data
+          key: ${{ steps.key.outputs.key }}-none
+          restore-keys: ${{ steps.key.outputs.key }}-
+          lookup-only: true
+      - id: build
+        if: steps.existing.outputs.cache-matched-key == ''
+        run: echo "needed=true" >> "$GITHUB_OUTPUT"
+      - if: steps.build.outputs.needed
+        uses: astral-sh/setup-uv@v6
+      - name: Prepare
+        if: steps.build.outputs.needed
+        run: |
+          cp .env.example .env
+          uv sync --frozen
+          uv run python -m mf_analytics.cli init
+      - name: Rebuild the store from AMFI
+        if: steps.build.outputs.needed
+        run: make data-build
+      - name: Export the static data
+        if: steps.build.outputs.needed
+        run: make static-export OUT=apps/web/public/data
+      - if: steps.build.outputs.needed
+        uses: actions/cache/save@v4
+        with:
+          path: apps/web/public/data
+          key: ${{ steps.key.outputs.key }}-${{ github.run_id }}
+
+  site:
+    needs: data
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
+        with:
+          path: apps/web/public/data
+          key: ${{ needs.data.outputs.key }}-none
+          restore-keys: ${{ needs.data.outputs.key }}-
+          fail-on-cache-miss: true
+      - name: Refuse stale data
+        # Schedules stop after 60 days without repository activity, and nothing else
+        # would notice: the site would keep serving old NAVs with every run green.
+        run: |
+          latest=$(jq -r .coverage.latest_nav_date apps/web/public/data/global/metadata.json)
+          age=$(( ($(date -u +%s) - $(date -u -d "$latest" +%s)) / 86400 ))
+          echo "Latest NAV $latest, $age days old"
+          test "$age" -le 5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build the static site
+        run: make build PNPM=pnpm
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/out
+
+  deploy:
+    needs: site
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
