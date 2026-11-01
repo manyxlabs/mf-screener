@@ -127,6 +127,16 @@ def _screen_table() -> Any:
     return _clean_records(frame), list(frame.columns)
 
 
+def _column(values: list[Any]) -> Any:
+    """A column of objects repeats a few hundred distinct values over thousands of rows
+    (missing_reasons is 29 MB plain), so it is stored once per value plus a row index."""
+    if not any(isinstance(v, dict) for v in values):
+        return values
+    keys = [json.dumps(v, sort_keys=True) for v in values]
+    distinct = {k: i for i, k in enumerate(dict.fromkeys(keys))}
+    return {"distinct": [json.loads(k) for k in distinct], "rows": [distinct[k] for k in keys]}
+
+
 def run(out: Path, jobs: int, limit: int | None = None) -> dict[str, Any]:
     started = time.monotonic()
     if out.exists():
@@ -139,7 +149,7 @@ def run(out: Path, jobs: int, limit: int | None = None) -> dict[str, Any]:
     records, columns = _screen_table()
     for column in columns:
         sizes[f"screen/{column}"] = write(
-            out / "screen" / f"{column}.json", [r[column] for r in records]
+            out / "screen" / f"{column}.json", _column([r[column] for r in records])
         )
     write(out / "screen" / "index.json", {"columns": columns, "count": len(records)})
 
