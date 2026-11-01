@@ -32,7 +32,7 @@ jobs:
       # paired with code of the same hash: new web code over an old-format export builds
       # cleanly and then fails in the browser.
       - id: key
-        run: echo "key=static-data-${{ hashFiles('apps/api/**', 'packages/analytics/**', 'uv.lock', '.env.example') }}" >> "$GITHUB_OUTPUT"
+        run: echo "key=static-data-${{ hashFiles('apps/api/**', 'packages/analytics/**', 'uv.lock', '.env.example', 'Makefile') }}" >> "$GITHUB_OUTPUT"
       - id: existing
         if: github.event_name == 'push'
         uses: actions/cache/restore@v4
@@ -54,7 +54,7 @@ jobs:
           uv run python -m mf_analytics.cli init
       - name: Rebuild the store from AMFI
         if: steps.build.outputs.needed
-        run: make data-build
+        run: make data-site
       - name: Export the static data
         if: steps.build.outputs.needed
         run: make static-export OUT=apps/web/public/data

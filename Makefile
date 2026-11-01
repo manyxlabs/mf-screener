@@ -5,7 +5,7 @@ PNPM ?= pnpm
 PY := $(UV) run python -m mf_analytics.cli
 
 .DEFAULT_GOAL := help
-.PHONY: help bootstrap data-master data-nav data-sample data-refresh data-build provenance \
+.PHONY: help bootstrap data-master data-nav data-sample data-refresh data-build data-site provenance \
         benchmark-import benchmark-validate benchmark-coverage benchmark-proxy style-basis \
         benchmark-map benchmark-sample ter-import data-ter-history data-aum-history holdings-validate holdings-import \
         metrics inspect validate api web dev test test-py test-js e2e static-export lint lint-py lint-js \
@@ -58,7 +58,14 @@ data-refresh: ## Incrementally top up recent NAVs, then rebuild metrics
 	$(MAKE) data-ter-history
 	$(MAKE) metrics
 
-data-build: ## Full pipeline: master + NAV + benchmarks + metrics + validation
+data-build: ## Full pipeline: everything the site needs, plus TER history for backtests
+	$(MAKE) data-site
+	$(MAKE) data-ter-history
+
+# The published site never reads TER history (only scripts/backtest_score.py does), and
+# fetching it from scratch is one AMFI request per AMC per month since mid-2018: enough for
+# AMFI to rate-limit a fresh CI runner every night.
+data-site: ## Everything the site needs: master + NAV + benchmarks + metrics + validation
 	$(MAKE) data-master
 	$(MAKE) data-nav
 	$(PY) benchmark-proxies
@@ -67,7 +74,6 @@ data-build: ## Full pipeline: master + NAV + benchmarks + metrics + validation
 	$(MAKE) benchmark-coverage
 	$(MAKE) data-aum-history
 	$(MAKE) ter-import
-	$(MAKE) data-ter-history
 	$(MAKE) metrics
 	$(PY) validate
 
