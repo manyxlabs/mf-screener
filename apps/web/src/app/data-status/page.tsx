@@ -106,26 +106,28 @@ export default async function DataStatusPage() {
       </Card>
 
       <Card title="Last pipeline runs">
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs uppercase tracking-wide text-ink-500">
-            <tr>
-              <th className="py-1">Step</th>
-              <th>Status</th>
-              <th>Rows</th>
-              <th>Finished</th>
-            </tr>
-          </thead>
-          <tbody>
-            {metadata.ingest_log.slice(0, 8).map((entry, index) => (
-              <tr key={`${String(entry["run_id"])}-${index}`} className="border-t border-ink-100">
-                <td className="py-1.5">{String(entry["step"])}</td>
-                <td>{String(entry["status"])}</td>
-                <td className="numeric">{String(entry["row_count"] ?? "-")}</td>
-                <td className="numeric">{String(entry["finished_at"] ?? "-")}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs uppercase tracking-wide text-ink-500">
+              <tr>
+                <th className="py-1">Step</th>
+                <th>Status</th>
+                <th>Rows</th>
+                <th>Finished</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {metadata.ingest_log.slice(0, 8).map((entry, index) => (
+                <tr key={`${String(entry["run_id"])}-${index}`} className="border-t border-ink-100">
+                  <td className="py-1.5">{String(entry["step"])}</td>
+                  <td>{String(entry["status"])}</td>
+                  <td className="numeric">{String(entry["row_count"] ?? "-")}</td>
+                  <td className="numeric">{String(entry["finished_at"] ?? "-")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <p className="mt-3 text-xs text-ink-500">
           Risk-free rate in use: {formatPercent(0.065)} annual by default, configurable with
           MF_RISK_FREE_ANNUAL. See the methodology page for the exact conversion.

@@ -161,36 +161,38 @@ export function OverlapClient() {
       {data ? (
         <>
           <Card title="What is loaded for each fund">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase tracking-wide text-ink-500">
-                <tr>
-                  <th className="py-1">Fund</th>
-                  <th>Portfolio as of</th>
-                  <th>Holdings</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.funds.map((f) => (
-                  <tr key={f.scheme_code} className="border-t border-ink-100">
-                    <td className="py-1.5 pr-3">{f.scheme_name}</td>
-                    <td className="pr-3">
-                      {f.as_of_month ?? (
-                        <MissingValue
-                          reason={f.reason ?? undefined}
-                          description={f.reason_description ?? undefined}
-                        />
-                      )}
-                      {f.stale ? (
-                        <span className="ml-1.5">
-                          <Badge tone="warn">stale</Badge>
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="numeric">{f.holdings_count || "-"}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs uppercase tracking-wide text-ink-500">
+                  <tr>
+                    <th className="py-1">Fund</th>
+                    <th>Portfolio as of</th>
+                    <th>Holdings</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.funds.map((f) => (
+                    <tr key={f.scheme_code} className="border-t border-ink-100">
+                      <td className="py-1.5 pr-3">{f.scheme_name}</td>
+                      <td className="pr-3">
+                        {f.as_of_month ?? (
+                          <MissingValue
+                            reason={f.reason ?? undefined}
+                            description={f.reason_description ?? undefined}
+                          />
+                        )}
+                        {f.stale ? (
+                          <span className="ml-1.5">
+                            <Badge tone="warn">stale</Badge>
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="numeric">{f.holdings_count || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             {data.funds.every((f) => f.holdings_count === 0) ? (
               <p className="mt-3 rounded border border-ink-200 bg-ink-50 px-3 py-2 text-xs text-ink-700">
                 No holdings are loaded for these funds. This project ships no holdings data: AMFI
@@ -235,28 +237,34 @@ export function OverlapClient() {
                         ) : null}
                       </header>
                       {pair.shared_instruments.length ? (
-                        <table className="mt-2 w-full text-sm">
-                          <thead className="text-left text-xs uppercase tracking-wide text-ink-500">
-                            <tr>
-                              <th className="py-1">Shared holding</th>
-                              <th className="text-right">In first</th>
-                              <th className="text-right">In second</th>
-                              <th className="text-right">Counted</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {pair.shared_instruments.slice(0, 25).map((i) => (
-                              <tr key={i.instrument_key} className="border-t border-ink-100">
-                                <td className="py-1">{i.instrument_name}</td>
-                                <td className="numeric text-right">{formatPercent(i.weight_a)}</td>
-                                <td className="numeric text-right">{formatPercent(i.weight_b)}</td>
-                                <td className="numeric text-right">
-                                  {formatPercent(i.min_weight)}
-                                </td>
+                        <div className="overflow-x-auto">
+                          <table className="mt-2 w-full text-sm">
+                            <thead className="text-left text-xs uppercase tracking-wide text-ink-500">
+                              <tr>
+                                <th className="py-1">Shared holding</th>
+                                <th className="text-right">In first</th>
+                                <th className="text-right">In second</th>
+                                <th className="text-right">Counted</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {pair.shared_instruments.slice(0, 25).map((i) => (
+                                <tr key={i.instrument_key} className="border-t border-ink-100">
+                                  <td className="py-1">{i.instrument_name}</td>
+                                  <td className="numeric text-right">
+                                    {formatPercent(i.weight_a)}
+                                  </td>
+                                  <td className="numeric text-right">
+                                    {formatPercent(i.weight_b)}
+                                  </td>
+                                  <td className="numeric text-right">
+                                    {formatPercent(i.min_weight)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       ) : null}
                       {pair.shared_instruments.length > 25 ? (
                         <p className="mt-1 text-[11px] text-ink-500">

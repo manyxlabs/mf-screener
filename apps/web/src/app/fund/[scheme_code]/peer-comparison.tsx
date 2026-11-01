@@ -131,36 +131,38 @@ export function PeerComparison({ schemeCode }: { schemeCode: string }) {
       {error ? <p className="text-sm text-bad-700">{error}</p> : null}
       {data ? (
         <>
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wide text-ink-500">
-              <tr>
-                <th className="py-1">Horizon</th>
-                <th>Fund</th>
-                <th>Peers</th>
-                <th>Excess</th>
-                <th>Ratio</th>
-                <th>Peer count</th>
-              </tr>
-            </thead>
-            <tbody>
-              {["1y", "3y", "5y", "10y"].map((h) => {
-                const row = data.horizons[h];
-                if (!row) return null;
-                return (
-                  <tr key={h} className="border-t border-ink-100">
-                    <td className="py-1.5 font-medium">{h.toUpperCase()}</td>
-                    <td className="numeric">{formatPercent(row.fund_cagr)}</td>
-                    <td className="numeric">{formatPercent(row.category_return)}</td>
-                    <td className="numeric">{formatPercentagePoints(row.excess)}</td>
-                    <td className="numeric" title={row.ratio_reason ?? undefined}>
-                      {formatRatio(row.ratio)}
-                    </td>
-                    <td className="numeric text-ink-500">n={row.peer_count}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs uppercase tracking-wide text-ink-500">
+                <tr>
+                  <th className="py-1">Horizon</th>
+                  <th>Fund</th>
+                  <th>Peers</th>
+                  <th>Excess</th>
+                  <th>Ratio</th>
+                  <th>Peer count</th>
+                </tr>
+              </thead>
+              <tbody>
+                {["1y", "3y", "5y", "10y"].map((h) => {
+                  const row = data.horizons[h];
+                  if (!row) return null;
+                  return (
+                    <tr key={h} className="border-t border-ink-100">
+                      <td className="py-1.5 font-medium">{h.toUpperCase()}</td>
+                      <td className="numeric">{formatPercent(row.fund_cagr)}</td>
+                      <td className="numeric">{formatPercent(row.category_return)}</td>
+                      <td className="numeric">{formatPercentagePoints(row.excess)}</td>
+                      <td className="numeric" title={row.ratio_reason ?? undefined}>
+                        {formatRatio(row.ratio)}
+                      </td>
+                      <td className="numeric text-ink-500">n={row.peer_count}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
           <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-ink-500">
             Peer universe ({data.peer_universe_size} schemes in {data.label})

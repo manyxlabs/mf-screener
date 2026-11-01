@@ -79,7 +79,10 @@ export function SchemeSearch({ size = "compact" }: { size?: "compact" | "large" 
   const showPanel = open && query.trim().length > 0;
 
   return (
-    <div ref={containerRef} className={`relative ${size === "large" ? "w-full" : "w-64"}`}>
+    <div
+      ref={containerRef}
+      className={`relative ${size === "large" ? "w-full" : "w-full max-w-64 min-w-0"}`}
+    >
       <input
         type="text"
         role="combobox"

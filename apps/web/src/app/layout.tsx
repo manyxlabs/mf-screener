@@ -30,32 +30,33 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen font-sans antialiased">
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <header className="border-b border-ink-200 bg-surface">
-          <div className="mx-auto flex max-w-[1600px] items-center gap-8 px-6 py-3">
-            <Link href="/" className="text-sm font-semibold tracking-tight">
+          <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-8 gap-y-2 px-4 py-3 sm:px-6">
+            <Link href="/" className="shrink-0 text-sm font-semibold tracking-tight">
               MF Screener
               <span className="ml-2 rounded bg-ink-100 px-1.5 py-0.5 text-[10px] font-medium text-ink-500">
                 local
               </span>
             </Link>
-            <nav className="flex gap-1 text-sm">
+            {/* Below xl the links get their own scrolling row rather than pushing the page wide. */}
+            <nav className="-mx-3 order-last flex w-[calc(100%+1.5rem)] gap-1 overflow-x-auto text-sm xl:order-none xl:mx-0 xl:w-auto">
               {NAV.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded px-3 py-1.5 text-ink-700 hover:bg-ink-100"
+                  className="shrink-0 whitespace-nowrap rounded px-3 py-1.5 text-ink-700 hover:bg-ink-100"
                 >
                   {item.label}
                 </Link>
               ))}
             </nav>
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-3 xl:flex-none">
               <SchemeSearch />
               <ThemeToggle />
             </div>
           </div>
         </header>
-        <main className="mx-auto max-w-[1600px] px-6 py-6">{children}</main>
-        <footer className="mx-auto max-w-[1600px] space-y-2 px-6 pb-10 pt-4 text-xs text-ink-500">
+        <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">{children}</main>
+        <footer className="mx-auto max-w-[1600px] space-y-2 px-4 pb-10 sm:px-6 pt-4 text-xs text-ink-500">
           <p>
             Research and analytics only. Not investment advice. Historical returns do not guarantee
             future returns.

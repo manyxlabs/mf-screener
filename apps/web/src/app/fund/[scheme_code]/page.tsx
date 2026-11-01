@@ -358,72 +358,78 @@ export default async function FundPage({ params }: { params: Promise<{ scheme_co
             benchmark={detail.benchmark}
             computedAgainst={metrics.benchmark_id}
           />
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wide text-ink-500">
-              <tr>
-                <th className="py-1">Horizon</th>
-                <th>Fund CAGR</th>
-                <th>Sub-category CAGR</th>
-                <th>Excess (pp)</th>
-                <th>Ratio</th>
-                <th>Peers</th>
-                <th>Benchmark CAGR</th>
-                <th>Excess vs benchmark (pp)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[1, 3, 5, 10].map((h) => (
-                <tr key={h} className="border-t border-ink-100">
-                  <td className="py-1.5 font-medium">{h}Y</td>
-                  <td>
-                    <Cell record={record} keyName={`cagr_${h}y`} metrics={specs} />
-                  </td>
-                  <td>
-                    {h === 1 ? (
-                      <span className="text-ink-300">-</span>
-                    ) : (
-                      <Cell record={record} keyName={`category_return_${h}y`} metrics={specs} />
-                    )}
-                  </td>
-                  <td>
-                    {h === 1 ? (
-                      <span className="text-ink-300">-</span>
-                    ) : (
-                      <Cell record={record} keyName={`fund_minus_category_${h}y`} metrics={specs} />
-                    )}
-                  </td>
-                  <td>
-                    {h === 1 ? (
-                      <span className="text-ink-300">-</span>
-                    ) : (
-                      <Cell record={record} keyName={`fund_div_category_${h}y`} metrics={specs} />
-                    )}
-                  </td>
-                  <td className="numeric text-ink-500">
-                    {h === 1 ? "-" : `n=${String(record[`category_peer_count_${h}y`] ?? 0)}`}
-                  </td>
-                  <td>
-                    {h === 1 ? (
-                      <span className="text-ink-300">-</span>
-                    ) : (
-                      <Cell record={record} keyName={`benchmark_return_${h}y`} metrics={specs} />
-                    )}
-                  </td>
-                  <td>
-                    {h === 1 ? (
-                      <span className="text-ink-300">-</span>
-                    ) : (
-                      <Cell
-                        record={record}
-                        keyName={`fund_minus_benchmark_${h}y`}
-                        metrics={specs}
-                      />
-                    )}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[40rem] text-sm">
+              <thead className="text-left text-xs uppercase tracking-wide text-ink-500 [&_th]:pr-3">
+                <tr>
+                  <th className="py-1">Horizon</th>
+                  <th>Fund CAGR</th>
+                  <th>Sub-category CAGR</th>
+                  <th>Excess (pp)</th>
+                  <th>Ratio</th>
+                  <th>Peers</th>
+                  <th>Benchmark CAGR</th>
+                  <th>Excess vs benchmark (pp)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {[1, 3, 5, 10].map((h) => (
+                  <tr key={h} className="border-t border-ink-100">
+                    <td className="py-1.5 font-medium">{h}Y</td>
+                    <td>
+                      <Cell record={record} keyName={`cagr_${h}y`} metrics={specs} />
+                    </td>
+                    <td>
+                      {h === 1 ? (
+                        <span className="text-ink-300">-</span>
+                      ) : (
+                        <Cell record={record} keyName={`category_return_${h}y`} metrics={specs} />
+                      )}
+                    </td>
+                    <td>
+                      {h === 1 ? (
+                        <span className="text-ink-300">-</span>
+                      ) : (
+                        <Cell
+                          record={record}
+                          keyName={`fund_minus_category_${h}y`}
+                          metrics={specs}
+                        />
+                      )}
+                    </td>
+                    <td>
+                      {h === 1 ? (
+                        <span className="text-ink-300">-</span>
+                      ) : (
+                        <Cell record={record} keyName={`fund_div_category_${h}y`} metrics={specs} />
+                      )}
+                    </td>
+                    <td className="numeric text-ink-500">
+                      {h === 1 ? "-" : `n=${String(record[`category_peer_count_${h}y`] ?? 0)}`}
+                    </td>
+                    <td>
+                      {h === 1 ? (
+                        <span className="text-ink-300">-</span>
+                      ) : (
+                        <Cell record={record} keyName={`benchmark_return_${h}y`} metrics={specs} />
+                      )}
+                    </td>
+                    <td>
+                      {h === 1 ? (
+                        <span className="text-ink-300">-</span>
+                      ) : (
+                        <Cell
+                          record={record}
+                          keyName={`fund_minus_benchmark_${h}y`}
+                          metrics={specs}
+                        />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <p className="mt-2 text-xs text-ink-500">
             Peer and benchmark comparisons are stored for 3Y, 5Y and 10Y only. The live peer
             comparison below covers 1Y as well.
@@ -436,48 +442,50 @@ export default async function FundPage({ params }: { params: Promise<{ scheme_co
           title="Rolling return distribution"
           subtitle="Every overlapping window in the fund's comparable history."
         >
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wide text-ink-500">
-              <tr>
-                <th className="py-1">Horizon</th>
-                {ROLLING_STATS.map((stat) => (
-                  <th key={stat}>{stat.replace("_pct", " %").replace("std", "dispersion")}</th>
-                ))}
-                <th>Beat sub-category</th>
-                <th>Beat benchmark</th>
-                <th>Windows</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[3, 5, 10].map((h) => (
-                <tr key={h} className="border-t border-ink-100">
-                  <td className="py-1.5 font-medium">{h}Y</td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[40rem] text-sm">
+              <thead className="text-left text-xs uppercase tracking-wide text-ink-500 [&_th]:pr-3">
+                <tr>
+                  <th className="py-1">Horizon</th>
                   {ROLLING_STATS.map((stat) => (
-                    <td key={stat}>
-                      <Cell record={record} keyName={`rolling_${h}y_${stat}`} metrics={specs} />
-                    </td>
+                    <th key={stat}>{stat.replace("_pct", " %").replace("std", "dispersion")}</th>
                   ))}
-                  <td>
-                    <Cell
-                      record={record}
-                      keyName={`rolling_${h}y_beat_category_pct`}
-                      metrics={specs}
-                    />
-                  </td>
-                  <td>
-                    <Cell
-                      record={record}
-                      keyName={`rolling_${h}y_beat_benchmark_pct`}
-                      metrics={specs}
-                    />
-                  </td>
-                  <td className="numeric text-ink-500">
-                    n={String(record[`rolling_${h}y_window_count`] ?? 0)}
-                  </td>
+                  <th>Beat sub-category</th>
+                  <th>Beat benchmark</th>
+                  <th>Windows</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {[3, 5, 10].map((h) => (
+                  <tr key={h} className="border-t border-ink-100">
+                    <td className="py-1.5 font-medium">{h}Y</td>
+                    {ROLLING_STATS.map((stat) => (
+                      <td key={stat}>
+                        <Cell record={record} keyName={`rolling_${h}y_${stat}`} metrics={specs} />
+                      </td>
+                    ))}
+                    <td>
+                      <Cell
+                        record={record}
+                        keyName={`rolling_${h}y_beat_category_pct`}
+                        metrics={specs}
+                      />
+                    </td>
+                    <td>
+                      <Cell
+                        record={record}
+                        keyName={`rolling_${h}y_beat_benchmark_pct`}
+                        metrics={specs}
+                      />
+                    </td>
+                    <td className="numeric text-ink-500">
+                      n={String(record[`rolling_${h}y_window_count`] ?? 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Card>
 
         <Card
@@ -488,31 +496,33 @@ export default async function FundPage({ params }: { params: Promise<{ scheme_co
             benchmark={detail.benchmark}
             computedAgainst={metrics.benchmark_id}
           />
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wide text-ink-500">
-              <tr>
-                <th className="py-1">Metric</th>
-                <th>3Y</th>
-                <th>5Y</th>
-                <th>10Y</th>
-              </tr>
-            </thead>
-            <tbody>
-              {RISK_ROWS.map((row) => (
-                <tr key={row.label} className="border-t border-ink-100">
-                  <td className="py-1.5">
-                    <div>{plainRowLabel(specs[row.keys[1]]) ?? row.label}</div>
-                    <div className="text-[11px] text-ink-500">{row.label}</div>
-                  </td>
-                  {row.keys.map((key) => (
-                    <td key={key}>
-                      <Cell record={record} keyName={key} metrics={specs} />
-                    </td>
-                  ))}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[40rem] text-sm">
+              <thead className="text-left text-xs uppercase tracking-wide text-ink-500 [&_th]:pr-3">
+                <tr>
+                  <th className="py-1">Metric</th>
+                  <th>3Y</th>
+                  <th>5Y</th>
+                  <th>10Y</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {RISK_ROWS.map((row) => (
+                  <tr key={row.label} className="border-t border-ink-100">
+                    <td className="py-1.5">
+                      <div>{plainRowLabel(specs[row.keys[1]]) ?? row.label}</div>
+                      <div className="text-[11px] text-ink-500">{row.label}</div>
+                    </td>
+                    {row.keys.map((key) => (
+                      <td key={key}>
+                        <Cell record={record} keyName={key} metrics={specs} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Card>
 
         <ExposurePanel exposure={exposure} />

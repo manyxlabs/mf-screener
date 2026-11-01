@@ -108,106 +108,114 @@ export function Tearsheet({
       </header>
 
       <Section title="Trailing returns (annualised)">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="text-left font-normal">Horizon</th>
-              <th className="text-left font-normal">Fund</th>
-              <th className="text-left font-normal">Sub-cat.</th>
-              <th className="text-left font-normal">Benchmark</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[1, 3, 5, 10].map((h) => (
-              <tr key={h}>
-                <td>{h}Y</td>
-                <td>{fmt(record, `cagr_${h}y`, specs)}</td>
-                <td>{h === 1 ? DASH : fmt(record, `category_return_${h}y`, specs)}</td>
-                <td>{h === 1 ? DASH : fmt(record, `benchmark_return_${h}y`, specs)}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className="text-left font-normal">Horizon</th>
+                <th className="text-left font-normal">Fund</th>
+                <th className="text-left font-normal">Sub-cat.</th>
+                <th className="text-left font-normal">Benchmark</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {[1, 3, 5, 10].map((h) => (
+                <tr key={h}>
+                  <td>{h}Y</td>
+                  <td>{fmt(record, `cagr_${h}y`, specs)}</td>
+                  <td>{h === 1 ? DASH : fmt(record, `category_return_${h}y`, specs)}</td>
+                  <td>{h === 1 ? DASH : fmt(record, `benchmark_return_${h}y`, specs)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Section>
 
       <Section title="Rolling return distribution">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="text-left font-normal">Horizon</th>
-              <th className="text-left font-normal">Mean</th>
-              <th className="text-left font-normal">Positive %</th>
-              <th className="text-left font-normal">Beat sub-cat.</th>
-              <th className="text-left font-normal">Beat bmk.</th>
-              <th className="text-left font-normal">Windows</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[3, 5, 10].map((h) => (
-              <tr key={h}>
-                <td>{h}Y</td>
-                <td>{fmt(record, `rolling_${h}y_mean`, specs)}</td>
-                <td>{fmt(record, `rolling_${h}y_positive_pct`, specs)}</td>
-                <td>{fmt(record, `rolling_${h}y_beat_category_pct`, specs)}</td>
-                <td>{fmt(record, `rolling_${h}y_beat_benchmark_pct`, specs)}</td>
-                <td>{String(record[`rolling_${h}y_window_count`] ?? 0)}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className="text-left font-normal">Horizon</th>
+                <th className="text-left font-normal">Mean</th>
+                <th className="text-left font-normal">Positive %</th>
+                <th className="text-left font-normal">Beat sub-cat.</th>
+                <th className="text-left font-normal">Beat bmk.</th>
+                <th className="text-left font-normal">Windows</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {[3, 5, 10].map((h) => (
+                <tr key={h}>
+                  <td>{h}Y</td>
+                  <td>{fmt(record, `rolling_${h}y_mean`, specs)}</td>
+                  <td>{fmt(record, `rolling_${h}y_positive_pct`, specs)}</td>
+                  <td>{fmt(record, `rolling_${h}y_beat_category_pct`, specs)}</td>
+                  <td>{fmt(record, `rolling_${h}y_beat_benchmark_pct`, specs)}</td>
+                  <td>{String(record[`rolling_${h}y_window_count`] ?? 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Section>
 
       <Section title="Risk and risk-adjusted metrics">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="text-left font-normal">Metric</th>
-              <th className="text-left font-normal">3Y</th>
-              <th className="text-left font-normal">5Y</th>
-              <th className="text-left font-normal">10Y</th>
-            </tr>
-          </thead>
-          <tbody>
-            {RISK_ROWS.map((row) => (
-              <tr key={row.label}>
-                <td>{row.label}</td>
-                {row.keys.map((key) => (
-                  <td key={key}>{fmt(record, key, specs)}</td>
-                ))}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className="text-left font-normal">Metric</th>
+                <th className="text-left font-normal">3Y</th>
+                <th className="text-left font-normal">5Y</th>
+                <th className="text-left font-normal">10Y</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {RISK_ROWS.map((row) => (
+                <tr key={row.label}>
+                  <td>{row.label}</td>
+                  {row.keys.map((key) => (
+                    <td key={key}>{fmt(record, key, specs)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Section>
 
       <Section title="Falls and recoveries">
         {worstDrawdowns.length === 0 ? (
           <p>No fall of {formatPercent(behaviour.min_drawdown_depth, 0)} or more on record.</p>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr>
-                <th className="text-left font-normal">Fall</th>
-                <th className="text-left font-normal">From</th>
-                <th className="text-left font-normal">To</th>
-                <th className="text-left font-normal">Back to even</th>
-              </tr>
-            </thead>
-            <tbody>
-              {worstDrawdowns.map((episode) => (
-                <tr key={episode.peak_date}>
-                  <td>{formatPercent(episode.depth)}</td>
-                  <td>{episode.peak_date}</td>
-                  <td>{episode.trough_date}</td>
-                  <td>
-                    {episode.days_to_recover === null
-                      ? "still below this peak"
-                      : formatDuration(episode.days_to_recover)}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <th className="text-left font-normal">Fall</th>
+                  <th className="text-left font-normal">From</th>
+                  <th className="text-left font-normal">To</th>
+                  <th className="text-left font-normal">Back to even</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {worstDrawdowns.map((episode) => (
+                  <tr key={episode.peak_date}>
+                    <td>{formatPercent(episode.depth)}</td>
+                    <td>{episode.peak_date}</td>
+                    <td>{episode.trough_date}</td>
+                    <td>
+                      {episode.days_to_recover === null
+                        ? "still below this peak"
+                        : formatDuration(episode.days_to_recover)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         {behaviour.drawdowns.length > worstDrawdowns.length ? (
           <p>{behaviour.drawdowns.length - worstDrawdowns.length} more fall(s), see full page.</p>

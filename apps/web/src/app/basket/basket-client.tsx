@@ -140,44 +140,46 @@ export function BasketClient() {
           title="Basket weights"
           subtitle="Any positive numbers work - they are normalised to sum to 1 before scoring."
         >
-          <table className="w-full text-sm">
-            <tbody>
-              {picked.map((fund) => (
-                <tr key={fund.scheme_code} className="border-t border-ink-100 first:border-t-0">
-                  <td className="py-1.5 pr-3">
-                    <Link
-                      href={`/fund/${fund.scheme_code}`}
-                      className="text-accent-600 hover:underline"
-                    >
-                      {fund.scheme_name}
-                    </Link>
-                  </td>
-                  <td className="w-28 py-1.5 pr-3">
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.05}
-                      className={`${inputClass} w-24`}
-                      value={fund.weight}
-                      onChange={(e) => setWeight(fund.scheme_code, Number(e.target.value) || 0)}
-                      aria-label={`Weight for ${fund.scheme_name}`}
-                    />
-                  </td>
-                  <td className="w-16 py-1.5 pr-3 numeric text-ink-500">
-                    {formatPercent(weightSum > 0 ? fund.weight / weightSum : 0)}
-                  </td>
-                  <td className="w-20 py-1.5 text-right">
-                    <button
-                      className="text-xs text-ink-500 hover:text-bad-700"
-                      onClick={() => removeFund(fund.scheme_code)}
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <tbody>
+                {picked.map((fund) => (
+                  <tr key={fund.scheme_code} className="border-t border-ink-100 first:border-t-0">
+                    <td className="py-1.5 pr-3">
+                      <Link
+                        href={`/fund/${fund.scheme_code}`}
+                        className="text-accent-600 hover:underline"
+                      >
+                        {fund.scheme_name}
+                      </Link>
+                    </td>
+                    <td className="w-28 py-1.5 pr-3">
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.05}
+                        className={`${inputClass} w-24`}
+                        value={fund.weight}
+                        onChange={(e) => setWeight(fund.scheme_code, Number(e.target.value) || 0)}
+                        aria-label={`Weight for ${fund.scheme_name}`}
+                      />
+                    </td>
+                    <td className="w-16 py-1.5 pr-3 numeric text-ink-500">
+                      {formatPercent(weightSum > 0 ? fund.weight / weightSum : 0)}
+                    </td>
+                    <td className="w-20 py-1.5 text-right">
+                      <button
+                        className="text-xs text-ink-500 hover:text-bad-700"
+                        onClick={() => removeFund(fund.scheme_code)}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <button
             className="mt-2 text-xs text-accent-600 hover:underline"
             onClick={equaliseWeights}
@@ -296,7 +298,7 @@ function BasketResults({ result, picked }: { result: BasketResponse; picked: Pic
             <tbody>
               <tr className="border-t border-ink-200 font-semibold">
                 <td className="px-3 py-1.5">Blended basket</td>
-                <td className="px-3 py-1.5 numeric">100%</td>
+                <td className="px-3 py-1.5 numeric">{formatPercent(1)}</td>
                 <td className="px-3 py-1.5 numeric">
                   {blended.cagr.value === null ? (
                     <MissingValue reason={blended.cagr.reason ?? undefined} />

@@ -86,7 +86,7 @@ export default async function MethodologyPage() {
       <Card title="Formulas">
         <div className="grid gap-4 lg:grid-cols-2">
           {Object.entries(methodology.formulas).map(([key, tex]) => (
-            <div key={key} className="rounded-md border border-ink-200 p-3">
+            <div key={key} className="min-w-0 rounded-md border border-ink-200 p-3">
               <h3 className="text-sm font-medium">{FORMULA_LABELS[key] ?? key}</h3>
               <Formula tex={tex} />
               {methodology.formula_notes[key] ? (
@@ -190,32 +190,36 @@ export default async function MethodologyPage() {
       </Card>
 
       <Card title="Metric catalog">
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs uppercase tracking-wide text-ink-500">
-            <tr>
-              <th className="py-1">Metric</th>
-              <th>Definition</th>
-              <th>Direction</th>
-              <th>Caveat</th>
-            </tr>
-          </thead>
-          <tbody>
-            {methodology.metric_catalog.map((metric) => (
-              <tr key={metric.name} className="border-t border-ink-100 align-top">
-                <td className="py-1.5 pr-3">
-                  <Link href={`/glossary#metric-${metric.name}`} className="hover:underline">
-                    <div>{metric.plain_label || metric.label}</div>
-                    <div className="text-[11px] text-ink-500">{metric.label}</div>
-                    <div className="font-mono text-[11px] text-ink-500">{metric.name}</div>
-                  </Link>
-                </td>
-                <td className="pr-3">{metric.definition}</td>
-                <td className="pr-3 whitespace-nowrap">{metric.direction.replaceAll("_", " ")}</td>
-                <td className="text-ink-500">{metric.caveat}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs uppercase tracking-wide text-ink-500">
+              <tr>
+                <th className="py-1">Metric</th>
+                <th>Definition</th>
+                <th>Direction</th>
+                <th>Caveat</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {methodology.metric_catalog.map((metric) => (
+                <tr key={metric.name} className="border-t border-ink-100 align-top">
+                  <td className="py-1.5 pr-3">
+                    <Link href={`/glossary#metric-${metric.name}`} className="hover:underline">
+                      <div>{metric.plain_label || metric.label}</div>
+                      <div className="text-[11px] text-ink-500">{metric.label}</div>
+                      <div className="font-mono text-[11px] text-ink-500">{metric.name}</div>
+                    </Link>
+                  </td>
+                  <td className="pr-3">{metric.definition}</td>
+                  <td className="pr-3 whitespace-nowrap">
+                    {metric.direction.replaceAll("_", " ")}
+                  </td>
+                  <td className="text-ink-500">{metric.caveat}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
       <Card title="Sources and attribution">
