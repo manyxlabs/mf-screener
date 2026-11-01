@@ -3,8 +3,6 @@ import { SchemeSearch } from "@/components/scheme-search";
 import { Card } from "@/components/ui";
 import { getCategories, getMetadata, getPresets } from "@/lib/api";
 
-export const dynamic = "force-dynamic";
-
 const QUICK_LINKS = [
   { label: "Mid Cap", sub: "Mid Cap Fund" },
   { label: "Small Cap", sub: "Small Cap Fund" },

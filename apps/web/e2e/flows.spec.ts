@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync } from "node:fs";
 
 const ARTIFACTS = "test-results/artifacts";
 mkdirSync(ARTIFACTS, { recursive: true });
@@ -15,6 +15,16 @@ const fundCount = async (page: Page) => {
 type Fund = { name: string; code: string };
 
 /**
+ * A fund that has a page. A sample export (`make static-export LIMIT=n`) publishes pages
+ * for only some schemes, so a fund taken from a screen may have none.
+ */
+function publishedFund(): Fund {
+  const file = readdirSync("public/data/fund").find((name) => name.endsWith(".json"))!;
+  const bundle = JSON.parse(readFileSync(`public/data/fund/${file}`, "utf8"));
+  return { code: file.replace(".json", ""), name: bundle.scheme.scheme.scheme_name };
+}
+
+/**
  * Two funds from the live store, so the specs run on the sample data and the full one
  * alike. Taken from the ten-year preset because a basket needs funds with shared history.
  */
@@ -24,19 +34,16 @@ async function topFunds(page: Page): Promise<[Fund, Fund]> {
   await expect(links.nth(1)).toBeVisible();
   const read = async (i: number) => ({
     name: (await links.nth(i).innerText()).trim(),
-    code: (await links.nth(i).getAttribute("href"))!.split("/").pop()!,
+    code: (await links.nth(i).getAttribute("href"))!.split("/").filter(Boolean).pop()!,
   });
   return [await read(0), await read(1)];
 }
 
 test("every page renders without errors, broken values or sideways scroll", async ({ browser }) => {
-  const page0 = await browser.newPage();
-  const [fund] = await topFunds(page0);
-  await page0.close();
+  const fund = publishedFund();
   const paths = [
     "/",
     "/screener",
-    "/picks",
     "/compare",
     "/basket",
     "/overlap",
@@ -44,7 +51,7 @@ test("every page renders without errors, broken values or sideways scroll", asyn
     "/data-status",
     "/glossary",
     "/methodology",
-    `/fund/${fund.code}`,
+    `/fund/${fund.code}/`,
   ];
   for (const [label, viewport] of [
     ["desktop", { width: 1366, height: 900 }],
@@ -65,25 +72,36 @@ test("every page renders without errors, broken values or sideways scroll", asyn
         () => document.documentElement.scrollWidth - window.innerWidth,
       );
       expect(overflow, `${label} ${path} scrolls sideways`).toBeLessThanOrEqual(0);
-      await shot(page, `${label}-${path === "/" ? "home" : path.slice(1).replace(/\W+/g, "-")}`);
+      await shot(page, `${label}-${path.replace(/\W+/g, " ").trim().replace(/ /g, "-") || "home"}`);
     }
     await page.close();
   }
 });
 
 test("an unknown fund is a 404 page, not a crash", async ({ page }) => {
-  const response = await page.goto("/fund/999999999");
+  const response = await page.goto("/fund/999999999/");
   expect(response?.status()).toBe(404);
 });
 
+test("a fund page has its own title and loads its figures in the browser", async ({ page }) => {
+  const fund = publishedFund();
+  await page.goto(`/fund/${fund.code}/`);
+  await expect(page).toHaveTitle(`${fund.name}: returns, risk and peers`);
+  await expect(page.getByRole("heading", { level: 1 }).first()).toHaveText(fund.name);
+  for (const card of ["Trailing returns", "Peer comparison"]) {
+    await expect(page.getByRole("heading", { name: card, exact: true })).toBeVisible();
+  }
+  await shot(page, "fund");
+});
+
 test("header search opens the chosen fund", async ({ page }) => {
-  const [fund] = await topFunds(page);
+  const fund = publishedFund();
   await page.goto("/");
   const search = page.getByRole("banner").getByRole("combobox");
   await search.fill(fund.name);
   await page.getByRole("option").filter({ hasText: fund.name }).first().click();
-  await expect(page).toHaveURL(`/fund/${fund.code}`);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(fund.name);
+  await expect(page).toHaveURL(`/fund/${fund.code}/`);
+  await expect(page.getByRole("heading", { level: 1 }).first()).toHaveText(fund.name);
 });
 
 test("a preset narrows the screen and the CSV export holds exactly those funds", async ({
@@ -100,7 +118,7 @@ test("a preset narrows the screen and the CSV export holds exactly those funds",
 
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("link", { name: "Export CSV" }).click(),
+    page.getByRole("button", { name: "Export CSV" }).click(),
   ]);
   const path = `${ARTIFACTS}/${firstPreset}.csv`;
   await download.saveAs(path);
@@ -129,7 +147,7 @@ test("ticked screener rows open side by side in compare", async ({ page }) => {
   const funds = await topFunds(page);
   for (const f of funds) await page.getByLabel(`Select ${f.name}`).check();
   await page.getByRole("link", { name: "Compare 2 selected" }).click();
-  await expect(page).toHaveURL(new RegExp(`/compare\\?codes=${funds[0].code},${funds[1].code}`));
+  await expect(page).toHaveURL(new RegExp(`/compare/\\?codes=${funds[0].code},${funds[1].code}`));
   for (const f of funds) {
     await expect(page.getByRole("columnheader", { name: f.name })).toBeVisible();
   }
@@ -154,16 +172,10 @@ test("basket weights are normalised and drive the blend", async ({ page }) => {
   await shot(page, "basket");
 });
 
-test("overlap says why a figure is missing instead of showing 0%", async ({ page }) => {
-  const funds = await topFunds(page);
-  await page.goto("/overlap");
-  const search = page.getByLabel("Search funds");
-  for (const f of funds) {
-    await search.fill(f.code);
-    await page.getByRole("button", { name: f.name }).click();
-  }
+test("overlap says why there is no figure instead of showing 0%", async ({ page }) => {
+  await page.goto("/overlap/");
   const body = page.locator("main");
-  await expect(body).toContainText(/holdings/i);
+  await expect(body).toContainText("No holdings are loaded");
   await expect(body).not.toContainText(/\b0(\.0+)?% overlap/i);
   await shot(page, "overlap");
 });

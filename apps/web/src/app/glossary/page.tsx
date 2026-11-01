@@ -1,8 +1,6 @@
 import { getColumns } from "@/lib/api";
 import { GlossaryClient } from "./glossary-client";
 
-export const dynamic = "force-dynamic";
-
 /**
  * The plain-language door into the vocabulary. `/methodology` stays the canonical
  * statement of how each number is computed, formulas and all; this page answers the

@@ -4,8 +4,6 @@ import { Formula } from "@/components/formula";
 import { Card } from "@/components/ui";
 import { getMetadata, getMethodology } from "@/lib/api";
 
-export const dynamic = "force-dynamic";
-
 const FORMULA_LABELS: Record<string, string> = {
   trailing_cagr: "Trailing CAGR over horizon h",
   rolling_cagr: "Rolling CAGR of the window ending at t",
