@@ -126,15 +126,13 @@ def run(out: Path, jobs: int, limit: int | None = None) -> dict[str, Any]:
         sizes[f"global/{name}"] = write(out / "global" / f"{name}.json", _answer(f"/{name}"))
 
     records, columns = _screen_table()
-    if limit:
-        records = records[:limit]
     for column in columns:
         sizes[f"screen/{column}"] = write(
             out / "screen" / f"{column}.json", [r[column] for r in records]
         )
     write(out / "screen" / "index.json", {"columns": columns, "count": len(records)})
 
-    codes = [r["scheme_code"] for r in records]
+    codes = [r["scheme_code"] for r in records][:limit]
     # Spawn, not fork: the parent already holds a DuckDB connection and its threads.
     context = multiprocessing.get_context("spawn")
     fund_bytes = 0
@@ -155,7 +153,9 @@ def cli() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--jobs", type=int, default=max(1, (multiprocessing.cpu_count() or 2) - 1))
-    parser.add_argument("--limit", type=int, help="Only the first N schemes, for a quick look")
+    parser.add_argument(
+        "--limit", type=int, help="Fund files for only the first N schemes, for a quick look"
+    )
     args = parser.parse_args()
     print(json.dumps(run(args.out, args.jobs, args.limit)))
 
