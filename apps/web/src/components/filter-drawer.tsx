@@ -161,20 +161,6 @@ export function FilterDrawer({
           <label className="flex items-center gap-1.5 text-sm">
             <input
               type="checkbox"
-              checked={filters.activeOnly}
-              onChange={() => onChange({ ...filters, activeOnly: !filters.activeOnly, page: 1 })}
-            />
-            Active schemes only
-          </label>
-          {!filters.activeOnly ? (
-            <p className="rounded bg-warn-50 p-2 text-xs text-warn-900">
-              Including matured and merged schemes removes survivorship bias from historical
-              screening, but their metrics end on their final NAV date.
-            </p>
-          ) : null}
-          <label className="flex items-center gap-1.5 text-sm">
-            <input
-              type="checkbox"
               checked={filters.dedupeFamilies}
               onChange={() =>
                 onChange({ ...filters, dedupeFamilies: !filters.dedupeFamilies, page: 1 })

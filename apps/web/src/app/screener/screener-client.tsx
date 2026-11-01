@@ -301,8 +301,8 @@ export function ScreenerClient({
       {categoryAverageShown ? (
         <p className="text-xs text-ink-500">
           Category averages above are active-only and do not include funds that closed or merged,
-          which flatters them (survivorship bias). The methodology page has the measured size of
-          that gap.
+          which flatters them (survivorship bias). The methodology page explains how that gap is
+          measured.
         </p>
       ) : null}
 
