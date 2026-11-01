@@ -19,3 +19,7 @@ data/exports/*
 # Build artefacts that were tracked before the repo was initialised.
 *.tsbuildinfo
 next-env.d.ts
+
+# Playwright output and artifacts.
+test-results/
+playwright-report/

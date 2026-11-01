@@ -13,7 +13,9 @@ export function Card({
   className?: string;
 }) {
   return (
-    <section className={`rounded-lg border border-ink-200 bg-surface p-4 ${className}`}>
+    // min-w-0: as a grid or flex item a card would otherwise grow to fit a wide table
+    // or formula and push the page sideways on a phone.
+    <section className={`min-w-0 rounded-lg border border-ink-200 bg-surface p-4 ${className}`}>
       {title ? (
         <header className="mb-3">
           <h2 className="text-sm font-semibold text-ink-900">{title}</h2>
