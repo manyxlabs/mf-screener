@@ -89,7 +89,7 @@ _client: Any = None
 def _init_worker() -> None:
     global _client
     # One INFO line per request is 100,000 lines a run.
-    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpx2").setLevel(logging.WARNING)
     from fastapi.testclient import TestClient
 
     from .main import app
