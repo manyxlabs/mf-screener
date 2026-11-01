@@ -8,7 +8,7 @@ PY := $(UV) run python -m mf_analytics.cli
 .PHONY: help bootstrap data-master data-nav data-sample data-refresh data-build provenance \
         benchmark-import benchmark-validate benchmark-coverage benchmark-proxy style-basis \
         benchmark-map benchmark-sample ter-import data-ter-history data-aum-history holdings-validate holdings-import \
-        metrics inspect validate api web dev test test-py test-js e2e lint lint-py lint-js \
+        metrics inspect validate api web dev test test-py test-js e2e static-export lint lint-py lint-js \
         typecheck format build clean-data
 
 help: ## List targets
@@ -131,6 +131,9 @@ test-py: ## Run the Python tests
 
 test-js: ## Run the TypeScript tests
 	$(PNPM) -r test
+
+static-export: ## Export the store as the static site's JSON: make static-export OUT=apps/web/public/data [LIMIT=200]
+	$(UV) run python -m mf_api.static_export --out $(or $(OUT),apps/web/public/data) $(if $(LIMIT),--limit $(LIMIT),)
 
 e2e: build ## Drive the production web build in a browser against the local store (CHROMIUM=path to use a system browser)
 	cd apps/web && $(PNPM) exec playwright test

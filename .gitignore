@@ -23,3 +23,6 @@ next-env.d.ts
 # Playwright output and artifacts.
 test-results/
 playwright-report/
+
+# The static site's data, exported from the local store by `make static-export`.
+apps/web/public/data/
