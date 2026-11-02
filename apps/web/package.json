@@ -20,6 +20,7 @@
     "@tanstack/react-table": "^8.20.5",
     "katex": "^0.16.11",
     "next": "^15.0.3",
+    "pdfjs-dist": "^6.5.438",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^2.13.3",
