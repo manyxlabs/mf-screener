@@ -120,9 +120,7 @@ test("reports a missing or wrong password, and opens with the right one", async 
 
 test("reports a PDF that is not a statement, and a file that is not a PDF", async ({ page }) => {
   await open(page, files.other);
-  await expect(formAlert(page)).toContainText(
-    "not a CAMS/KFintech Consolidated Account Statement",
-  );
+  await expect(formAlert(page)).toContainText("not a CAMS/KFintech Consolidated Account Statement");
   await page.getByLabel("CAS PDF").setInputFiles({
     name: "statement.pdf",
     mimeType: "application/pdf",

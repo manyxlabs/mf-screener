@@ -339,7 +339,10 @@ function HoldingRow({ holding: h }: { holding: Holding }) {
         {h.nav ? (
           <>
             <span className="numeric">
-              {h.nav.value.toLocaleString("en-IN", { maximumFractionDigits: 4 })}
+              {h.nav.value.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 4,
+              })}
             </span>
             <span className="block text-[11px] text-ink-500">{h.nav.date}</span>
           </>
@@ -386,26 +389,25 @@ function DirectPlans({ holdings }: { holdings: Holding[] }) {
             <li key={h.key} className="grid gap-2 py-3 sm:grid-cols-[1fr_auto] sm:items-center">
               <div className="min-w-0 text-sm">
                 <FundLink code={h.schemeCode} name={h.name} />
-                <span className="ml-2 text-xs text-ink-500 numeric">
-                  {h.expenseRatio === null ? "" : formatPercent(h.expenseRatio)}
-                </span>
                 {"schemeCode" in direct ? (
                   <span className="mt-1 block text-xs text-ink-500">
-                    Direct plan:{" "}
+                    Expense ratio <span className="numeric">{formatPercent(h.expenseRatio)}</span>.
+                    Direct plan{" "}
                     <Link
                       className="text-accent-600 hover:underline"
                       href={`/fund/${direct.schemeCode}`}
                     >
                       {direct.name}
-                    </Link>{" "}
-                    <span className="numeric">{formatPercent(direct.expenseRatio)}</span>
+                    </Link>
+                    : <span className="numeric">{formatPercent(direct.expenseRatio)}</span>
                   </span>
                 ) : (
                   <span className="mt-1 block text-xs text-ink-500">{direct.reason}</span>
                 )}
               </div>
               {"schemeCode" in direct ? (
-                <div className="text-sm sm:text-right">
+                <div className="text-sm whitespace-nowrap sm:text-right">
+                  <span className="text-ink-500">Difference </span>
                   <Value figure={direct.difference} format={rupees} />
                   <span className="text-ink-500"> a year</span>
                 </div>

@@ -335,8 +335,8 @@ export function parseCasLines(lines: Line[]): CasStatement {
     .filter((l) => l.page === 1)
     .map((l) => lineText(l))
     .join("\n");
-  const all = lines.map((l) => lineText(l)).join("\n");
-  if (DEMAT_RE.test(all))
+  // First page only: a CAMS statement's notes can name the depositories further in.
+  if (DEMAT_RE.test(firstPage))
     throw new CasFormatError(
       "demat",
       "This is a depository (NSDL or CDSL) statement. Upload the CAMS/KFintech statement instead: it lists mutual fund folios with their transactions.",
