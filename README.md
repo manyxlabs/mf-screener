@@ -104,6 +104,11 @@ Set `NEXT_PUBLIC_SITE_URL` before building when the site is not served from `htt
 A fund page prerenders only its header and loads the rest of its figures from `data/fund/<code>.json` in the browser, which keeps a page near 25 KB: prerendering everything came to about 250 KB per fund, too much for GitHub Pages' 1 GB across every scheme.
 The fund page's peer comparison is the default peer group only; choosing another one recomputes live and needs the local API.
 
+`.github/workflows/publish.yml` rebuilds the store and the export from AMFI every night, about two hours, and caches the export.
+A push to `main` skips that: it builds the site from the newest cached export and deploys in minutes, so a change to what the export contains reaches the site with the next nightly run.
+Run the workflow by hand with "rebuild" ticked to rebuild the data at once.
+Every run drives the built site through the E2E suite before deploying, which is what stops new web code going live over an export it cannot read.
+
 ## The full dataset
 
 ```bash
