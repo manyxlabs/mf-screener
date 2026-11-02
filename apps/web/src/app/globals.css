@@ -7,18 +7,18 @@
  * flips the whole app without a `dark:` prefix on a single component.
  */
 @theme {
-  --color-ink-50: #f7f8fa;
-  --color-ink-100: #eef0f4;
-  --color-ink-200: #dde1e9;
-  --color-ink-300: #c2c9d6;
-  --color-ink-500: #6b7488;
-  --color-ink-700: #3a4256;
-  --color-ink-900: #171b26;
+  --color-ink-50: #f5f6f8;
+  --color-ink-100: #eceef2;
+  --color-ink-200: #e0e3e9;
+  --color-ink-300: #c5cbd6;
+  --color-ink-500: #6b7280;
+  --color-ink-700: #3c4250;
+  --color-ink-900: #15181f;
   --color-surface: #ffffff;
   --color-on-accent: #ffffff;
-  --color-accent-50: #eef3fd;
-  --color-accent-500: #2f5fd0;
-  --color-accent-600: #24499f;
+  --color-accent-50: #eef3fe;
+  --color-accent-500: #2f62e0;
+  --color-accent-600: #2149b0;
   --color-good-100: #d1fae0;
   --color-good-700: #0f6b45;
   --color-good-900: #064e34;
@@ -34,6 +34,7 @@
   --color-bad-800: #991b1b;
   --color-bad-900: #7f1d1d;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -16px rgb(15 23 42 / 0.18);
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 }
 
@@ -42,14 +43,15 @@
  * a dark ground fails contrast, so the fill stays dim and the text carries the hue.
  */
 [data-theme="dark"] {
-  --color-ink-50: #101319;
-  --color-ink-100: #1b202a;
-  --color-ink-200: #2a3140;
-  --color-ink-300: #3d4657;
-  --color-ink-500: #8c95a8;
-  --color-ink-700: #c3cad8;
-  --color-ink-900: #eef1f6;
-  --color-surface: #171b23;
+  --color-ink-50: #0b0c10;
+  --color-ink-100: #1a1c22;
+  --color-ink-200: #262931;
+  --color-ink-300: #3a3e48;
+  --color-ink-500: #8e94a1;
+  --color-ink-700: #c6cad3;
+  --color-ink-900: #f2f3f6;
+  --color-surface: #131419;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -18px rgb(0 0 0 / 0.7);
   /* The dark accent is a light blue, so its foreground has to invert with it. */
   --color-on-accent: #0d1117;
   --color-accent-50: #1c2740;
@@ -75,6 +77,44 @@ html,
 body {
   background: var(--color-ink-50);
   color: var(--color-ink-900);
+}
+
+/* The colour field the glass header frosts; the same one manyxlabs.com uses. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(42rem 30rem at 10% 0%, rgb(59 130 246 / 0.14), transparent 70%),
+    radial-gradient(36rem 28rem at 92% 12%, rgb(16 185 129 / 0.1), transparent 70%),
+    radial-gradient(44rem 32rem at 55% 100%, rgb(139 92 246 / 0.1), transparent 70%);
+}
+
+@utility glass {
+  border: 1px solid rgb(255 255 255 / 0.7);
+  background: rgb(255 255 255 / 0.6);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 10px 36px -18px rgb(15 23 42 / 0.25);
+  backdrop-filter: blur(20px) saturate(170%);
+  [data-theme="dark"] & {
+    border-color: rgb(255 255 255 / 0.08);
+    background: rgb(24 25 31 / 0.6);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.06),
+      0 12px 40px -18px rgb(0 0 0 / 0.7);
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    background: var(--color-surface);
+    backdrop-filter: none;
+  }
+}
+
+/* In-page links land below the sticky header and the fund page's section bar. */
+[id] {
+  scroll-margin-top: 9rem;
 }
 
 /* Tells the browser to draw form controls and scrollbars in the matching theme. */
@@ -107,8 +147,6 @@ select option {
 /* Tabular figures keep every number column aligned on the decimal point. */
 .numeric {
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
 }
 
 /*

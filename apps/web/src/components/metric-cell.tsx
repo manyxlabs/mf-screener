@@ -96,5 +96,5 @@ export function MetricValue({
       </span>
     );
   }
-  return <span className="numeric">{text}</span>;
+  return <span className={typeof value === "number" ? "numeric" : undefined}>{text}</span>;
 }

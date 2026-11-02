@@ -11,7 +11,8 @@ import {
 } from "@mf/shared";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Badge, Card, Stat } from "@/components/ui";
+import { MetricValue } from "@/components/metric-cell";
+import { Badge, Button, Card, Stat } from "@/components/ui";
 import {
   ApiError,
   getColumns,
@@ -69,6 +70,16 @@ const RISK_ROWS: { label: string; keys: [string, string, string] }[] = [
     ],
   },
 ];
+
+const SECTIONS = [
+  ["returns", "Returns"],
+  ["charts", "Charts"],
+  ["rolling", "Rolling"],
+  ["risk", "Risk"],
+  ["behaviour", "Falls and style"],
+  ["peers", "Peers"],
+  ["missing", "Missing values"],
+] as const;
 
 const ROLLING_STATS = ["mean", "median", "min", "max", "std", "positive_pct"] as const;
 
@@ -219,21 +230,45 @@ export function FundView({ detail }: { detail: SchemeDetail }) {
 
   const header = (
     <>
-      <header>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold tracking-tight">{scheme.scheme_name}</h1>
-          {scheme.is_active ? (
-            <Badge tone="good">Active</Badge>
-          ) : (
-            <Badge tone="warn">Inactive / matured</Badge>
-          )}
-          <Badge>{String(scheme.clean_plan)}</Badge>
-          <Badge>{String(scheme.clean_option)}</Badge>
+      <header className="grid gap-6 rounded-2xl border border-ink-200 bg-surface p-5 shadow-card sm:p-6 lg:grid-cols-[1fr_auto]">
+        <div className="min-w-0 space-y-3">
+          <p className="text-sm text-ink-500">{scheme.amc}</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+            {scheme.scheme_name}
+          </h1>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {scheme.is_active ? (
+              <Badge tone="good">Active</Badge>
+            ) : (
+              <Badge tone="warn">Inactive / matured</Badge>
+            )}
+            {scheme.clean_sub_category ? <Badge>{scheme.clean_sub_category}</Badge> : null}
+            <Badge>{String(scheme.clean_plan)}</Badge>
+            <Badge>{String(scheme.clean_option)}</Badge>
+          </div>
+          <p className="text-xs text-ink-500">
+            Scheme code {scheme.scheme_code} ·{" "}
+            {scheme.isin_growth ?? scheme.isin_dividend ?? "no ISIN published"}
+          </p>
+          <div className="flex flex-wrap gap-2 pt-1 print:hidden">
+            <Link
+              href={`/compare?codes=${code}`}
+              className="rounded-lg bg-accent-500 px-3.5 py-2 text-sm font-medium text-on-accent shadow-sm hover:bg-accent-600"
+            >
+              Compare with other funds
+            </Link>
+            <Button disabled={!data} onClick={() => window.print()}>
+              Print one-page summary
+            </Button>
+          </div>
         </div>
-        <p className="mt-1 text-sm text-ink-500">
-          {scheme.amc} · {scheme.clean_sub_category} · scheme code {scheme.scheme_code} ·{" "}
-          {scheme.isin_growth ?? scheme.isin_dividend ?? "no ISIN published"}
-        </p>
+        <div className="flex flex-col justify-center gap-1 border-t border-ink-100 pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8 lg:text-right">
+          <p className="text-sm text-ink-500">Latest NAV</p>
+          <p className="text-3xl font-semibold tracking-tight numeric sm:text-4xl">
+            {scheme.latest_nav === null ? "-" : `₹${scheme.latest_nav.toFixed(4)}`}
+          </p>
+          <p className="text-xs text-ink-500">as of {scheme.latest_nav_date ?? "-"}</p>
+        </div>
       </header>
 
       <CategoryChangeNote history={detail.category_history} />
@@ -270,12 +305,61 @@ export function FundView({ detail }: { detail: SchemeDetail }) {
       <div className="space-y-5 print:hidden">
         {header}
 
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
-          <Stat
-            label="Latest NAV"
-            value={scheme.latest_nav?.toFixed(4) ?? "-"}
-            hint={scheme.latest_nav_date ?? ""}
-          />
+        <section
+          aria-label="Trailing returns at a glance"
+          className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+        >
+          {[1, 3, 5, 10].map((h) => (
+            <div key={h} className="rounded-xl border border-ink-200 bg-surface p-4 shadow-card">
+              <p className="text-xs text-ink-500">
+                {h === 1 ? "1-year return" : `${h}-year return, per year`}
+              </p>
+              <p className="mt-1 text-2xl font-semibold tracking-tight">
+                <Cell record={record} keyName={`cagr_${h}y`} metrics={specs} />
+              </p>
+              <p className="mt-1 text-xs text-ink-500">
+                {h === 1 ? (
+                  "Peer figures start at 3 years"
+                ) : (
+                  <>
+                    vs similar funds{" "}
+                    <span className="whitespace-nowrap">
+                      <MetricValue
+                        value={record[`fund_minus_category_${h}y`]}
+                        spec={specs[`fund_minus_category_${h}y`]}
+                        reason={metrics.missing_reasons[`fund_minus_category_${h}y`]}
+                        reasonDescription={
+                          metrics.missing_reason_descriptions[
+                            metrics.missing_reasons[`fund_minus_category_${h}y`] ?? ""
+                          ]
+                        }
+                      />
+                    </span>
+                  </>
+                )}
+              </p>
+            </div>
+          ))}
+        </section>
+
+        <nav
+          aria-label="On this page"
+          className="glass -mx-1 flex gap-1 overflow-x-auto rounded-full p-1 text-sm lg:sticky lg:top-24 lg:z-30"
+        >
+          {SECTIONS.filter(([id]) => id !== "missing" || missingByReason.size).map(
+            ([id, label]) => (
+              <a
+                key={id}
+                href={`#${id}`}
+                className="shrink-0 rounded-full px-3 py-1.5 whitespace-nowrap text-ink-700 hover:bg-ink-900/5 hover:text-ink-900"
+              >
+                {label}
+              </a>
+            ),
+          )}
+        </nav>
+
+        <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           <Stat
             label="Scheme AAUM (Quarterly Average, ₹ Cr)"
             value={formatCrore(scheme.latest_aum)}
@@ -338,7 +422,11 @@ export function FundView({ detail }: { detail: SchemeDetail }) {
           </Card>
         ) : null}
 
-        <Card title="Trailing returns" subtitle="Annualised, from month-end NAV to month-end NAV.">
+        <Card
+          id="returns"
+          title="Trailing returns"
+          subtitle="Annualised, from month-end NAV to month-end NAV."
+        >
           <BenchmarkCurrencyNote
             benchmark={detail.benchmark}
             computedAgainst={metrics.benchmark_id}
@@ -421,9 +509,12 @@ export function FundView({ detail }: { detail: SchemeDetail }) {
           </p>
         </Card>
 
-        <FundCharts schemeCode={code} navPoints={nav.points} />
+        <div id="charts">
+          <FundCharts schemeCode={code} navPoints={nav.points} />
+        </div>
 
         <Card
+          id="rolling"
           title="Rolling return distribution"
           subtitle="Every overlapping window in the fund's comparable history."
         >
@@ -474,6 +565,7 @@ export function FundView({ detail }: { detail: SchemeDetail }) {
         </Card>
 
         <Card
+          id="risk"
           title="Risk and risk-adjusted metrics"
           subtitle="Monthly observations, annualised by sqrt(12). Maximum drawdown uses daily NAV."
         >
@@ -510,22 +602,22 @@ export function FundView({ detail }: { detail: SchemeDetail }) {
           </div>
         </Card>
 
-        <ExposurePanel exposure={exposure} />
+        <div id="behaviour" className="space-y-5">
+          <ExposurePanel exposure={exposure} />
+          <StyleDriftPanel rolling={rollingExposure} />
+          <DrawdownHistory behaviour={behaviour} />
+          <CalendarYears behaviour={behaviour} />
+          <CostPanel behaviour={behaviour} />
+        </div>
 
-        <StyleDriftPanel rolling={rollingExposure} />
-
-        <DrawdownHistory behaviour={behaviour} />
-
-        <CalendarYears behaviour={behaviour} />
-
-        <CostPanel behaviour={behaviour} />
-
-        <SchemeAttributesPanel attributes={attributes} />
-
-        <PeerComparison comparison={comparison} />
+        <div id="peers" className="space-y-5">
+          <SchemeAttributesPanel attributes={attributes} />
+          <PeerComparison comparison={comparison} />
+        </div>
 
         {missingByReason.size ? (
           <Card
+            id="missing"
             title="Why is a score missing?"
             subtitle="Every blank on this page traces to one of these reasons."
           >

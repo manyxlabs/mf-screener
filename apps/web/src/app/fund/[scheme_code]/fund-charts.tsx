@@ -3,7 +3,7 @@
 import { formatPercent, type RollingResponse } from "@mf/shared";
 import { useEffect, useState } from "react";
 import { NavChart, RollingReturnChart } from "@/components/charts";
-import { Button, Card } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { getRollingReturns, ROLLING_HORIZONS, type RollingHorizon } from "@/lib/api";
 
 function ScaleBreakNote({ at }: { at: string | null }) {
@@ -45,15 +45,25 @@ export function FundCharts({
         title={`Rolling ${horizon}-year annualised return`}
         subtitle="Each point is the annualised return of the window ending on that month."
       >
-        <div className="mb-3 flex gap-2">
+        <div
+          role="group"
+          aria-label="Window length"
+          className="mb-4 inline-flex rounded-lg bg-ink-100 p-1"
+        >
           {ROLLING_HORIZONS.map((h) => (
-            <Button
+            <button
               key={h}
-              variant={h === horizon ? "primary" : "secondary"}
+              type="button"
+              aria-pressed={h === horizon}
               onClick={() => setHorizon(h)}
+              className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                h === horizon
+                  ? "bg-surface text-ink-900 shadow-sm"
+                  : "text-ink-500 hover:text-ink-900"
+              }`}
             >
               {h}Y
-            </Button>
+            </button>
           ))}
         </div>
         {error ? <p className="text-sm text-bad-700">{error}</p> : null}
@@ -71,9 +81,9 @@ export function FundCharts({
                   ["Positive", rolling.summary.positive_pct],
                 ] as const
               ).map(([label, value]) => (
-                <div key={label} className="rounded border border-ink-200 px-2 py-1.5">
+                <div key={label} className="rounded-lg bg-ink-100 px-2.5 py-2">
                   <dt className="text-ink-500">{label}</dt>
-                  <dd className="numeric">{formatPercent(value)}</dd>
+                  <dd className="mt-0.5 text-sm font-medium numeric">{formatPercent(value)}</dd>
                 </div>
               ))}
             </dl>

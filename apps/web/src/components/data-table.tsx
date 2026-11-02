@@ -110,7 +110,7 @@ export function DataTable({
             return (
               <Link
                 href={`/fund/${String(row["scheme_code"])}`}
-                className="text-accent-600 hover:underline"
+                className="font-medium text-ink-900 hover:text-accent-600 hover:underline"
               >
                 {String(value ?? "")}
               </Link>
@@ -174,7 +174,7 @@ export function DataTable({
       // layout overflow escapes onto the root document and the whole page scrolls sideways.
       // Height is capped to the viewport (see the hook), so the sideways scrollbar stays on
       // screen instead of sitting below fifty rows; rows scroll under the pinned header.
-      className="scroll-x relative overflow-auto rounded-lg border border-ink-200 bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+      className="scroll-x relative overflow-auto rounded-xl border border-ink-200 bg-surface shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
     >
       <table className="min-w-full border-collapse text-sm">
         <thead>
@@ -196,7 +196,7 @@ export function DataTable({
                     aria-sort={
                       active ? (active.direction === "asc" ? "ascending" : "descending") : "none"
                     }
-                    className={`sticky top-0 z-20 border-b border-ink-200 bg-ink-50 px-3 py-2 text-left align-bottom text-xs font-semibold whitespace-nowrap text-ink-700 ${
+                    className={`sticky top-0 z-20 border-b border-ink-200 bg-ink-50 px-3 py-2.5 text-left align-bottom text-xs font-medium whitespace-nowrap text-ink-500 ${
                       isSticky
                         ? `${onToggleSelect ? "left-10" : "left-0"} z-30 w-[280px] min-w-[280px] max-w-[280px] border-r border-ink-200`
                         : ""
@@ -235,9 +235,9 @@ export function DataTable({
             return (
               // The pinned cells inherit this background, so every state of it has to be
               // opaque or the scrolling columns show through them.
-              <tr key={row.id} className="bg-surface even:bg-ink-50 hover:bg-accent-50">
+              <tr key={row.id} className="bg-surface hover:bg-accent-50">
                 {onToggleSelect ? (
-                  <td className="sticky left-0 z-10 w-10 max-w-10 min-w-10 border-b border-ink-100 bg-inherit px-3 py-1.5">
+                  <td className="sticky left-0 z-10 w-10 max-w-10 min-w-10 border-b border-ink-100 bg-inherit px-3 py-2.5">
                     <input
                       type="checkbox"
                       aria-label={`Select ${String(row.original["scheme_name"] ?? code)}`}
@@ -253,8 +253,8 @@ export function DataTable({
                     // element would leave the winner to stylesheet order, not class order.
                     className={
                       index === 0
-                        ? `sticky ${onToggleSelect ? "left-10" : "left-0"} z-10 w-[280px] min-w-[280px] max-w-[280px] border-r border-b border-ink-200 border-b-ink-100 bg-inherit px-3 py-1.5 whitespace-normal`
-                        : "border-b border-ink-100 px-3 py-1.5 whitespace-nowrap"
+                        ? `sticky ${onToggleSelect ? "left-10" : "left-0"} z-10 w-[280px] min-w-[280px] max-w-[280px] border-r border-b border-ink-200 border-b-ink-100 bg-inherit px-3 py-2.5 whitespace-normal`
+                        : "border-b border-ink-100 px-3 py-2.5 whitespace-nowrap"
                     }
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
