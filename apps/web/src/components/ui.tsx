@@ -45,7 +45,9 @@ export function Stat({
 }) {
   // Two lines' worth of room whether or not this tile's label needs it, so a long
   // label does not push its own value row out of line with the tiles beside it.
-  const labelClass = "flex min-h-[2.4em] text-xs text-ink-500";
+  // items-start: a stretched tooltip button centres its text, so a label with a tooltip
+  // would sit lower than one without.
+  const labelClass = "flex min-h-[2.4em] items-start text-xs text-ink-500";
   return (
     <div className="rounded-xl border border-ink-200 bg-surface px-3.5 py-3 shadow-card">
       <div className={labelClass}>
