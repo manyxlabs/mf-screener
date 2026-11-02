@@ -6,6 +6,10 @@ import { buildCas, buildOtherPdf, CLOSED_FUND, pickFunds } from "./synthetic-cas
 const ARTIFACTS = "test-results/artifacts";
 mkdirSync(ARTIFACTS, { recursive: true });
 
+// beforeAll runs once per worker, and parallel workers rewriting these files would pull them
+// out from under a test that has just picked one.
+test.describe.configure({ mode: "serial" });
+
 const PASSWORD = "ABCPV1234K";
 const funds = pickFunds();
 const files = {

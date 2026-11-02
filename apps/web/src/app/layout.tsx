@@ -21,6 +21,8 @@ const FOOTER_LINKS = [
       ["Screener", "/screener"],
       ["Compare funds", "/compare"],
       ["Basket analysis", "/basket"],
+      ["Portfolio checkup", "/portfolio"],
+      ["Capital gains tax", "/capital-gains"],
       ["Portfolio overlap", "/overlap"],
     ],
   ],

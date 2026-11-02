@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { buildCas, CLOSED_FUND, pickFunds } from "./synthetic-cas";
 
 const ARTIFACTS = "test-results/artifacts";
 mkdirSync(ARTIFACTS, { recursive: true });
@@ -34,7 +35,7 @@ const DEBT_ROWS: Row[] = [
 
 async function addFund(page: Page, code: string): Promise<Locator> {
   const { scheme_name } = scheme(code);
-  await page.getByLabel("Search funds to add to the calculator").fill(scheme_name);
+  await page.getByLabel("Or search funds to add them by hand").fill(scheme_name);
   await page.getByRole("button", { name: scheme_name }).first().click();
   return page.locator("section").filter({ has: page.getByRole("link", { name: scheme_name }) });
 }
@@ -148,4 +149,26 @@ test("fits a phone and both themes", async ({ browser }) => {
       await page.close();
     }
   }
+});
+
+test("a CAS statement fills in its funds per folio and says what it left out", async ({ page }) => {
+  const funds = pickFunds();
+  const { pdf } = await buildCas(funds);
+  const path = `${ARTIFACTS}/capital-gains-cas.pdf`;
+  writeFileSync(path, pdf);
+  await page.goto("/capital-gains");
+  await page.getByLabel("Statement (PDF)").setInputFiles(path);
+  await page.getByRole("button", { name: "Add its funds" }).click();
+  await expect(page.getByText("Added 2 funds.")).toBeVisible();
+  // The closed fund is not in the site's data, so it cannot be valued or typed.
+  await page.getByText("1 left out, with the reason").click();
+  await expect(page.getByText(`${CLOSED_FUND.name}: not in this site's data`)).toBeVisible();
+  for (const fund of [funds.regular, funds.direct])
+    await expect(
+      page.getByRole("link", { name: /\(folio .+\)$/ }).filter({ hasText: fund.name }),
+    ).toHaveCount(1);
+  // Importing again replaces the same folios instead of adding copies.
+  await page.getByRole("button", { name: "Add its funds" }).click();
+  await expect(page.getByRole("link", { name: /\(folio .+\)$/ })).toHaveCount(2);
+  await page.screenshot({ path: `${ARTIFACTS}/capital-gains-cas-import.png`, fullPage: true });
 });

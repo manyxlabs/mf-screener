@@ -9,6 +9,8 @@ const PAGES = [
   "screener",
   "compare",
   "basket",
+  "portfolio",
+  "capital-gains",
   "overlap",
   "glossary",
   "methodology",

@@ -46,6 +46,8 @@ test("every page renders without errors, broken values or sideways scroll", asyn
     "/screener",
     "/compare",
     "/basket",
+    "/portfolio",
+    "/capital-gains",
     "/overlap",
     "/benchmarks",
     "/data-status",
