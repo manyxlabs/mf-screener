@@ -59,7 +59,9 @@ export function MissingValue({ reason, description }: { reason?: string; descrip
     >
       <span className="block font-semibold text-ink-900">Not available</span>
       <span className="mt-1 block">{description ?? reason}</span>
-      <span className="mt-1.5 block font-mono text-[11px] text-ink-500">{reason}</span>
+      {description ? (
+        <span className="mt-1.5 block font-mono text-[11px] text-ink-500">{reason}</span>
+      ) : null}
     </InfoTooltip>
   );
 }
