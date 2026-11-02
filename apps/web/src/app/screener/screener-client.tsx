@@ -186,17 +186,33 @@ export function ScreenerClient({
 
   return (
     <div className="space-y-4">
-      <header className="flex flex-wrap items-center gap-2">
-        <h1 className="mr-auto text-lg font-semibold tracking-tight">Screener</h1>
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Screener</h1>
+        <p className="text-sm text-ink-500">
+          {loading
+            ? "Loading..."
+            : `${data?.total ?? 0} ${data?.total === 1 ? "fund matches" : "funds match"}`}{" "}
+          · <span title={filters.sort}>sorted by {sortDescription}</span>
+          {universeTotal !== null && data ? (
+            <>
+              {` · ${data.total} of the ${universeTotal} funds in this universe clear the `}
+              {activeRangeCount === 1 ? "numeric rule" : `${activeRangeCount} numeric rules`}
+              {`; the rest fall short of one or have no value for it.`}
+            </>
+          ) : null}
+        </p>
+      </header>
+
+      <div className="flex flex-wrap items-center gap-2">
         <input
-          className={`${inputClass} w-72`}
+          className={`${inputClass} w-full sm:w-72`}
           placeholder="Search fund or AMC"
           value={searchDraft}
           onChange={(e) => setSearchDraft(e.target.value)}
           aria-label="Search fund or AMC"
         />
         <select
-          className={`${inputClass} w-56`}
+          className={`${inputClass} w-full sm:w-auto sm:max-w-sm`}
           aria-label="Preset screen"
           value={appliedPreset?.id ?? ""}
           onChange={(e) => {
@@ -216,6 +232,7 @@ export function ScreenerClient({
             </option>
           ))}
         </select>
+        <span className="hidden grow sm:block" />
         <Button onClick={() => setShowFilters(true)}>
           Filters{activeRangeCount ? ` (${activeRangeCount})` : ""}
         </Button>
@@ -234,25 +251,12 @@ export function ScreenerClient({
         <Button disabled={exporting} onClick={downloadCsv}>
           {exporting ? "Exporting..." : "Export CSV"}
         </Button>
-      </header>
+      </div>
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-ink-500">
-        <span>
-          {loading
-            ? "Loading..."
-            : `${data?.total ?? 0} ${data?.total === 1 ? "fund matches" : "funds match"}`}{" "}
-          · <span title={filters.sort}>sorted by {sortDescription}</span>
-        </span>
-        {universeTotal !== null && data ? (
-          <span>
-            {`· ${data.total} of the ${universeTotal} funds in this universe clear the `}
-            {activeRangeCount === 1 ? "numeric rule" : `${activeRangeCount} numeric rules`}
-            {`; the rest fall short of one or have no value for it.`}
-          </span>
-        ) : null}
         {selected.size ? (
           <Link
-            className="rounded border border-accent-500 px-2 py-0.5 text-accent-600"
+            className="rounded-full bg-accent-500 px-3 py-1 font-medium text-on-accent"
             href={`/compare?codes=${[...selected].join(",")}`}
           >
             Compare {selected.size} selected
@@ -261,7 +265,7 @@ export function ScreenerClient({
           <span>Select up to five funds to compare.</span>
         )}
         <button
-          className="rounded border border-ink-300 px-2 py-0.5"
+          className="rounded-full border border-ink-200 bg-surface px-3 py-1 text-ink-700 hover:border-ink-300"
           onClick={() => {
             const name = window.prompt("Name this screen");
             if (name) setSaved(saveScreen(name, filters));
@@ -272,7 +276,7 @@ export function ScreenerClient({
         {saved.map((screen) => (
           <span
             key={screen.name}
-            className="inline-flex items-center gap-1 rounded bg-ink-100 px-2 py-0.5"
+            className="inline-flex items-center gap-1.5 rounded-full bg-ink-100 px-3 py-1 text-ink-700"
           >
             <button onClick={() => setFilters(screen.filters)}>{screen.name}</button>
             <button
@@ -287,10 +291,10 @@ export function ScreenerClient({
       </div>
 
       {appliedPreset ? (
-        <section className="rounded-lg border border-ink-200 bg-surface p-3">
+        <section className="rounded-xl border border-accent-500/25 bg-accent-50 p-4">
           <h2 className="text-sm font-semibold">{appliedPreset.name}</h2>
           <p className="mt-1 text-sm text-ink-700">{appliedPreset.plain_description}</p>
-          <p className="mt-1 text-xs text-ink-500">{appliedPreset.caution}</p>
+          <p className="mt-2 text-xs text-ink-500">{appliedPreset.caution}</p>
         </section>
       ) : null}
 

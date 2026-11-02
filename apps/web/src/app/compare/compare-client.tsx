@@ -5,8 +5,8 @@ import { formatByUnit } from "@mf/shared";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Button, Card, inputClass } from "@/components/ui";
-import { getScheme, getSchemeBehaviour, getSchemeMetrics, getSchemes } from "@/lib/api";
+import { FundPicker } from "@/components/fund-picker";
+import { getScheme, getSchemeBehaviour, getSchemeMetrics } from "@/lib/api";
 import { DERIVED_SPECS, derive, extremes, type Entry } from "./compare-rows";
 
 const MAX_FUNDS = 5;
@@ -80,8 +80,15 @@ export function CompareClient({ columnsMeta }: { columnsMeta: ColumnsResponse })
     (searchParams.get("codes") ?? "").split(",").filter(Boolean).slice(0, MAX_FUNDS),
   );
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Scheme[]>([]);
+
+  // The URL is the comparison, so it can be shared or bookmarked as it stands.
+  useEffect(() => {
+    window.history.replaceState(
+      null,
+      "",
+      codes.length ? `?codes=${codes.join(",")}` : window.location.pathname,
+    );
+  }, [codes]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -100,72 +107,33 @@ export function CompareClient({ columnsMeta }: { columnsMeta: ColumnsResponse })
     };
   }, [codes]);
 
-  useEffect(() => {
-    if (query.trim().length < 2) {
-      setResults([]);
-      return;
-    }
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      getSchemes(`q=${encodeURIComponent(query.trim())}&limit=10`)
-        .then((response) => !cancelled && setResults(response.items))
-        .catch(() => !cancelled && setResults([]));
-    }, 250);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [query]);
-
   const records = entries.map(derive);
   const subCategories = new Set(entries.map((e) => e.scheme.clean_sub_category ?? ""));
   const plans = new Set(entries.map((e) => e.scheme.clean_plan ?? ""));
   const options = new Set(entries.map((e) => e.scheme.clean_option ?? ""));
 
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-lg font-semibold tracking-tight">Compare funds</h1>
-        <p className="mt-1 text-sm text-ink-500">
+    <div className="space-y-6">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Compare funds</h1>
+        <p className="max-w-3xl text-sm text-ink-500">
           Up to {MAX_FUNDS} funds side by side. In each row the best value is marked ▲ and the worst
           ▼, judged by that metric&apos;s own better direction. Rows where neither end is better,
           such as beta, are left unmarked.
         </p>
       </header>
 
-      <Card title="Add a fund">
-        <input
-          className={`${inputClass} w-full max-w-lg`}
-          placeholder="Search by fund name, AMC or scheme code"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search funds to compare"
-        />
-        {results.length ? (
-          <ul className="mt-2 max-w-lg space-y-1">
-            {results.map((scheme) => (
-              <li key={scheme.scheme_code}>
-                <button
-                  className="w-full rounded px-2 py-1 text-left text-sm hover:bg-ink-100 disabled:opacity-40"
-                  disabled={codes.includes(scheme.scheme_code) || codes.length >= MAX_FUNDS}
-                  onClick={() => {
-                    setCodes((c) => [...c, scheme.scheme_code]);
-                    setQuery("");
-                  }}
-                >
-                  {scheme.scheme_name}
-                  <span className="ml-2 text-xs text-ink-500">{scheme.clean_sub_category}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </Card>
+      <FundPicker
+        label="Search funds to compare"
+        chosen={codes}
+        max={MAX_FUNDS}
+        onPick={(scheme) => setCodes((c) => [...c, scheme.scheme_code])}
+      />
 
       {error ? <p className="text-sm text-bad-700">{error}</p> : null}
 
       {entries.length > 1 && (subCategories.size > 1 || plans.size > 1 || options.size > 1) ? (
-        <div className="rounded-md border border-warn-300 bg-warn-50 p-3 text-sm text-warn-900">
+        <div className="rounded-xl border border-warn-300 bg-warn-50 p-4 text-sm text-warn-900">
           <strong>This is not an apples-to-apples comparison.</strong>{" "}
           {subCategories.size > 1
             ? `These funds span ${subCategories.size} sub-categories (${[...subCategories].join(", ")}). `
@@ -180,46 +148,59 @@ export function CompareClient({ columnsMeta }: { columnsMeta: ColumnsResponse })
       ) : null}
 
       {entries.length === 0 ? (
-        <p className="text-sm text-ink-500">
-          Nothing selected yet. Pick funds above, or tick rows in the{" "}
-          <Link href="/screener" className="text-accent-600 hover:underline">
-            screener
+        <div className="rounded-2xl border border-dashed border-ink-300 px-6 py-14 text-center">
+          <p className="text-base font-semibold text-ink-900">Nothing to compare yet</p>
+          <p className="mx-auto mt-2 max-w-md text-sm text-ink-500">
+            Add funds with the search above, or tick up to five rows in the screener and press
+            Compare. Funds of the same type and plan compare most fairly.
+          </p>
+          <Link
+            href="/screener"
+            className="mt-5 inline-block rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-on-accent shadow-sm hover:bg-accent-600"
+          >
+            Find funds in the screener
           </Link>
-          .
-        </p>
+        </div>
       ) : (
         <div
           // `relative` makes this the containing block for the sticky cells; without it their
           // layout overflow escapes onto the root document and the whole page scrolls sideways.
-          className="relative overflow-x-auto rounded-lg border border-ink-200 bg-surface"
+          className="scroll-x relative overflow-x-auto rounded-xl border border-ink-200 bg-surface shadow-card"
         >
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="bg-ink-50">
-                <th className="sticky left-0 z-10 bg-ink-50 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-500">
+              <tr>
+                <th className="sticky left-0 z-10 w-40 min-w-40 bg-surface sm:w-64 sm:min-w-56 px-4 py-3 text-left align-bottom text-xs font-medium text-ink-500">
                   Metric
                 </th>
                 {entries.map((entry) => (
-                  <th key={entry.scheme.scheme_code} className="px-3 py-2 text-left align-top">
-                    <Link
-                      href={`/fund/${entry.scheme.scheme_code}`}
-                      className="text-accent-600 hover:underline"
-                    >
-                      {entry.scheme.scheme_name}
-                    </Link>
-                    <div className="mt-0.5 text-xs font-normal text-ink-500">
+                  <th
+                    key={entry.scheme.scheme_code}
+                    className="min-w-52 px-4 py-3 text-left align-top font-normal"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <Link
+                        href={`/fund/${entry.scheme.scheme_code}`}
+                        className="font-semibold text-ink-900 hover:text-accent-600 hover:underline"
+                      >
+                        {entry.scheme.scheme_name}
+                      </Link>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${entry.scheme.scheme_name}`}
+                        title="Remove"
+                        className="-mt-0.5 shrink-0 rounded-full px-1.5 text-base leading-6 text-ink-500 hover:bg-ink-100 hover:text-ink-900"
+                        onClick={() =>
+                          setCodes((c) => c.filter((code) => code !== entry.scheme.scheme_code))
+                        }
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="mt-1 text-xs text-ink-500">
                       {entry.scheme.clean_sub_category} · {entry.scheme.clean_plan} ·{" "}
                       {entry.scheme.clean_option}
                     </div>
-                    <Button
-                      variant="ghost"
-                      className="mt-1 px-1 py-0 text-xs"
-                      onClick={() =>
-                        setCodes((c) => c.filter((code) => code !== entry.scheme.scheme_code))
-                      }
-                    >
-                      Remove
-                    </Button>
                   </th>
                 ))}
               </tr>
@@ -227,24 +208,36 @@ export function CompareClient({ columnsMeta }: { columnsMeta: ColumnsResponse })
             <tbody>
               {SECTIONS.map((section) => (
                 <Fragment key={section.title}>
-                  <tr className="bg-ink-50">
-                    <td
+                  <tr>
+                    <th
+                      scope="colgroup"
                       colSpan={entries.length + 1}
-                      className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink-700"
+                      className="border-t border-ink-200 bg-ink-50 px-4 py-2 text-left text-xs font-semibold text-ink-700"
                     >
                       {section.title}
-                    </td>
+                    </th>
                   </tr>
                   {section.keys.map((key) => {
                     const values = records.map((record) =>
                       typeof record[key] === "number" ? (record[key] as number) : null,
                     );
                     const { best, worst } = extremes(values, specs[key]?.direction ?? "context");
+                    const plain = specs[key]?.plain_label;
+                    const label = specs[key]?.label ?? key;
                     return (
-                      <tr key={key} className="border-t border-ink-100">
-                        <td className="sticky left-0 z-10 bg-surface px-3 py-1.5">
-                          {specs[key]?.label ?? key}
-                        </td>
+                      <tr
+                        key={key}
+                        className="border-t border-ink-100 bg-surface hover:bg-accent-50"
+                      >
+                        <th
+                          scope="row"
+                          className="sticky left-0 z-10 bg-inherit px-4 py-2.5 text-left font-normal"
+                        >
+                          <div className="text-ink-900">{plain || label}</div>
+                          {plain && plain !== label ? (
+                            <div className="text-[11px] text-ink-500">{label}</div>
+                          ) : null}
+                        </th>
                         {entries.map((entry, index) => {
                           const raw = records[index]![key];
                           const value = values[index];
@@ -266,7 +259,7 @@ export function CompareClient({ columnsMeta }: { columnsMeta: ColumnsResponse })
                                 ? "text-bad-700"
                                 : "";
                           return (
-                            <td key={entry.scheme.scheme_code} className="px-3 py-1.5">
+                            <td key={entry.scheme.scheme_code} className="px-4 py-2.5">
                               {raw === null || raw === undefined ? (
                                 <span
                                   className="cursor-help text-ink-500 underline decoration-dotted"

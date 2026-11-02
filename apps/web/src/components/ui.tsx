@@ -2,11 +2,13 @@ import type { ReactNode } from "react";
 import { InfoTooltip } from "./tooltip";
 
 export function Card({
+  id,
   title,
   subtitle,
   children,
   className = "",
 }: {
+  id?: string;
   title?: ReactNode;
   subtitle?: ReactNode;
   children: ReactNode;
@@ -15,10 +17,13 @@ export function Card({
   return (
     // min-w-0: as a grid or flex item a card would otherwise grow to fit a wide table
     // or formula and push the page sideways on a phone.
-    <section className={`min-w-0 rounded-lg border border-ink-200 bg-surface p-4 ${className}`}>
+    <section
+      id={id}
+      className={`min-w-0 rounded-xl border border-ink-200 bg-surface p-5 shadow-card ${className}`}
+    >
       {title ? (
-        <header className="mb-3">
-          <h2 className="text-sm font-semibold text-ink-900">{title}</h2>
+        <header className="mb-4">
+          <h2 className="text-[15px] font-semibold tracking-tight text-ink-900">{title}</h2>
           {subtitle ? <p className="mt-0.5 text-xs text-ink-500">{subtitle}</p> : null}
         </header>
       ) : null}
@@ -40,9 +45,9 @@ export function Stat({
 }) {
   // Two lines' worth of room whether or not this tile's label needs it, so a long
   // label does not push its own value row out of line with the tiles beside it.
-  const labelClass = "flex min-h-[2.4em] text-[11px] uppercase tracking-wide text-ink-500";
+  const labelClass = "flex min-h-[2.4em] text-xs text-ink-500";
   return (
-    <div className="rounded-md border border-ink-200 bg-surface px-3 py-2.5">
+    <div className="rounded-xl border border-ink-200 bg-surface px-3.5 py-3 shadow-card">
       <div className={labelClass}>
         {tooltip ? (
           <InfoTooltip label={<span className="underline decoration-dotted">{label}</span>}>
@@ -52,7 +57,7 @@ export function Stat({
           label
         )}
       </div>
-      <div className="mt-1 text-lg font-semibold numeric">{value}</div>
+      <div className="mt-1 text-xl font-semibold tracking-tight numeric">{value}</div>
       {hint ? <div className="mt-0.5 text-[11px] text-ink-500">{hint}</div> : null}
     </div>
   );
@@ -66,14 +71,14 @@ export function Button({
   variant?: "primary" | "secondary" | "ghost";
 }) {
   const styles = {
-    primary: "bg-accent-500 text-on-accent hover:bg-accent-600 border-accent-500",
-    secondary: "bg-surface text-ink-900 hover:bg-ink-100 border-ink-300",
+    primary: "bg-accent-500 text-on-accent hover:bg-accent-600 border-accent-500 shadow-sm",
+    secondary: "bg-surface text-ink-900 hover:bg-ink-100 border-ink-200 shadow-sm",
     ghost: "bg-transparent text-ink-700 hover:bg-ink-100 border-transparent",
   }[variant];
   return (
     <button
       {...props}
-      className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${styles} ${props.className ?? ""}`}
+      className={`rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${styles} ${props.className ?? ""}`}
     >
       {children}
     </button>
@@ -94,7 +99,7 @@ export function Badge({
     bad: "bg-bad-100 text-bad-900",
   }[tone];
   return (
-    <span className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${styles}`}>
+    <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${styles}`}>
       {children}
     </span>
   );
@@ -114,7 +119,7 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 // Width is the caller's: two width utilities in one class string resolve by stylesheet
 // order, not by the order they are written, so this must not ship one of its own.
 export const inputClass =
-  "rounded-md border border-ink-300 bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent-500";
+  "rounded-lg border border-ink-200 bg-surface px-3 py-2 text-sm shadow-sm outline-none placeholder:text-ink-500 focus:border-accent-500 focus:ring-3 focus:ring-accent-500/15";
 
 /**
  * A percent field that reads and writes whole percents while the filter state, the
