@@ -5,8 +5,11 @@ import { formatPercent } from "@mf/shared";
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { FundPicker } from "@/components/fund-picker";
-import { Badge, Card, Field, inputClass, PercentInput, Stat } from "@/components/ui";
+import { Badge, Button, Card, Field, inputClass, PercentInput, Stat } from "@/components/ui";
 import { getScheme, getSchemeNav } from "@/lib/api";
+import { CasFormatError, CasPasswordError, parseCas } from "@/lib/cas/parse";
+import { tradesFromCas } from "@/lib/capital-gains/cas";
+import { loadFundData } from "@/lib/portfolio";
 import {
   computeGains,
   type GainsResult,
@@ -49,6 +52,8 @@ type Row = {
 /** Only what the user typed is stored; fund data is read fresh on every visit. */
 type Fund = {
   code: string;
+  /** Set for a fund imported from a CAS: first-in first-out runs within each folio. */
+  folio?: string;
   name: string;
   type: FundType | null;
   /** Null follows the name; stored data from before the field existed reads as null. */
@@ -118,6 +123,9 @@ const num = (raw: string) => (raw.trim() === "" ? null : Number(raw));
 const complete = (row: Row) =>
   row.date !== "" && num(row.units) !== null && num(row.value) !== null;
 
+const keyOf = (fund: Fund) => (fund.folio ? `${fund.folio}:${fund.code}` : fund.code);
+const labelOf = (fund: Fund) => (fund.folio ? `${fund.name} (folio ${fund.folio})` : fund.name);
+
 const isListed = (fund: Fund) => fund.listed ?? looksListed(fund.name);
 
 function toHolding(fund: Fund, info: Info | undefined): Holding | null {
@@ -126,7 +134,7 @@ function toHolding(fund: Fund, info: Info | undefined): Holding | null {
   if (type === null) return null;
   const listed = isListed(fund);
   return {
-    id: fund.code,
+    id: keyOf(fund),
     name: fund.name,
     type,
     listed,
@@ -189,10 +197,10 @@ export function CapitalGainsClient() {
 
   if (!saved) return <p className="text-sm text-ink-500">Loading calculator...</p>;
 
-  const update = (code: string, change: (fund: Fund) => Fund) =>
-    setSaved({ ...saved, funds: saved.funds.map((f) => (f.code === code ? change(f) : f)) });
+  const update = (key: string, change: (fund: Fund) => Fund) =>
+    setSaved({ ...saved, funds: saved.funds.map((f) => (keyOf(f) === key ? change(f) : f)) });
   const addFund = (scheme: Scheme) => {
-    if (saved.funds.length >= MAX_FUNDS || saved.funds.some((f) => f.code === scheme.scheme_code))
+    if (saved.funds.length >= MAX_FUNDS || saved.funds.some((f) => keyOf(f) === scheme.scheme_code))
       return;
     const fund: Fund = {
       code: scheme.scheme_code,
@@ -203,7 +211,12 @@ export function CapitalGainsClient() {
     };
     setSaved({ ...saved, funds: [...saved.funds, fund] });
   };
-  const nameOf = Object.fromEntries(saved.funds.map((f) => [f.code, f.name]));
+  const nameOf = Object.fromEntries(saved.funds.map((f) => [keyOf(f), labelOf(f)]));
+  // Imported funds replace any earlier copy of the same folio, so importing twice is harmless.
+  const addImported = (funds: Fund[]) => {
+    const keys = new Set(funds.map(keyOf));
+    setSaved({ ...saved, funds: [...saved.funds.filter((f) => !keys.has(keyOf(f))), ...funds] });
+  };
 
   return (
     <div className="space-y-6">
@@ -222,9 +235,11 @@ export function CapitalGainsClient() {
 
       <Disclaimer />
 
+      <CasImport onImport={addImported} />
+
       <FundPicker
-        label="Search funds to add to the calculator"
-        chosen={saved.funds.map((f) => f.code)}
+        label="Or search funds to add them by hand"
+        chosen={saved.funds.filter((f) => !f.folio).map((f) => f.code)}
         max={MAX_FUNDS}
         onPick={addFund}
       />
@@ -233,12 +248,12 @@ export function CapitalGainsClient() {
         <div className="space-y-4">
           {saved.funds.map((fund) => (
             <FundCard
-              key={fund.code}
+              key={keyOf(fund)}
               fund={fund}
               info={info[fund.code]}
-              onChange={(change) => update(fund.code, change)}
+              onChange={(change) => update(keyOf(fund), change)}
               onRemove={() =>
-                setSaved({ ...saved, funds: saved.funds.filter((f) => f.code !== fund.code) })
+                setSaved({ ...saved, funds: saved.funds.filter((f) => keyOf(f) !== keyOf(fund)) })
               }
             />
           ))}
@@ -274,6 +289,136 @@ export function CapitalGainsClient() {
 
       <Sources />
     </div>
+  );
+}
+
+type ImportState =
+  | { status: "idle" }
+  | { status: "reading" }
+  | { status: "done"; added: number; skipped: string[] }
+  | { status: "error"; message: string; password: boolean };
+
+/** Fills the calculator from a CAMS/KFintech statement, read in the browser like the checkup does. */
+function CasImport({ onImport }: { onImport: (funds: Fund[]) => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [password, setPassword] = useState("");
+  const [state, setState] = useState<ImportState>({ status: "idle" });
+
+  async function read() {
+    if (!file) return;
+    setState({ status: "reading" });
+    try {
+      const [statement, data] = await Promise.all([
+        parseCas(file, password || undefined),
+        loadFundData(),
+      ]);
+      const funds: Fund[] = [];
+      const skipped: string[] = [];
+      for (const scheme of statement.schemes) {
+        const row = scheme.isin ? data.byIsin.get(scheme.isin) : undefined;
+        const code = scheme.amfiCode ?? row?.scheme_code ?? null;
+        const traded = tradesFromCas(scheme);
+        if (!code) skipped.push(`${scheme.name}: not in this site's data`);
+        else if ("unsupported" in traded) skipped.push(`${scheme.name}: ${traded.unsupported}`);
+        else if (traded.trades.length)
+          funds.push({
+            code,
+            folio: scheme.folio,
+            name: row?.scheme_name ?? scheme.name,
+            type: null,
+            nav31Jan2018: "",
+            rows: traded.trades.map((t) => ({
+              ...newRow(),
+              side: t.side,
+              date: t.date,
+              units: String(t.units),
+              value: String(t.amount),
+              valueKind: "amount",
+            })),
+          });
+      }
+      onImport(funds.slice(0, MAX_FUNDS));
+      if (funds.length > MAX_FUNDS)
+        skipped.push(`${funds.length - MAX_FUNDS} more funds: the calculator holds ${MAX_FUNDS}`);
+      setState({ status: "done", added: Math.min(funds.length, MAX_FUNDS), skipped });
+    } catch (error) {
+      const password = error instanceof CasPasswordError;
+      setState({
+        status: "error",
+        password,
+        message: password
+          ? error.incorrect
+            ? "That password did not open the statement."
+            : "This statement is password protected. Enter the password you chose when you requested it."
+          : error instanceof CasFormatError
+            ? error.message
+            : "This file could not be read as a CAS statement.",
+      });
+    }
+  }
+
+  return (
+    <Card
+      title="Fill it from your CAS statement"
+      subtitle="The detailed CAMS + KFintech statement, with transactions. Read in your browser; nothing is uploaded."
+    >
+      <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,14rem)_auto]">
+        <Field label="Statement (PDF)">
+          <input
+            type="file"
+            accept="application/pdf,.pdf"
+            className="block w-full text-sm text-ink-700 file:mr-3 file:rounded-lg file:border-0 file:bg-ink-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-ink-900"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+        </Field>
+        <Field label="Statement password">
+          <input
+            type="password"
+            className={CONTROL}
+            value={password}
+            autoComplete="off"
+            aria-invalid={state.status === "error" && state.password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </Field>
+        <Button
+          type="button"
+          variant="primary"
+          className="h-10"
+          disabled={!file || state.status === "reading"}
+          onClick={read}
+        >
+          {state.status === "reading" ? "Reading..." : "Add its funds"}
+        </Button>
+      </div>
+      <div aria-live="polite" className="mt-3 text-sm">
+        {state.status === "error" ? <p className="text-bad-700">{state.message}</p> : null}
+        {state.status === "done" ? (
+          <>
+            <p className="text-ink-700">
+              Added {state.added} fund{state.added === 1 ? "" : "s"}. Check the tax type of each
+              below.{" "}
+              <Link href="/portfolio" className="text-accent-600 hover:underline">
+                The portfolio checkup
+              </Link>{" "}
+              reads the same statement.
+            </p>
+            {state.skipped.length ? (
+              <details className="mt-2 text-xs text-ink-500">
+                <summary className="cursor-pointer">
+                  {state.skipped.length} left out, with the reason
+                </summary>
+                <ul className="mt-1 list-disc space-y-0.5 pl-5">
+                  {state.skipped.map((reason) => (
+                    <li key={reason}>{reason}</li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+    </Card>
   );
 }
 
@@ -317,7 +462,7 @@ function FundCard({
             href={`/fund/${fund.code}`}
             className="min-w-0 hover:text-accent-600 hover:underline"
           >
-            {fund.name}
+            {labelOf(fund)}
           </Link>
           <button
             type="button"
@@ -400,81 +545,90 @@ function FundCard({
         ) : null}
       </div>
 
-      <div className="mt-5 space-y-3">
-        {fund.rows.map((row, index) => (
-          <div
-            key={row.id}
-            className="grid grid-cols-2 items-end gap-2 border-t border-ink-100 pt-3 sm:grid-cols-[8.5rem_10rem_minmax(0,1fr)_minmax(0,1fr)_9rem_2rem]"
-          >
-            <Field label="Type">
-              <select
-                className={CONTROL}
-                value={row.side}
-                onChange={(e) => setRow(row.id, { side: e.target.value as Row["side"] })}
-                aria-label={`Row ${index + 1} type`}
-              >
-                <option value="buy">Purchase</option>
-                <option value="sell">Redemption</option>
-              </select>
-            </Field>
-            <Field label="Date">
-              <input
-                className={CONTROL}
-                type="date"
-                value={row.date}
-                onChange={(e) => setRow(row.id, { date: e.target.value })}
-                aria-label={`Row ${index + 1} date`}
-              />
-            </Field>
-            <Field label="Units">
-              <input
-                className={CONTROL}
-                type="number"
-                step="any"
-                min={0}
-                inputMode="decimal"
-                value={row.units}
-                onChange={(e) => setRow(row.id, { units: e.target.value })}
-                aria-label={`Row ${index + 1} units`}
-              />
-            </Field>
-            <Field label={row.valueKind === "nav" ? "NAV per unit" : "Amount (₹)"}>
-              <input
-                className={CONTROL}
-                type="number"
-                step="any"
-                min={0}
-                inputMode="decimal"
-                value={row.value}
-                onChange={(e) => setRow(row.id, { value: e.target.value })}
-                aria-label={`Row ${index + 1} ${row.valueKind === "nav" ? "NAV" : "amount"}`}
-              />
-            </Field>
-            <Field label="Enter as">
-              <select
-                className={CONTROL}
-                value={row.valueKind}
-                onChange={(e) => setRow(row.id, { valueKind: e.target.value as Row["valueKind"] })}
-                aria-label={`Row ${index + 1} value kind`}
-              >
-                <option value="nav">NAV per unit</option>
-                <option value="amount">Total amount</option>
-              </select>
-            </Field>
-            <button
-              type="button"
-              aria-label={`Remove row ${index + 1}`}
-              title="Remove row"
-              className="mb-1.5 justify-self-end rounded-full px-1.5 text-base leading-6 text-ink-500 hover:bg-ink-100 hover:text-ink-900"
-              onClick={() =>
-                onChange((f) => ({ ...f, rows: f.rows.filter((r) => r.id !== row.id) }))
-              }
+      {/* A statement can carry years of SIP rows; imported ones start folded so the results stay in reach. */}
+      <details className="mt-5" open={!fund.folio}>
+        <summary className="cursor-pointer text-sm font-medium text-ink-700">
+          {fund.rows.length} transaction{fund.rows.length === 1 ? "" : "s"}
+          {fund.folio ? " from your statement" : ""}
+        </summary>
+        <div className="mt-3 space-y-3">
+          {fund.rows.map((row, index) => (
+            <div
+              key={row.id}
+              className="grid grid-cols-2 items-end gap-2 border-t border-ink-100 pt-3 sm:grid-cols-[8.5rem_10rem_minmax(0,1fr)_minmax(0,1fr)_9rem_2rem]"
             >
-              ×
-            </button>
-          </div>
-        ))}
-      </div>
+              <Field label="Type">
+                <select
+                  className={CONTROL}
+                  value={row.side}
+                  onChange={(e) => setRow(row.id, { side: e.target.value as Row["side"] })}
+                  aria-label={`Row ${index + 1} type`}
+                >
+                  <option value="buy">Purchase</option>
+                  <option value="sell">Redemption</option>
+                </select>
+              </Field>
+              <Field label="Date">
+                <input
+                  className={CONTROL}
+                  type="date"
+                  value={row.date}
+                  onChange={(e) => setRow(row.id, { date: e.target.value })}
+                  aria-label={`Row ${index + 1} date`}
+                />
+              </Field>
+              <Field label="Units">
+                <input
+                  className={CONTROL}
+                  type="number"
+                  step="any"
+                  min={0}
+                  inputMode="decimal"
+                  value={row.units}
+                  onChange={(e) => setRow(row.id, { units: e.target.value })}
+                  aria-label={`Row ${index + 1} units`}
+                />
+              </Field>
+              <Field label={row.valueKind === "nav" ? "NAV per unit" : "Amount (₹)"}>
+                <input
+                  className={CONTROL}
+                  type="number"
+                  step="any"
+                  min={0}
+                  inputMode="decimal"
+                  value={row.value}
+                  onChange={(e) => setRow(row.id, { value: e.target.value })}
+                  aria-label={`Row ${index + 1} ${row.valueKind === "nav" ? "NAV" : "amount"}`}
+                />
+              </Field>
+              <Field label="Enter as">
+                <select
+                  className={CONTROL}
+                  value={row.valueKind}
+                  onChange={(e) =>
+                    setRow(row.id, { valueKind: e.target.value as Row["valueKind"] })
+                  }
+                  aria-label={`Row ${index + 1} value kind`}
+                >
+                  <option value="nav">NAV per unit</option>
+                  <option value="amount">Total amount</option>
+                </select>
+              </Field>
+              <button
+                type="button"
+                aria-label={`Remove row ${index + 1}`}
+                title="Remove row"
+                className="mb-1.5 justify-self-end rounded-full px-1.5 text-base leading-6 text-ink-500 hover:bg-ink-100 hover:text-ink-900"
+                onClick={() =>
+                  onChange((f) => ({ ...f, rows: f.rows.filter((r) => r.id !== row.id) }))
+                }
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      </details>
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
         <button
           type="button"

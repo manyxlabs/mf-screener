@@ -10,6 +10,8 @@ const NAV = [
   { href: "/screener", label: "Screener" },
   { href: "/compare", label: "Compare" },
   { href: "/basket", label: "Basket" },
+  { href: "/portfolio", label: "Checkup" },
+  { href: "/capital-gains", label: "Capital gains" },
   { href: "/glossary", label: "Glossary" },
   { href: "/methodology", label: "Methodology" },
 ];
