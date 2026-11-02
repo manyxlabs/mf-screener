@@ -1,6 +1,7 @@
 # Rebuilds the store from AMFI every night and publishes the static site to GitHub Pages.
-# A push to main republishes from the newest export the pushed code can read, so a web
-# change goes live in minutes; a push that changes what the export writes rebuilds it.
+# A push republishes from the newest nightly export without rebuilding it, so any code
+# change goes live in minutes; what the export itself contains changes with the next
+# nightly run, or at once from a manual run with "rebuild" ticked.
 name: Publish
 
 on:
@@ -8,6 +9,11 @@ on:
     # 02:00 IST, after AMFI has published the day's NAVs.
     - cron: "30 20 * * *"
   workflow_dispatch:
+    inputs:
+      rebuild:
+        description: Rebuild the data from AMFI first (about two hours)
+        type: boolean
+        default: false
   push:
     branches: [main]
 
@@ -22,59 +28,42 @@ concurrency:
 
 jobs:
   data:
+    if: github.event_name == 'schedule' || inputs.rebuild
     runs-on: ubuntu-latest
     timeout-minutes: 330
-    outputs:
-      key: ${{ steps.key.outputs.key }}
     steps:
       - uses: actions/checkout@v4
-      # Everything that decides the export's shape or numbers. An export is only ever
-      # paired with code of the same hash: new web code over an old-format export builds
-      # cleanly and then fails in the browser.
-      - id: key
-        run: echo "key=static-data-${{ hashFiles('apps/api/**', 'packages/analytics/**', 'uv.lock', '.env.example', 'Makefile') }}" >> "$GITHUB_OUTPUT"
-      - id: existing
-        if: github.event_name == 'push'
-        uses: actions/cache/restore@v4
-        with:
-          path: apps/web/public/data
-          key: ${{ steps.key.outputs.key }}-none
-          restore-keys: ${{ steps.key.outputs.key }}-
-          lookup-only: true
-      - id: build
-        if: steps.existing.outputs.cache-matched-key == ''
-        run: echo "needed=true" >> "$GITHUB_OUTPUT"
-      - if: steps.build.outputs.needed
-        uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v6
       - name: Prepare
-        if: steps.build.outputs.needed
         run: |
           cp .env.example .env
           uv sync --frozen
           uv run python -m mf_analytics.cli init
       - name: Rebuild the store from AMFI
-        if: steps.build.outputs.needed
         run: make data-site
       - name: Export the static data
-        if: steps.build.outputs.needed
         run: make static-export OUT=apps/web/public/data
-      - if: steps.build.outputs.needed
-        uses: actions/cache/save@v4
+      - uses: actions/cache/save@v4
         with:
           path: apps/web/public/data
-          key: ${{ steps.key.outputs.key }}-${{ github.run_id }}
+          key: static-data-${{ github.run_id }}
 
   site:
     needs: data
+    # Runs after a rebuild, and on its own when the data job is skipped.
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      # The newest export, whichever code wrote it. Nothing pairs it with this commit's
+      # code by hash any more: the E2E suite below drives every page over this very
+      # data, so web code that cannot read it fails here instead of in a browser.
       - uses: actions/cache/restore@v4
         with:
           path: apps/web/public/data
-          key: ${{ needs.data.outputs.key }}-none
-          restore-keys: ${{ needs.data.outputs.key }}-
+          key: static-data-none
+          restore-keys: static-data-
           fail-on-cache-miss: true
       - name: Refuse stale data
         # Schedules stop after 60 days without repository activity, and nothing else
@@ -90,8 +79,15 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Build the static site
-        run: make build PNPM=pnpm
+      - run: pnpm --filter @mf/web exec playwright install --with-deps chromium
+      - name: Build the static site and test it end to end
+        # The suite's web server runs `next build`, so `out` is what it tested.
+        run: make e2e PNPM=pnpm
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: e2e-results
+          path: apps/web/test-results
       - uses: actions/upload-pages-artifact@v3
         with:
           path: apps/web/out
