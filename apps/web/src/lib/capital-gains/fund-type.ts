@@ -30,3 +30,6 @@ export function fundTypeFromCategory(
   if (category === "Hybrid Scheme") return HYBRID[subCategory ?? ""] ?? null;
   return null;
 }
+
+/** ETFs trade on an exchange, which changes their holding period and 2018 fair value. */
+export const looksListed = (name: string) => /\b(ETF|BeES)\b/i.test(name);

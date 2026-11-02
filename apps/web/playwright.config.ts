@@ -9,14 +9,17 @@ export default defineConfig({
   timeout: 60_000,
   fullyParallel: true,
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: process.env.BASE_URL ?? "http://localhost:3000",
     launchOptions: { executablePath: process.env.CHROMIUM || undefined },
   },
-  webServer: {
-    command: "next build && npx -y serve@14.2.4 out -l 3000 --no-port-switching",
-    url: "http://localhost:3000",
-    reuseExistingServer: true,
-    // The full export renders one page per fund.
-    timeout: 900_000,
-  },
+  // BASE_URL points the specs at a server already running, such as `next dev`.
+  webServer: process.env.BASE_URL
+    ? undefined
+    : {
+        command: "next build && npx -y serve@14.2.4 out -l 3000 --no-port-switching",
+        url: "http://localhost:3000",
+        reuseExistingServer: true,
+        // The full export renders one page per fund.
+        timeout: 900_000,
+      },
 });
