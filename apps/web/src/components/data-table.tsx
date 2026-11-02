@@ -6,6 +6,10 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef } from "react";
 import { MetricHeader, MetricValue } from "./metric-cell";
 
+// The pinned name column: narrow on a phone so the figures scrolled beside it stay readable,
+// with long names clamped to three lines (the full name is the link's tooltip).
+const NAME_COLUMN = "w-38 min-w-38 max-w-38 sm:w-[280px] sm:min-w-[280px] sm:max-w-[280px]";
+
 // The non-metric columns. Metric headers get their plain label from the API's
 // catalogue; these have no spec, so their wording lives here.
 const TEXT_LABELS: Record<string, string> = {
@@ -110,7 +114,8 @@ export function DataTable({
             return (
               <Link
                 href={`/fund/${String(row["scheme_code"])}`}
-                className="font-medium text-ink-900 hover:text-accent-600 hover:underline"
+                title={String(value ?? "")}
+                className="line-clamp-3 text-xs font-medium text-ink-900 hover:text-accent-600 hover:underline sm:line-clamp-none sm:text-sm"
               >
                 {String(value ?? "")}
               </Link>
@@ -198,7 +203,7 @@ export function DataTable({
                     }
                     className={`sticky top-0 z-20 border-b border-ink-200 bg-ink-50 px-3 py-2.5 text-left align-bottom text-xs font-medium whitespace-nowrap text-ink-500 ${
                       isSticky
-                        ? `${onToggleSelect ? "left-10" : "left-0"} z-30 w-[280px] min-w-[280px] max-w-[280px] border-r border-ink-200`
+                        ? `${onToggleSelect ? "left-10" : "left-0"} z-30 ${NAME_COLUMN} border-r border-ink-200`
                         : ""
                     }`}
                   >
@@ -253,7 +258,7 @@ export function DataTable({
                     // element would leave the winner to stylesheet order, not class order.
                     className={
                       index === 0
-                        ? `sticky ${onToggleSelect ? "left-10" : "left-0"} z-10 w-[280px] min-w-[280px] max-w-[280px] border-r border-b border-ink-200 border-b-ink-100 bg-inherit px-3 py-2.5 whitespace-normal`
+                        ? `sticky ${onToggleSelect ? "left-10" : "left-0"} z-10 ${NAME_COLUMN} border-r border-b border-ink-200 border-b-ink-100 bg-inherit px-3 py-2.5 whitespace-normal`
                         : "border-b border-ink-100 px-3 py-2.5 whitespace-nowrap"
                     }
                   >
