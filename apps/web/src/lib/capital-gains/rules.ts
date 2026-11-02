@@ -1,12 +1,13 @@
-// Indian capital gains rules for mutual fund units, as the Income Tax Act 1961 stood for
-// each date of transfer. The page cites the source of every constant here.
+// Indian capital gains rules for mutual fund units by date of transfer: the Income-tax Act
+// 1961 to 31 Mar 2026, then the Income-tax Act 2025, which carried the same rules over.
+// The page cites the source of every constant here.
 
 import type { IsoDate } from "@/lib/cas/types";
 
 /**
  * - equity: an equity-oriented fund (65% or more in domestic listed equity).
  * - debt: more than 65% in debt and money market instruments, a specified mutual fund
- *   under both the Finance Act 2023 and the Finance Act 2025 definitions.
+ *   under both the Finance Act 2023 and the Finance (No. 2) Act 2024 definitions.
  * - hybrid: more than 35% but under 65% in domestic equity; never a specified fund.
  * - other: 35% or less in domestic equity and no more than 65% in debt (gold, silver,
  *   international, most fund of funds): specified only under the 2023 definition.
@@ -17,7 +18,10 @@ export type FundType = "equity" | "debt" | "hybrid" | "other";
 export const BUDGET_2024 = "2024-07-23";
 /** Section 50AA catches specified fund units bought from this date. */
 export const SPECIFIED_FROM = "2023-04-01";
-/** The Finance Act 2025 definition of a specified fund applies to transfers from here. */
+/**
+ * The Finance (No. 2) Act 2024 redefined a specified fund from AY 2026-27, so for every
+ * transfer in FY 2025-26 onward.
+ */
 export const SPECIFIED_REDEFINED = "2025-04-01";
 /** Section 112A taxes equity LTCG on transfers from this date; 10(38) exempted it before. */
 export const SECTION_112A_FROM = "2018-04-01";
@@ -97,9 +101,20 @@ export function isSpecifiedFund(type: FundType, bought: IsoDate, sold: IsoDate):
   return type === "debt" || (type === "other" && sold < SPECIFIED_REDEFINED);
 }
 
-/** Months a unit must be held beyond to be long-term under section 2(42A). */
-const holdingMonths = (type: FundType, sold: IsoDate) =>
-  type === "equity" ? 12 : sold < BUDGET_2024 ? 36 : 24;
+/**
+ * Section 2(42A): long-term when held more than 12 months (36 or 24 for other units). From
+ * 23 Jul 2024 every listed security, ETF units included, needs only 12.
+ */
+const holdingMonths = (type: FundType, listed: boolean, sold: IsoDate) =>
+  type === "equity" ? 12 : sold < BUDGET_2024 ? 36 : listed ? 12 : 24;
+
+/**
+ * The first day a sale is long-term. Units bought on 1 Jan complete 12 months on 31 Dec,
+ * so a sale on 1 Jan of the next year is long-term (Delhi High Court, Bharti Gupta Ramola
+ * v. CIT, 2012).
+ */
+const firstLongDay = (bought: IsoDate, months: number) =>
+  addDays(addMonths(addDays(bought, -1), months), 1);
 
 /** Where a gain is taxed. A null rate is the investor's slab rate. */
 export type TaxHead =
@@ -110,8 +125,8 @@ export type TaxHead =
   // Before FY 2018-19: matched so later sales use the right lots, but not taxed here.
   | { section: "pre2018"; term: "short" | "long"; rate: null };
 
-export function classify(type: FundType, bought: IsoDate, sold: IsoDate): TaxHead {
-  const long = sold > addMonths(bought, holdingMonths(type, sold));
+export function classify(type: FundType, bought: IsoDate, sold: IsoDate, listed = false): TaxHead {
+  const long = sold >= firstLongDay(bought, holdingMonths(type, listed, sold));
   const after = sold >= BUDGET_2024;
   if (sold < SECTION_112A_FROM)
     return { section: "pre2018", term: long ? "long" : "short", rate: null };
@@ -132,8 +147,23 @@ export function classify(type: FundType, bought: IsoDate, sold: IsoDate): TaxHea
  * The first day a unit bought on `bought` would be long-term if sold then, judged by the
  * rules in force on `asOf`; null when a sale under those rules can never be long-term.
  */
-export function longTermFrom(type: FundType, bought: IsoDate, asOf: IsoDate): IsoDate | null {
+export function longTermFrom(
+  type: FundType,
+  bought: IsoDate,
+  asOf: IsoDate,
+  listed = false,
+): IsoDate | null {
   if (type === "debt" && bought >= SPECIFIED_FROM) return null;
   if (type === "other" && bought >= SPECIFIED_FROM && asOf < SPECIFIED_REDEFINED) return null;
-  return addDays(addMonths(bought, holdingMonths(type, asOf)), 1);
+  return firstLongDay(bought, holdingMonths(type, listed, asOf));
 }
+
+/** The Income-tax Act 2025 renumbered these sections for transfers from 1 Apr 2026. */
+const ACT_2025: Record<string, string> = {
+  "111A": "196",
+  "112": "197",
+  "112A": "198",
+  "50AA": "76",
+};
+export const sectionName = (section: string, sold: IsoDate) =>
+  sold >= "2026-04-01" ? `${ACT_2025[section] ?? section} (2025 Act)` : section;

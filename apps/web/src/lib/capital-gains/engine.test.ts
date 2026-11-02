@@ -11,7 +11,9 @@
  * - Unit rounding in a statement leaving a phantom 0.0001-unit lot after a full exit.
  *
  * Dates
- * - Exactly 12 (or 24, 36) months treated as long-term: the Act needs more than that.
+ * - The 12 (or 24, 36) months counted off by one: units bought on 1 Jan complete 12
+ *   months on 31 Dec, so a sale on 1 Jan of the next year is long-term.
+ * - A listed ETF judged on 24 months after 23 Jul 2024, when listed units need 12.
  * - A month-end purchase (29 Feb) overflowing into the wrong anniversary.
  * - A sale on 22 Jul 2024 taxed at the new rates, or one on 23 Jul 2024 at the old.
  * - Non-equity units sold before 23 Jul 2024 judged on 24 months instead of 36.
@@ -59,6 +61,7 @@ const holding = (type: FundType, trades: Trade[], extra: Partial<Holding> = {}):
   id: extra.name ?? type,
   name: type,
   type,
+  listed: false,
   nav31Jan2018: null,
   trades,
   latest: null,
@@ -142,9 +145,10 @@ describe("FIFO matching", () => {
 });
 
 describe("holding period boundaries", () => {
-  it("needs more than 12 months for equity, counting a 29 Feb purchase to 28 Feb", () => {
-    expect(classify("equity", "2023-01-10", "2024-01-10").term).toBe("short");
-    expect(classify("equity", "2023-01-10", "2024-01-11").term).toBe("long");
+  it("counts 12 months as Bharti Gupta Ramola does, and a 29 Feb purchase to 28 Feb", () => {
+    // Bought 10 Jan 2023: 12 months complete on 9 Jan 2024, so 10 Jan is long-term.
+    expect(classify("equity", "2023-01-10", "2024-01-09").term).toBe("short");
+    expect(classify("equity", "2023-01-10", "2024-01-10").term).toBe("long");
     expect(classify("equity", "2024-02-29", "2025-02-28").term).toBe("short");
     expect(classify("equity", "2024-02-29", "2025-03-01").term).toBe("long");
   });
@@ -179,12 +183,24 @@ describe("holding period boundaries", () => {
       rate: 0.125,
       indexed: false,
     });
-    expect(classify("debt", "2021-07-01", "2024-07-01").term).toBe("short");
-    expect(classify("debt", "2021-07-01", "2024-07-02")).toMatchObject({
+    expect(classify("debt", "2021-07-01", "2024-06-30").term).toBe("short");
+    expect(classify("debt", "2021-07-01", "2024-07-01")).toMatchObject({
       section: "112",
       rate: 0.2,
       indexed: true,
     });
+  });
+
+  it("gives listed units 12 months from 23 Jul 2024 but 36 before", () => {
+    // A gold ETF bought Jan 2024 and sold Jun 2025, 17 months on: long-term only listed.
+    expect(classify("other", "2024-01-01", "2025-06-01", true)).toMatchObject({
+      section: "112",
+      rate: 0.125,
+    });
+    expect(classify("other", "2024-01-01", "2025-06-01").term).toBe("short");
+    expect(classify("other", "2020-01-01", "2022-06-01", true).term).toBe("short");
+    // A debt ETF bought from Apr 2023 is a specified fund's unit, listed or not.
+    expect(classify("debt", "2023-05-01", "2025-06-01", true)).toMatchObject({ section: "slab" });
   });
 
   it("indexes non-equity cost for sales before 23 Jul 2024", () => {
@@ -422,9 +438,9 @@ describe("unrealised view", () => {
       holding("other", [buy("2023-06-01", 10, 1_000)], { name: "G" }),
     ]);
     expect(r.open.map((l) => [l.holdingId, l.head.term, l.longTermFrom, l.gain])).toEqual([
-      ["E", "short", "2027-01-16", 500],
+      ["E", "short", "2027-01-15", 500],
       ["D", "short", null, null],
-      ["G", "long", "2025-06-02", null],
+      ["G", "long", "2025-06-01", null],
     ]);
     // 40,000 of equity LTCG this year leaves 125,000 - 40,000.
     expect(r.exemptionLeft).toEqual({ fyStart: 2026, limit: 125_000, left: 85_000 });

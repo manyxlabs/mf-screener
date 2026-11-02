@@ -10,6 +10,7 @@ import {
   GRANDFATHER_BEFORE,
   indexedCost,
   longTermFrom,
+  sectionName,
   type FundType,
   type TaxHead,
 } from "./rules";
@@ -22,7 +23,12 @@ export type Holding = {
   id: string;
   name: string;
   type: FundType;
-  /** Fair market value per unit on 31 Jan 2018, for grandfathering under section 112A. */
+  /** Traded on a stock exchange (an ETF): 12 months makes it long-term from 23 Jul 2024. */
+  listed: boolean;
+  /**
+   * Fair market value per unit on 31 Jan 2018, for grandfathering under section 112A: the
+   * NAV, or for a listed unit the highest price it traded at that day.
+   */
   nav31Jan2018: number | null;
   trades: Trade[];
   latest: { date: IsoDate; nav: number } | null;
@@ -55,13 +61,18 @@ export type OpenLot = {
   longTermFrom: IsoDate | null;
 };
 
-/** Net taxable gain under one head and rate after set-off. Slab gains carry a null rate. */
+/** Gains under one head and rate. Slab gains carry a null rate. */
 export type Bucket = {
   key: string;
   label: string;
   term: "short" | "long";
   rate: number | null;
+  /** After set-off of losses. */
   gain: number;
+  /** The part of `gain` the section 112A exemption covers. */
+  exempt: number;
+  /** Before cess; null for slab gains without a slab rate. */
+  tax: number | null;
 };
 
 export type YearSummary = {
@@ -164,7 +175,7 @@ function matchHolding(
       const units = Math.min(lot.units, left);
       const cost = lot.units - units <= UNIT_EPSILON ? lot.cost : (lot.cost * units) / lot.units;
       const proceeds = (t.amount * units) / t.units;
-      const head = classify(h.type, lot.bought, t.date);
+      const head = classify(h.type, lot.bought, t.date, h.listed);
       const taxCost = taxCostOf(h, head, lot.bought, t.date, units, cost, proceeds);
       realised.push({
         holdingId: h.id,
@@ -184,7 +195,7 @@ function matchHolding(
     }
   }
   const open: OpenLot[] = lots.map((lot) => {
-    const head = classify(h.type, lot.bought, asOf);
+    const head = classify(h.type, lot.bought, asOf, h.listed);
     const value = h.latest ? h.latest.nav * lot.units : null;
     const taxCost =
       value === null ? null : taxCostOf(h, head, lot.bought, asOf, lot.units, lot.cost, value);
@@ -196,7 +207,7 @@ function matchHolding(
       value,
       gain: value === null || taxCost === null ? null : value - taxCost,
       head,
-      longTermFrom: longTermFrom(h.type, lot.bought, asOf),
+      longTermFrom: longTermFrom(h.type, lot.bought, asOf, h.listed),
     };
   });
   return { realised, open };
@@ -204,15 +215,20 @@ function matchHolding(
 
 const headKey = (head: TaxHead) => `${head.section}@${head.rate ?? "slab"}`;
 
-const HEAD_LABELS: Record<string, string> = {
-  "111A@0.15": "Equity STCG at 15% (section 111A)",
-  "111A@0.2": "Equity STCG at 20% (section 111A)",
-  "112A@0.1": "Equity LTCG at 10% (section 112A)",
-  "112A@0.125": "Equity LTCG at 12.5% (section 112A)",
-  "112@0.2": "Non-equity LTCG at 20% with indexation (section 112)",
-  "112@0.125": "Non-equity LTCG at 12.5% (section 112)",
-  "slab@slab": "Short-term, taxed at your slab rate",
-};
+function headLabel(key: string, fy: number) {
+  // The first day of the year picks the Act whose section numbers apply to it.
+  const at = (section: string) => `section ${sectionName(section, `${fy}-04-01`)}`;
+  const labels: Record<string, string> = {
+    "111A@0.15": `Equity STCG at 15% (${at("111A")})`,
+    "111A@0.2": `Equity STCG at 20% (${at("111A")})`,
+    "112A@0.1": `Equity LTCG at 10% (${at("112A")})`,
+    "112A@0.125": `Equity LTCG at 12.5% (${at("112A")})`,
+    "112@0.2": `Non-equity LTCG at 20% with indexation (${at("112")})`,
+    "112@0.125": `Non-equity LTCG at 12.5% (${at("112")})`,
+    "slab@slab": "Short-term, taxed at your slab rate",
+  };
+  return labels[key] ?? key;
+}
 
 /**
  * Sections 70 and 74 let a short-term loss reduce any gain and a long-term loss only a
@@ -252,10 +268,12 @@ function summarise(fy: number, lots: RealisedLot[], slabRate: number | null): Ye
     const key = headKey(lot.head);
     const bucket = net.get(key) ?? {
       key,
-      label: HEAD_LABELS[key] ?? key,
+      label: headLabel(key, fy),
       term: lot.head.term,
       rate: lot.head.rate,
       gain: 0,
+      exempt: 0,
+      tax: null,
     };
     bucket.gain += lot.gain;
     net.set(key, bucket);
@@ -265,16 +283,18 @@ function summarise(fy: number, lots: RealisedLot[], slabRate: number | null): Ye
   // 112A taxes only what exceeds the limit; letting it cover the 12.5% gains of FY
   // 2024-25 before the 10% ones is the taxpayer's choice and the cheaper one.
   let exemptionLeft = exemptionLimit;
-  const taxable = buckets.map((b) => ({ ...b }));
-  for (const b of taxable
+  for (const b of buckets
     .filter((b) => b.key.startsWith("112A@"))
     .sort((x, y) => y.rate! - x.rate!)) {
-    const used = Math.min(exemptionLeft, b.gain);
-    b.gain -= used;
-    exemptionLeft -= used;
+    b.exempt = Math.min(exemptionLeft, b.gain);
+    exemptionLeft -= b.exempt;
   }
-  const specialTax = taxable.reduce((s, b) => s + (b.rate === null ? 0 : b.rate * b.gain), 0);
-  const slabGain = taxable.filter((b) => b.rate === null).reduce((s, b) => s + b.gain, 0);
+  for (const b of buckets) {
+    const rate = b.rate ?? slabRate;
+    b.tax = rate === null ? null : rate * (b.gain - b.exempt);
+  }
+  const specialTax = buckets.reduce((s, b) => s + (b.rate === null ? 0 : b.tax!), 0);
+  const slabGain = buckets.filter((b) => b.rate === null).reduce((s, b) => s + b.gain, 0);
   const slabTax = slabRate === null ? (slabGain > 0 ? null : 0) : slabRate * slabGain;
   const beforeCess = !covered || slabTax === null ? null : specialTax + slabTax;
   return {
