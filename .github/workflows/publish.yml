@@ -94,6 +94,9 @@ jobs:
 
   deploy:
     needs: site
+    # GitHub skips a job whose upstream was skipped unless told otherwise, and on a
+    # push the data job always is.
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     concurrency:
       group: pages
