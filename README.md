@@ -103,7 +103,8 @@ There is one prerendered page per fund with a fund file, and one per sub-categor
 Every page carries its own title, description, canonical URL and Open Graph card (`apps/web/src/app/opengraph-image.png`, a screenshot of the home page), and fund, category and home pages carry JSON-LD.
 Set `NEXT_PUBLIC_SITE_URL` before building when the site is not served from `https://screener.manyxlabs.com`.
 A fund page prerenders only its header, with its rolling returns in one sentence, and loads the rest of its figures from `data/fund/<code>.json` in the browser, which keeps a page near 33 KB of HTML: prerendering everything came to about 250 KB per fund, too much for GitHub Pages' 1 GB across every scheme.
-The full site is about 875 MB, so anything added to every fund page costs roughly 9 MB per KB.
+The full site is about 890 MB, so anything added to every fund page costs roughly 9 MB per KB.
+`pnpm build` then deletes the two copies of each page's full RSC payload that Next 16 writes but its router never fetches (`scripts/prune-export.mjs`); with them the site is about 1.2 GB.
 The fund page's peer comparison is the default peer group only; choosing another one recomputes live and needs the local API.
 
 `.github/workflows/publish.yml` rebuilds the store and the export from AMFI every night, about two hours, and caches the export.

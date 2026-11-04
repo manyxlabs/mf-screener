@@ -151,6 +151,8 @@ export function DataTable({
     [visible, metrics, reasonDescriptions],
   );
 
+  // TanStack Table's API cannot be memoised by the React Compiler, which is not in use.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: rows,
     columns: columnDefs,
