@@ -81,7 +81,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @mf/web exec playwright install --with-deps chromium
       - name: Build the static site and test it end to end
-        # The suite's web server runs `next build`, so `out` is what it tested.
+        # The suite's web server runs `npm run build`, so `out` is what it tested.
         run: make e2e PNPM=pnpm
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}

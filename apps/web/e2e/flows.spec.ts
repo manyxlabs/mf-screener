@@ -1,6 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { isNextHydrationRace } from "./known-errors";
 
 const ARTIFACTS = "test-results/artifacts";
 mkdirSync(ARTIFACTS, { recursive: true });
@@ -62,7 +61,7 @@ test("every page renders without errors, broken values or sideways scroll", asyn
   ] as const) {
     const page = await browser.newPage({ viewport });
     const errors: string[] = [];
-    page.on("pageerror", (e) => isNextHydrationRace(e.message) || errors.push(e.message));
+    page.on("pageerror", (e) => errors.push(e.message));
     page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
     for (const path of paths) {
       await page.goto(path, { waitUntil: "networkidle" });

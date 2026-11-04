@@ -18,7 +18,7 @@ export default defineConfig({
   webServer: BASE_URL
     ? undefined
     : {
-        command: "next build && npx -y serve@14.2.4 out -l 3000 --no-port-switching",
+        command: "npm run build && npx -y serve@14.2.4 out -l 3000 --no-port-switching",
         url: "http://localhost:3000",
         reuseExistingServer: true,
         // The full export renders one page per fund.
