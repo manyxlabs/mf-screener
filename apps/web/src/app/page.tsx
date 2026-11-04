@@ -1,7 +1,19 @@
 import Link from "next/link";
+import { JsonLd } from "@/components/json-ld";
 import { SchemeSearch } from "@/components/scheme-search";
 import { getCategories, getMetadata, getPresets } from "@/lib/api";
+import { categoryPages, categoryPath } from "@/lib/categories";
+import { pageMetadata, SITE_NAME, SITE_URL } from "@/lib/site";
 import { exportedFundCodes } from "@/lib/static-data.server";
+
+const DESCRIPTION =
+  "Free research tool for Indian mutual funds: rolling returns, peer comparison, risk metrics, fund comparison, a capital gains calculator and CAS portfolio analysis. Not investment advice.";
+
+export const metadata = pageMetadata(
+  "/",
+  { absolute: "Indian Mutual Fund Screener: rolling returns, peers and risk" },
+  DESCRIPTION,
+);
 
 const QUICK_LINKS = [
   { label: "Large Cap", sub: "Large Cap Fund" },
@@ -113,11 +125,12 @@ function Arrow() {
 }
 
 export default async function StartPage() {
-  const [metadata, presets, categories, funds] = await Promise.all([
+  const [metadata, presets, categories, funds, pages] = await Promise.all([
     getMetadata(),
     getPresets(),
     getCategories(),
     exportedFundCodes(),
+    categoryPages(),
   ]);
   const available = new Set(
     categories.items.map((item) => item.clean_sub_category ?? "").filter(Boolean),
@@ -126,6 +139,44 @@ export default async function StartPage() {
 
   return (
     <div className="space-y-16">
+      <JsonLd
+        data={{
+          "@graph": [
+            {
+              "@type": "WebSite",
+              url: `${SITE_URL}/`,
+              name: SITE_NAME,
+              alternateName: "Indian Mutual Fund Screener",
+              inLanguage: "en-IN",
+              publisher: {
+                "@type": "Organization",
+                name: "Manyx Labs",
+                url: "https://www.manyxlabs.com/",
+              },
+              // The screener's search box reads ?search= from the URL.
+              potentialAction: {
+                "@type": "SearchAction",
+                target: {
+                  "@type": "EntryPoint",
+                  urlTemplate: `${SITE_URL}/screener/?search={search_term_string}`,
+                },
+                "query-input": "required name=search_term_string",
+              },
+            },
+            {
+              "@type": "WebApplication",
+              name: SITE_NAME,
+              url: `${SITE_URL}/`,
+              description: DESCRIPTION,
+              applicationCategory: "FinanceApplication",
+              operatingSystem: "Any",
+              browserRequirements: "Requires JavaScript",
+              isAccessibleForFree: true,
+              offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
+            },
+          ],
+        }}
+      />
       <section className="mx-auto max-w-3xl space-y-6 pt-4 text-center sm:pt-10">
         <p className="inline-flex flex-wrap justify-center gap-x-2 rounded-full border border-ink-200 bg-surface/70 px-3 py-1 text-xs text-ink-500 shadow-sm">
           <span className="font-medium text-ink-700">
@@ -148,17 +199,27 @@ export default async function StartPage() {
           <SchemeSearch size="large" />
         </div>
         <div className="flex flex-wrap justify-center gap-2">
-          {QUICK_LINKS.filter((link) => available.has(link.sub)).map((link) => (
-            <Link
-              key={link.sub}
-              href={`/screener?sub_category=${encodeURIComponent(link.sub)}`}
-              className={chip}
-            >
-              {link.label}
-            </Link>
-          ))}
+          {QUICK_LINKS.filter((link) => available.has(link.sub)).map((link) => {
+            const page = pages.find((p) => p.subCategory === link.sub);
+            return (
+              <Link
+                key={link.sub}
+                href={
+                  page
+                    ? categoryPath(page)
+                    : `/screener?sub_category=${encodeURIComponent(link.sub)}`
+                }
+                className={chip}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
           <Link href="/screener?search=s%26p+500" className={chip}>
             S&amp;P 500 / overseas
+          </Link>
+          <Link href="/category/" className={chip}>
+            All categories
           </Link>
         </div>
       </section>

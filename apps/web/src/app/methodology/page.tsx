@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Formula } from "@/components/formula";
 import { Card } from "@/components/ui";
 import { getMetadata, getMethodology } from "@/lib/api";
+import { pageMetadata } from "@/lib/site";
 
 const FORMULA_LABELS: Record<string, string> = {
   trailing_cagr: "Trailing CAGR over horizon h",
@@ -102,6 +103,12 @@ function KeyValues({ entries }: { entries: Record<string, unknown> }) {
 
 // Reason codes and metric names are single long words that would widen a phone page.
 const code = "rounded bg-ink-100 px-1.5 py-0.5 font-mono text-[0.8em] wrap-anywhere";
+
+export const metadata = pageMetadata(
+  "/methodology/",
+  "Methodology: how returns and risk are computed",
+  "The exact definitions behind every figure: month-end CAGR, rolling return windows, leave-one-out peer averages, risk ratios, drawdowns and benchmark proxies, with their limitations.",
+);
 
 export default async function MethodologyPage() {
   const [methodology, metadata] = await Promise.all([getMethodology(), getMetadata()]);

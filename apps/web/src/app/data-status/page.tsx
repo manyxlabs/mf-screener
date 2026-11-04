@@ -2,6 +2,13 @@ import { formatPercent } from "@mf/shared";
 import Link from "next/link";
 import { Card, Stat } from "@/components/ui";
 import { getBenchmarks, getMetadata } from "@/lib/api";
+import { pageMetadata } from "@/lib/site";
+
+export const metadata = pageMetadata(
+  "/data-status/",
+  "Data status",
+  "What the screener has loaded from AMFI: funds and NAV rows, NAV coverage dates, when metrics were last rebuilt and the default screening universe.",
+);
 
 /**
  * What the landing page used to open on: dataset counts, the default peer universe,

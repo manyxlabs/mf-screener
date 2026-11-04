@@ -4,14 +4,16 @@ import { SchemeSearch } from "@/components/scheme-search";
 import { SiteNav } from "@/components/site-nav";
 import { THEME_INIT_SCRIPT, ThemeToggle } from "@/components/theme-toggle";
 import { getMetadata } from "@/lib/api";
-import { SITE_URL } from "@/lib/site";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
+// No canonical here: a layout's would be inherited by every page that forgot its own.
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Indian Mutual Fund Screener",
+  title: { default: "Indian Mutual Fund Screener", template: `%s | ${SITE_NAME}` },
   description:
     "Screener for Indian mutual funds: trailing and rolling returns, peer-relative and risk-adjusted metrics. Research only, not investment advice.",
+  applicationName: SITE_NAME,
 };
 
 const FOOTER_LINKS = [
@@ -19,6 +21,7 @@ const FOOTER_LINKS = [
     "Tools",
     [
       ["Screener", "/screener"],
+      ["Fund categories", "/category"],
       ["Compare funds", "/compare"],
       ["Basket analysis", "/basket"],
       ["Portfolio checkup", "/portfolio"],
@@ -69,7 +72,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
           </div>
         </header>
-        <main className="mx-auto max-w-[1600px] px-4 py-8 sm:px-6">{children}</main>
+        {/* A viewport tall at least, so the footer starts below the fold: figures that load
+            after hydration then never push a visible footer down, which was most of the CLS. */}
+        <main className="mx-auto min-h-dvh max-w-[1600px] px-4 py-8 sm:px-6">{children}</main>
         <footer className="mt-16 border-t border-ink-200 bg-surface/40 print:hidden">
           <div className="mx-auto grid max-w-[1600px] gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_repeat(3,1fr)]">
             <div className="space-y-3">

@@ -186,22 +186,19 @@ export function ScreenerClient({
 
   return (
     <div className="space-y-4">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Screener</h1>
-        <p className="text-sm text-ink-500">
-          {loading
-            ? "Loading..."
-            : `${data?.total ?? 0} ${data?.total === 1 ? "fund matches" : "funds match"}`}{" "}
-          · <span title={filters.sort}>sorted by {sortDescription}</span>
-          {universeTotal !== null && data ? (
-            <>
-              {` · ${data.total} of the ${universeTotal} funds in this universe clear the `}
-              {activeRangeCount === 1 ? "numeric rule" : `${activeRangeCount} numeric rules`}
-              {`; the rest fall short of one or have no value for it.`}
-            </>
-          ) : null}
-        </p>
-      </header>
+      <p className="text-sm text-ink-500">
+        {loading
+          ? "Loading..."
+          : `${data?.total ?? 0} ${data?.total === 1 ? "fund matches" : "funds match"}`}{" "}
+        · <span title={filters.sort}>sorted by {sortDescription}</span>
+        {universeTotal !== null && data ? (
+          <>
+            {` · ${data.total} of the ${universeTotal} funds in this universe clear the `}
+            {activeRangeCount === 1 ? "numeric rule" : `${activeRangeCount} numeric rules`}
+            {`; the rest fall short of one or have no value for it.`}
+          </>
+        ) : null}
+      </p>
 
       <div className="flex flex-wrap items-center gap-2">
         <input

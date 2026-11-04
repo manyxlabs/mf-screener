@@ -7,9 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { FundPicker } from "@/components/fund-picker";
 import { getScheme, getSchemeBehaviour, getSchemeMetrics } from "@/lib/api";
-import { DERIVED_SPECS, derive, extremes, type Entry } from "./compare-rows";
-
-const MAX_FUNDS = 5;
+import { DERIVED_SPECS, derive, extremes, MAX_FUNDS, type Entry } from "./compare-rows";
 
 const SECTIONS: { title: string; keys: string[] }[] = [
   { title: "Trailing returns", keys: ["cagr_1y", "cagr_3y", "cagr_5y", "cagr_10y"] },
@@ -114,15 +112,6 @@ export function CompareClient({ columnsMeta }: { columnsMeta: ColumnsResponse })
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Compare funds</h1>
-        <p className="max-w-3xl text-sm text-ink-500">
-          Up to {MAX_FUNDS} funds side by side. In each row the best value is marked ▲ and the worst
-          ▼, judged by that metric&apos;s own better direction. Rows where neither end is better,
-          such as beta, are left unmarked.
-        </p>
-      </header>
-
       <FundPicker
         label="Search funds to compare"
         chosen={codes}

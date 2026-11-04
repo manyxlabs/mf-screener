@@ -2,6 +2,7 @@ import "server-only";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { cache } from "react";
+import { decodeColumn, type Column } from "./static-data";
 
 // `next build` and `next dev` both run from apps/web.
 const DATA_DIR = path.join(process.cwd(), "public", "data");
@@ -20,3 +21,6 @@ export const exportedFundCodes = async () =>
   (await readdir(path.join(DATA_DIR, "fund")))
     .filter((name) => name.endsWith(".json"))
     .map((name) => name.slice(0, -".json".length));
+
+export const loadScreenColumn = (name: string): Promise<unknown[]> =>
+  loadJson<Column>(`screen/${name}.json`).then(decodeColumn);

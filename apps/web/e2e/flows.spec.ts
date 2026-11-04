@@ -1,5 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-import { mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const ARTIFACTS = "test-results/artifacts";
 mkdirSync(ARTIFACTS, { recursive: true });
@@ -83,12 +83,96 @@ test("every page renders without errors, broken values or sideways scroll", asyn
 test("an unknown fund is a 404 page, not a crash", async ({ page }) => {
   const response = await page.goto("/fund/999999999/");
   expect(response?.status()).toBe(404);
+  await expect(page).toHaveTitle("Page not found | MF Screener");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("This page does not exist");
+});
+
+/** Reads a page as a crawler that runs no JavaScript does. */
+async function crawl(request: APIRequestContext, path: string) {
+  const html = await (await request.get(path)).text();
+  const all = (re: RegExp) => [...html.matchAll(re)].map((m) => m[1]!);
+  return {
+    titles: all(/<title>([^<]*)<\/title>/g),
+    description: all(/<meta name="description" content="([^"]*)"/g)[0],
+    canonical: all(/<link rel="canonical" href="([^"]*)"/g)[0],
+    ogImage: all(/<meta property="og:image" content="([^"]*)"/g)[0],
+    h1: all(/<h1[^>]*>(.*?)<\/h1>/g).map((h) => h.replace(/<[^>]+>/g, "")),
+    jsonLd: all(/<script type="application\/ld\+json">(.*?)<\/script>/g).map(
+      (text) => JSON.parse(text) as Record<string, unknown>,
+    ),
+  };
+}
+
+test("every sitemap page is crawlable HTML with its own title, canonical and card", async ({
+  request,
+}) => {
+  const sitemap = await (await request.get("/sitemap.xml")).text();
+  const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]!));
+  const fund = publishedFund();
+  expect(urls.map((u) => u.pathname)).toContain(`/fund/${fund.code}/`);
+  // Every non-fund page, plus one fund: thousands of fund pages share one template.
+  const sample = urls.filter(
+    (u) => !u.pathname.startsWith("/fund/") || u.pathname.includes(fund.code),
+  );
+  const report = [];
+  for (const url of sample) {
+    const page = await crawl(request, url.pathname);
+    const label = url.pathname;
+    expect(page.titles, label).toHaveLength(1);
+    expect(page.canonical, label).toBe(url.href);
+    expect(page.description?.length, label).toBeGreaterThan(50);
+    expect(page.h1, label).toHaveLength(1);
+    expect(page.ogImage, label).toBeTruthy();
+    report.push({
+      url: label,
+      title: page.titles[0],
+      h1: page.h1[0],
+      jsonLd: page.jsonLd.map((d) => d["@type"] ?? "@graph"),
+    });
+  }
+  const titles = report.map((r) => r.title);
+  expect(new Set(titles).size, "titles are unique").toBe(titles.length);
+
+  const fundPage = await crawl(request, `/fund/${fund.code}/`);
+  expect(fundPage.jsonLd.map((d) => d["@type"])).toEqual(["BreadcrumbList", "InvestmentFund"]);
+  const home = await crawl(request, "/");
+  const graph = home.jsonLd[0]!["@graph"] as { "@type": string }[];
+  expect(graph.map((d) => d["@type"])).toEqual(["WebSite", "WebApplication"]);
+
+  const image = await request.get(new URL(home.ogImage!).pathname);
+  expect(image.headers()["content-type"]).toBe("image/png");
+  const png = await image.body();
+  // The IHDR chunk holds width and height as big-endian integers at bytes 16 and 20.
+  expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1200, 630]);
+  writeFileSync(`${ARTIFACTS}/seo-pages.json`, JSON.stringify(report, null, 2));
+});
+
+test("pages whose figures load late do not shift the layout", async ({ browser }) => {
+  const fund = publishedFund();
+  const page = await browser.newPage({ viewport: { width: 1366, height: 900 } });
+  await page.addInitScript(() => {
+    const w = window as unknown as { cls: number };
+    w.cls = 0;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as unknown as {
+        value: number;
+        hadRecentInput: boolean;
+      }[])
+        if (!entry.hadRecentInput) w.cls += entry.value;
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+  for (const path of ["/screener/", "/compare/", "/capital-gains/", `/fund/${fund.code}/`]) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    const cls = await page.evaluate(() => (window as unknown as { cls: number }).cls);
+    // Google's threshold for a "good" Cumulative Layout Shift.
+    expect(cls, path).toBeLessThan(0.1);
+  }
 });
 
 test("a fund page has its own title and loads its figures in the browser", async ({ page }) => {
   const fund = publishedFund();
   await page.goto(`/fund/${fund.code}/`);
-  await expect(page).toHaveTitle(`${fund.name}: returns, risk and peers`);
+  await expect(page).toHaveTitle(`${fund.name}: rolling returns, risk and peers | MF Screener`);
   await expect(page.getByRole("heading", { level: 1 }).first()).toHaveText(fund.name);
   for (const card of ["Trailing returns", "Peer comparison"]) {
     await expect(page.getByRole("heading", { name: card, exact: true })).toBeVisible();
