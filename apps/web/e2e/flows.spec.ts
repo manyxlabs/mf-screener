@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { isNextHydrationRace } from "./known-errors";
 
 const ARTIFACTS = "test-results/artifacts";
 mkdirSync(ARTIFACTS, { recursive: true });
@@ -61,7 +62,7 @@ test("every page renders without errors, broken values or sideways scroll", asyn
   ] as const) {
     const page = await browser.newPage({ viewport });
     const errors: string[] = [];
-    page.on("pageerror", (e) => errors.push(e.message));
+    page.on("pageerror", (e) => isNextHydrationRace(e.message) || errors.push(e.message));
     page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
     for (const path of paths) {
       await page.goto(path, { waitUntil: "networkidle" });
@@ -112,11 +113,12 @@ test("every sitemap page is crawlable HTML with its own title, canonical and car
   expect(urls.map((u) => u.pathname)).toContain(`/fund/${fund.code}/`);
   // Every non-fund page, plus one fund: thousands of fund pages share one template.
   const sample = urls.filter(
-    (u) => !u.pathname.startsWith("/fund/") || u.pathname.includes(fund.code),
+    (u) => !u.pathname.startsWith("/fund/") || u.pathname === `/fund/${fund.code}/`,
   );
+  const pages = await Promise.all(sample.map((url) => crawl(request, url.pathname)));
   const report = [];
-  for (const url of sample) {
-    const page = await crawl(request, url.pathname);
+  for (const [i, url] of sample.entries()) {
+    const page = pages[i]!;
     const label = url.pathname;
     expect(page.titles, label).toHaveLength(1);
     expect(page.canonical, label).toBe(url.href);

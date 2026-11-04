@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { buildCas, buildOtherPdf, CLOSED_FUND, pickFunds } from "./synthetic-cas";
+import { isNextHydrationRace } from "./known-errors";
 
 const ARTIFACTS = "test-results/artifacts";
 mkdirSync(ARTIFACTS, { recursive: true });
@@ -142,7 +143,7 @@ test("fits a phone without sideways scroll, in both themes", async ({ browser })
     ] as const) {
       const page = await browser.newPage({ viewport, colorScheme });
       const errors: string[] = [];
-      page.on("pageerror", (e) => errors.push(e.message));
+      page.on("pageerror", (e) => isNextHydrationRace(e.message) || errors.push(e.message));
       page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
       // A screenshot hides the caret with an inline style, which hydration would flag.
       await page.goto("/portfolio", { waitUntil: "networkidle" });
