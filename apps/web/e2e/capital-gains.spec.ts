@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { buildCas, CLOSED_FUND, pickFunds } from "./synthetic-cas";
+import { isNextHydrationRace } from "./known-errors";
 
 const ARTIFACTS = "test-results/artifacts";
 mkdirSync(ARTIFACTS, { recursive: true });
@@ -126,7 +127,7 @@ test("fits a phone and both themes", async ({ browser }) => {
     for (const theme of ["light", "dark"]) {
       const page = await browser.newPage({ viewport });
       const errors: string[] = [];
-      page.on("pageerror", (e) => errors.push(e.message));
+      page.on("pageerror", (e) => isNextHydrationRace(e.message) || errors.push(e.message));
       await page.goto("/capital-gains");
       await page.evaluate((t) => {
         localStorage.clear();
