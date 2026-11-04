@@ -1,5 +1,12 @@
 import Link from "next/link";
 import { Card } from "@/components/ui";
+import { pageMetadata } from "@/lib/site";
+
+export const metadata = pageMetadata(
+  "/overlap/",
+  "Mutual fund portfolio overlap",
+  "How portfolio overlap between two mutual funds is measured, and why this site shows no overlap figure: no holdings data is published, so none is guessed.",
+);
 
 /**
  * How much of two funds' money is in the same instruments. Overlap reads holdings

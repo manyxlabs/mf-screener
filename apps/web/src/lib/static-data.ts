@@ -24,13 +24,14 @@ export function loadJson<T>(path: string): Promise<T> {
 export type ScreenIndex = { columns: string[]; count: number };
 
 export const loadScreenIndex = () => loadJson<ScreenIndex>("screen/index.json");
-type Column = unknown[] | { distinct: unknown[]; rows: number[] };
+export type Column = unknown[] | { distinct: unknown[]; rows: number[] };
 
 /** Rows of a dictionary-encoded column share one object per distinct value; don't mutate. */
+export const decodeColumn = (column: Column): unknown[] =>
+  Array.isArray(column) ? column : column.rows.map((i) => column.distinct[i]);
+
 export const loadScreenColumn = (name: string): Promise<unknown[]> =>
-  loadJson<Column>(`screen/${name}.json`).then((column) =>
-    Array.isArray(column) ? column : column.rows.map((i) => column.distinct[i]),
-  );
+  loadJson<Column>(`screen/${name}.json`).then(decodeColumn);
 
 /** One fund's answers, keyed as in `FUND` in static_export.py; a refusal is `{error, detail}`. */
 export type FundBundle = Record<string, unknown>;

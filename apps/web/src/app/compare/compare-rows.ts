@@ -1,5 +1,7 @@
 import type { Behaviour, MetricSpec, MetricsSnapshot, Scheme } from "@mf/shared";
 
+export const MAX_FUNDS = 5;
+
 export type Entry = { scheme: Scheme; metrics: MetricsSnapshot; behaviour: Behaviour };
 
 function spec(

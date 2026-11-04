@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { getBenchmarks } from "@/lib/api";
 import { Badge, Card } from "@/components/ui";
+import { pageMetadata } from "@/lib/site";
 
 /**
  * A benchmark whose currency differs from the fund's is shown, never hidden, but it is
@@ -26,6 +27,12 @@ function CurrencyCell({
     </span>
   );
 }
+
+export const metadata = pageMetadata(
+  "/benchmarks/",
+  "Benchmark coverage",
+  "Which index each Indian mutual fund is measured against, where each series came from, which are index-fund proxies and what the benchmark mapping does not cover.",
+);
 
 export default async function BenchmarksPage() {
   const data = await getBenchmarks();

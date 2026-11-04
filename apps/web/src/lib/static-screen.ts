@@ -16,7 +16,8 @@ import type {
 } from "@mf/shared";
 import type { z } from "zod";
 import { ApiError } from "./api-error";
-import { loadJson, loadScreenColumn } from "@/lib/static-data";
+// The disk reader at build time, so server components can screen too.
+import { loadJson, loadScreenColumn } from "#static-data";
 
 type SchemeList = z.infer<typeof schemeListSchema>;
 type Value = string | number | boolean | null;

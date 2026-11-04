@@ -209,10 +209,10 @@ const load = (code: string) =>
 /**
  * Everything below the header loads in the browser from the fund's JSON. Rendered at
  * build time, the full page came to about 250 KB of HTML and RSC payload per fund, which
- * across every scheme would not fit GitHub Pages' 1 GB; the header, prerendered from
- * the scheme alone, is what search engines need.
+ * across every scheme would not fit GitHub Pages' 1 GB; the header, prerendered with a
+ * one-line rolling return `summary`, is what search engines need.
  */
-export function FundView({ detail }: { detail: SchemeDetail }) {
+export function FundView({ detail, summary }: { detail: SchemeDetail; summary: string | null }) {
   const scheme = detail.scheme;
   const code = scheme.scheme_code;
   const [data, setData] = useState<Awaited<ReturnType<typeof load>> | null>(null);
@@ -250,6 +250,14 @@ export function FundView({ detail }: { detail: SchemeDetail }) {
             Scheme code {scheme.scheme_code} ·{" "}
             {scheme.isin_growth ?? scheme.isin_dividend ?? "no ISIN published"}
           </p>
+          {summary ? (
+            <p className="max-w-3xl text-sm text-pretty text-ink-700">
+              {summary}{" "}
+              <a href="#rolling" className="whitespace-nowrap text-accent-600 hover:underline">
+                Full distribution
+              </a>
+            </p>
+          ) : null}
           <div className="flex flex-wrap gap-2 pt-1 print:hidden">
             <Link
               href={`/compare?codes=${code}`}

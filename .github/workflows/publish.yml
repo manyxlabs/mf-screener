@@ -110,3 +110,20 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      # Every fund page changes with each NAV refresh, so every URL is submitted. The key is
+      # public by design (apps/web/public/<key>.txt): it proves only that we control the host.
+      - name: Submit every sitemap URL to IndexNow
+        env:
+          SITE: https://screener.manyxlabs.com
+          KEY: 050c05e22cf3fe16ec2cd3492a8654ae
+        run: |
+          curl -fsS "$SITE/sitemap.xml" | grep -o '<loc>[^<]*' | sed 's/<loc>//' > urls.txt
+          # IndexNow takes at most 10,000 URLs per request.
+          split -l 10000 urls.txt batch-
+          for batch in batch-*; do
+            jq -Rn --arg key "$KEY" --arg site "$SITE" \
+              '{host: ($site | sub("^https://"; "")), key: $key, urlList: [inputs]}' < "$batch" \
+              | curl -sS --fail-with-body -X POST https://api.indexnow.org/indexnow \
+                  -H 'Content-Type: application/json; charset=utf-8' --data @- -w '%{http_code}\n'
+          done
+          echo "Submitted $(wc -l < urls.txt) URLs"
