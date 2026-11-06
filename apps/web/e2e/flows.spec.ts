@@ -257,15 +257,18 @@ test("a fund too new for metrics is screened and searchable, but clears no numer
   await page.getByRole("banner").getByRole("combobox").fill(fund!.name);
   await expect(page.getByRole("option").filter({ hasText: fund!.name }).first()).toBeVisible();
 
+  // A code matches as a substring, so other funds whose codes contain it can be listed too.
   await page.goto(`/screener?search=${fund!.code}`);
-  await expect(page.getByText(/[\d,]+ funds? match/)).toContainText("1 fund matches");
-  await expect(page.locator("tbody tr a[href^='/fund/']")).toHaveText(fund!.name);
+  const row = page.locator(
+    `tbody tr a[href='/fund/${fund!.code}/'], tbody tr a[href='/fund/${fund!.code}']`,
+  );
+  await expect(row).toHaveText(fund!.name);
   await page.getByRole("button", { name: "Filters" }).click();
   await page
     .getByLabel(/minimum, in percent$/)
     .first()
     .fill("-100");
-  await expect(page.getByText(/[\d,]+ funds? match/)).toContainText("0 funds match");
+  await expect(row).toHaveCount(0);
 });
 
 test("sorting a column reorders the rows", async ({ page }) => {
