@@ -180,7 +180,7 @@ export default async function StartPage() {
       <section className="mx-auto max-w-3xl space-y-6 pt-4 text-center sm:pt-10">
         <p className="inline-flex flex-wrap justify-center gap-x-2 rounded-full border border-ink-200 bg-surface/70 px-3 py-1 text-xs text-ink-500 shadow-sm">
           <span className="font-medium text-ink-700">
-            {screen.count.toLocaleString("en-IN")} funds analysed
+            {screen.count.toLocaleString("en-IN")} active funds
           </span>
           <span aria-hidden="true">·</span>
           <span>NAV to {coverage.latest_nav_date ?? "-"}</span>

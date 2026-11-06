@@ -564,7 +564,9 @@ def _score_peer_group(scheme_code: str) -> tuple[str | None, pd.DataFrame]:
     columns_sql = ", ".join(_available_score_columns())
     rows = query_df(
         f"SELECT scheme_code, {columns_sql} FROM screen_base "
-        "WHERE peer_group = ? "
+        # screen_base also lists schemes with no snapshot; a NULL as_of_date is one. It is
+        # no peer, and the fund itself without one has no score, only a reason.
+        "WHERE peer_group = ? AND as_of_date IS NOT NULL "
         "AND (scheme_code = ? "
         "OR (clean_plan = 'Direct' AND clean_option = 'Growth' AND is_active))",
         [group, scheme_code],

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Facets, MetricSpec } from "@mf/shared";
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { ScreenFilters } from "@/lib/screen-query";
 import { Button, Field, PercentInput, drawerClass, inputClass } from "./ui";
 
@@ -74,6 +74,7 @@ export function FilterDrawer({
   metrics: Record<string, MetricSpec>;
   facets: Facets;
 }) {
+  const lastTickedHint = useId();
   if (!open) return null;
 
   // Alpha screened across the whole universe without a correction is a
@@ -100,10 +101,7 @@ export function FilterDrawer({
   };
 
   return (
-    <aside
-      aria-label="Filters"
-      className={drawerClass}
-    >
+    <aside aria-label="Filters" className={drawerClass}>
       <header className="flex items-center justify-between border-b border-ink-200 px-4 py-3">
         <h2 className="text-sm font-semibold">Filters</h2>
         <div className="flex gap-2">
@@ -132,32 +130,39 @@ export function FilterDrawer({
           <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-500">Universe</h3>
           <p className="text-xs text-ink-500">
             Direct and Growth only by default. Direct and Regular plans of one fund have different
-            NAVs, and IDCW options pay out of NAV, so mixing them corrupts every comparison.
+            NAVs, and IDCW options pay out of NAV, so mixing them corrupts every comparison.{" "}
+            <span id={lastTickedHint}>At least one plan and one option stay ticked.</span>
           </p>
-          <div className="flex flex-wrap gap-2">
-            {["Direct", "Regular", "Unknown"].map((plan) => (
-              <label key={plan} className="flex items-center gap-1.5 text-sm">
-                <input
-                  type="checkbox"
-                  checked={filters.plans.includes(plan)}
-                  onChange={() => toggleList("plans", plan)}
-                />
-                {plan}
-              </label>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {["Growth", "IDCW Payout", "IDCW Reinvestment", "Bonus", "Other"].map((option) => (
-              <label key={option} className="flex items-center gap-1.5 text-sm">
-                <input
-                  type="checkbox"
-                  checked={filters.options.includes(option)}
-                  onChange={() => toggleList("options", option)}
-                />
-                {option}
-              </label>
-            ))}
-          </div>
+          {(
+            [
+              ["plans", ["Direct", "Regular", "Unknown"]],
+              ["options", ["Growth", "IDCW Payout", "IDCW Reinvestment", "Bonus", "Other"]],
+            ] as const
+          ).map(([field, values]) => (
+            <div key={field} className="flex flex-wrap gap-2">
+              {values.map((value) => {
+                const checked = filters[field].includes(value);
+                // An empty list reaches the API as no filter, which it reads as its default
+                // (Direct, Growth): every box would show unticked over Direct Growth results.
+                const last = checked && filters[field].length === 1;
+                return (
+                  <label
+                    key={value}
+                    className="flex items-center gap-1.5 text-sm has-disabled:cursor-not-allowed"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={last}
+                      aria-describedby={last ? lastTickedHint : undefined}
+                      onChange={() => toggleList(field, value)}
+                    />
+                    {value}
+                  </label>
+                );
+              })}
+            </div>
+          ))}
           <label className="flex items-center gap-1.5 text-sm">
             <input
               type="checkbox"
@@ -181,9 +186,9 @@ export function FilterDrawer({
             Shortlist attributes
           </h3>
           <p className="text-xs text-ink-500">
-            Riskometer, exit load, lock-in, minimums, SID benchmark and fund manager (T3.2) are
-            third-party facts, not computed from NAV. A fund the source has not published these for
-            cannot satisfy either filter below - it is left out, not assumed to qualify.
+            Riskometer, exit load, lock-in, minimums, SID benchmark and fund manager are third-party
+            facts, not computed from NAV. A fund the source has not published these for cannot
+            satisfy either filter below - it is left out, not assumed to qualify.
           </p>
           <label className="flex items-center gap-1.5 text-sm">
             <input

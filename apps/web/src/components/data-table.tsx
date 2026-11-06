@@ -181,7 +181,7 @@ export function DataTable({
       // layout overflow escapes onto the root document and the whole page scrolls sideways.
       // Height is capped to the viewport (see the hook), so the sideways scrollbar stays on
       // screen instead of sitting below fifty rows; rows scroll under the pinned header.
-      className="scroll-x relative overflow-auto rounded-xl border border-ink-200 bg-surface shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+      className="scroll-x @container relative overflow-auto rounded-xl border border-ink-200 bg-surface shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
     >
       <table className="min-w-full border-collapse text-sm">
         <thead>
@@ -274,9 +274,13 @@ export function DataTable({
             <tr>
               <td
                 colSpan={visible.length + (onToggleSelect ? 1 : 0)}
-                className="px-3 py-10 text-center text-sm text-ink-500"
+                className="py-10 text-center text-sm text-ink-500"
               >
-                No funds match these filters. Loosen a range, or widen the plan/option universe.
+                {/* Centred in the visible width, not the table's, which on a phone is
+                    mostly scrolled off to the right. */}
+                <p className="sticky left-0 w-[100cqw] px-3">
+                  No funds match these filters. Loosen a range, or widen the plan/option universe.
+                </p>
               </td>
             </tr>
           ) : null}
