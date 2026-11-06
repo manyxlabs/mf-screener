@@ -3,7 +3,7 @@
 import type { MetricSpec } from "@mf/shared";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Button, inputClass } from "./ui";
+import { Button, drawerClass, inputClass } from "./ui";
 
 // Mirrors PINNED_COLUMNS in the API: the fund name leads the table and stays pinned,
 // and every row links and selects by code, so neither can be turned off.
@@ -78,7 +78,7 @@ export function ColumnPicker({
   return (
     <aside
       aria-label="Columns"
-      className="fixed inset-y-0 right-0 z-40 flex w-[420px] flex-col border-l border-ink-200 bg-surface shadow-2xl"
+      className={drawerClass}
     >
       <header className="flex items-center justify-between border-b border-ink-200 px-4 py-3">
         <h2 className="text-sm font-semibold">Columns ({selected.length})</h2>

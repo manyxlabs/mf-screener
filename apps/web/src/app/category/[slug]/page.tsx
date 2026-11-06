@@ -104,9 +104,15 @@ export default async function CategoryPage({ params }: Params) {
                 <th scope="col" className="min-w-56 py-2 pr-4 font-medium">
                   Fund
                 </th>
-                {/* Wide enough that every label wraps to two lines, not three. */}
+                {/* Wide enough that every label wraps to two lines, not three: a third line
+                    on one header leaves a gap above every bottom-aligned label beside it. The
+                    fee's label is the longest, and the system font is wider on some phones. */}
                 {COLUMNS.map((name) => (
-                  <th key={name} scope="col" className="min-w-28 py-2 pr-4 font-medium">
+                  <th
+                    key={name}
+                    scope="col"
+                    className={`${name === "expense_ratio" ? "min-w-40" : "min-w-28"} py-2 pr-4 font-medium`}
+                  >
                     <MetricHeader spec={specs.get(name)} name={name} />
                   </th>
                 ))}

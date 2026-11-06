@@ -2,7 +2,7 @@ import "server-only";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { cache } from "react";
-import { decodeColumn, type Column } from "./static-data";
+import { decodeColumn, type Column, type ScreenIndex } from "./static-data";
 
 // `next build` and `next dev` both run from apps/web.
 const DATA_DIR = path.join(process.cwd(), "public", "data");
@@ -24,3 +24,10 @@ export const exportedFundCodes = async () =>
 
 export const loadScreenColumn = (name: string): Promise<unknown[]> =>
   loadJson<Column>(`screen/${name}.json`).then(decodeColumn);
+
+/**
+ * The screener's universe: every active scheme with a metrics snapshot. The few too new
+ * for one still get a fund page, so this is fewer than `exportedFundCodes`, and it is the
+ * number to quote: it is what the screener and search can reach.
+ */
+export const loadScreenIndex = () => loadJson<ScreenIndex>("screen/index.json");

@@ -4,7 +4,7 @@ import { SchemeSearch } from "@/components/scheme-search";
 import { getCategories, getMetadata, getPresets } from "@/lib/api";
 import { categoryPages, categoryPath } from "@/lib/categories";
 import { pageMetadata, SITE_NAME, SITE_URL } from "@/lib/site";
-import { exportedFundCodes } from "@/lib/static-data.server";
+import { loadScreenIndex } from "@/lib/static-data.server";
 
 const DESCRIPTION =
   "Free research tool for Indian mutual funds: rolling returns, peer comparison, risk metrics, fund comparison, a capital gains calculator and CAS portfolio analysis. Not investment advice.";
@@ -125,11 +125,11 @@ function Arrow() {
 }
 
 export default async function StartPage() {
-  const [metadata, presets, categories, funds, pages] = await Promise.all([
+  const [metadata, presets, categories, screen, pages] = await Promise.all([
     getMetadata(),
     getPresets(),
     getCategories(),
-    exportedFundCodes(),
+    loadScreenIndex(),
     categoryPages(),
   ]);
   const available = new Set(
@@ -180,7 +180,7 @@ export default async function StartPage() {
       <section className="mx-auto max-w-3xl space-y-6 pt-4 text-center sm:pt-10">
         <p className="inline-flex flex-wrap justify-center gap-x-2 rounded-full border border-ink-200 bg-surface/70 px-3 py-1 text-xs text-ink-500 shadow-sm">
           <span className="font-medium text-ink-700">
-            {funds.length.toLocaleString("en-IN")} active funds
+            {screen.count.toLocaleString("en-IN")} funds analysed
           </span>
           <span aria-hidden="true">·</span>
           <span>NAV to {coverage.latest_nav_date ?? "-"}</span>

@@ -8,8 +8,8 @@ const shot = (page: Page, name: string) =>
   page.screenshot({ path: `${ARTIFACTS}/${name}.png`, fullPage: true });
 
 const fundCount = async (page: Page) => {
-  const text = await page.getByText(/\d+ funds? match/).innerText();
-  return Number(/(\d+) funds? match/.exec(text)![1]);
+  const text = await page.getByText(/[\d,]+ funds? match/).innerText();
+  return Number(/([\d,]+) funds? match/.exec(text)![1]!.replaceAll(",", ""));
 };
 
 type Fund = { name: string; code: string };
@@ -215,6 +215,25 @@ test("a preset narrows the screen and the CSV export holds exactly those funds",
   // One header row, then one row per fund.
   expect(rows.length - 1).toBe(narrowed);
   await shot(page, "screener-preset");
+});
+
+test("the home page's fund count is the screener's whole universe", async ({ page }) => {
+  // On a phone, where the drawer once overflowed the screen and hid these checkboxes.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const badge = await page.getByText(/[\d,]+ funds analysed/).innerText();
+  await page.goto("/screener");
+  await page.getByRole("button", { name: "Filters" }).click();
+  const universe = page
+    .getByRole("complementary", { name: "Filters" })
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Universe" }) });
+  // An empty plan or option list means the API's default, Direct Growth, so tick them all.
+  for (const box of await universe.getByRole("checkbox").all()) await box.check();
+  await universe.getByLabel("One row per fund").uncheck();
+  await expect(page.getByText(/[\d,]+ funds? match/)).toContainText(
+    `${badge.split(" ")[0]} funds match`,
+  );
 });
 
 test("sorting a column reorders the rows", async ({ page }) => {
