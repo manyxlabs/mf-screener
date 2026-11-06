@@ -26,8 +26,7 @@ export const loadScreenColumn = (name: string): Promise<unknown[]> =>
   loadJson<Column>(`screen/${name}.json`).then(decodeColumn);
 
 /**
- * The screener's universe: every active scheme with a metrics snapshot. The few too new
- * for one still get a fund page, so this is fewer than `exportedFundCodes`, and it is the
- * number to quote: it is what the screener and search can reach.
+ * The screener's universe, every active scheme, and the fund count to quote. Unlike
+ * `exportedFundCodes` it holds whole on an export cut short with `--limit`.
  */
 export const loadScreenIndex = () => loadJson<ScreenIndex>("screen/index.json");

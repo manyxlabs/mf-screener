@@ -24,6 +24,16 @@ function publishedFund(): Fund {
   return { code: file.replace(".json", ""), name: bundle.scheme.scheme.scheme_name };
 }
 
+/** A Direct Growth fund with no metrics snapshot yet; the newest codes are the likeliest. */
+function newFund(): Fund | undefined {
+  for (const file of readdirSync("public/data/fund").sort().reverse()) {
+    const { scheme } = JSON.parse(readFileSync(`public/data/fund/${file}`, "utf8"));
+    const { clean_plan, clean_option, scheme_code, scheme_name } = scheme.scheme;
+    if (scheme.metrics_unavailable && clean_plan === "Direct" && clean_option === "Growth")
+      return { code: scheme_code, name: scheme_name };
+  }
+}
+
 /**
  * Two funds from the live store, so the specs run on the sample data and the full one
  * alike. Taken from the ten-year preset because a basket needs funds with shared history.
@@ -221,19 +231,41 @@ test("the home page's fund count is the screener's whole universe", async ({ pag
   // On a phone, where the drawer once overflowed the screen and hid these checkboxes.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  const badge = await page.getByText(/[\d,]+ funds analysed/).innerText();
+  const badge = await page.getByText(/[\d,]+ active funds/).innerText();
   await page.goto("/screener");
   await page.getByRole("button", { name: "Filters" }).click();
   const universe = page
     .getByRole("complementary", { name: "Filters" })
     .locator("section")
     .filter({ has: page.getByRole("heading", { name: "Universe" }) });
-  // An empty plan or option list means the API's default, Direct Growth, so tick them all.
+  // An empty list would reach the API as its default, Direct Growth, under unticked boxes.
+  await expect(universe.getByLabel("Direct", { exact: true })).toBeDisabled();
+  await expect(universe.getByLabel("Growth", { exact: true })).toBeDisabled();
   for (const box of await universe.getByRole("checkbox").all()) await box.check();
   await universe.getByLabel("One row per fund").uncheck();
   await expect(page.getByText(/[\d,]+ funds? match/)).toContainText(
     `${badge.split(" ")[0]} funds match`,
   );
+});
+
+test("a fund too new for metrics is screened and searchable, but clears no numeric rule", async ({
+  page,
+}) => {
+  const fund = newFund();
+  test.skip(!fund, "every exported Direct Growth fund has metrics");
+  await page.goto("/");
+  await page.getByRole("banner").getByRole("combobox").fill(fund!.name);
+  await expect(page.getByRole("option").filter({ hasText: fund!.name }).first()).toBeVisible();
+
+  await page.goto(`/screener?search=${fund!.code}`);
+  await expect(page.getByText(/[\d,]+ funds? match/)).toContainText("1 fund matches");
+  await expect(page.locator("tbody tr a[href^='/fund/']")).toHaveText(fund!.name);
+  await page.getByRole("button", { name: "Filters" }).click();
+  await page
+    .getByLabel(/minimum, in percent$/)
+    .first()
+    .fill("-100");
+  await expect(page.getByText(/[\d,]+ funds? match/)).toContainText("0 funds match");
 });
 
 test("sorting a column reorders the rows", async ({ page }) => {

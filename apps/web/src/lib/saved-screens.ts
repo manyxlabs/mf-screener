@@ -15,10 +15,17 @@ export function loadSavedScreens(): SavedScreen[] {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     // A screen saved before a filter existed has no key for it. Defaults fill the gap,
-    // so an old screen stays loadable instead of serialising an undefined list.
-    return (parsed as SavedScreen[]).map((screen) => ({
+    // so an old screen stays loadable instead of serialising an undefined list. An empty
+    // plan or option list, which the drawer once allowed, is what the API reads as the
+    // default anyway, so it comes back as that rather than as boxes all unticked.
+    return (parsed as SavedScreen[]).map(({ filters, ...screen }) => ({
       ...screen,
-      filters: { ...DEFAULT_FILTERS, ...screen.filters },
+      filters: {
+        ...DEFAULT_FILTERS,
+        ...filters,
+        plans: filters.plans?.length ? filters.plans : DEFAULT_FILTERS.plans,
+        options: filters.options?.length ? filters.options : DEFAULT_FILTERS.options,
+      },
     }));
   } catch {
     return [];

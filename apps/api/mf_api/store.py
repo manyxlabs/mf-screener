@@ -17,13 +17,14 @@ from mf_analytics.ingest.nav import register_nav_view
 _LOCK = threading.Lock()
 _CONNECTION: duckdb.DuckDBPyConnection | None = None
 
-# The TER and scheme_attributes joins are both LEFT: their sources cover only part of
-# the universe, and a fund with no published expense ratio or attributes must still
-# screen on everything else. Neither join writes into scheme_metrics_snapshot itself -
-# T3.1's fence is about that table, not this read-only view - so the fund's own
-# metrics stay free of enrichment while the grid can still display and sort on it.
-# manager_tenure_years is derived here, at query time, rather than stored, so it never
-# goes stale between refreshes.
+# Every join is LEFT. The snapshot's, because a scheme too new for one is still a fund
+# to find and list: its metrics are NULL, which sorts last and satisfies no range filter.
+# The TER and scheme_attributes sources cover only part of the universe, and a fund with
+# no published expense ratio or attributes must still screen on everything else. Neither
+# join writes into scheme_metrics_snapshot itself - T3.1's fence is about that table, not
+# this read-only view - so the fund's own metrics stay free of enrichment while the grid
+# can still display and sort on it. manager_tenure_years is derived here, at query time,
+# rather than stored, so it never goes stale between refreshes.
 SCREEN_VIEW_SQL = """
 CREATE OR REPLACE VIEW screen_base AS
 SELECT m.*, s.* EXCLUDE (scheme_code, missing_reasons),
@@ -37,7 +38,7 @@ SELECT m.*, s.* EXCLUDE (scheme_code, missing_reasons),
                                   '{"expense_ratio": "ter_not_published"}')::VARCHAR
             ELSE s.missing_reasons END AS missing_reasons
 FROM scheme_master m
-JOIN scheme_metrics_snapshot s
+LEFT JOIN scheme_metrics_snapshot s
   ON s.scheme_code = m.scheme_code
  AND s.as_of_date = (SELECT max(as_of_date) FROM scheme_metrics_snapshot)
 LEFT JOIN scheme_ter t ON t.scheme_code = m.scheme_code
