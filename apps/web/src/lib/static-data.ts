@@ -23,7 +23,6 @@ export function loadJson<T>(path: string): Promise<T> {
 /** The screener table, one array per column, all aligned by row. */
 export type ScreenIndex = { columns: string[]; count: number };
 
-export const loadScreenIndex = () => loadJson<ScreenIndex>("screen/index.json");
 export type Column = unknown[] | { distinct: unknown[]; rows: number[] };
 
 /** Rows of a dictionary-encoded column share one object per distinct value; don't mutate. */

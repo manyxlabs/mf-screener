@@ -189,11 +189,11 @@ export function ScreenerClient({
       <p className="text-sm text-ink-500">
         {loading
           ? "Loading..."
-          : `${data?.total ?? 0} ${data?.total === 1 ? "fund matches" : "funds match"}`}{" "}
+          : `${(data?.total ?? 0).toLocaleString("en-IN")} ${data?.total === 1 ? "fund matches" : "funds match"}`}{" "}
         · <span title={filters.sort}>sorted by {sortDescription}</span>
         {universeTotal !== null && data ? (
           <>
-            {` · ${data.total} of the ${universeTotal} funds in this universe clear the `}
+            {` · ${data.total.toLocaleString("en-IN")} of the ${universeTotal.toLocaleString("en-IN")} funds in this universe clear the `}
             {activeRangeCount === 1 ? "numeric rule" : `${activeRangeCount} numeric rules`}
             {`; the rest fall short of one or have no value for it.`}
           </>

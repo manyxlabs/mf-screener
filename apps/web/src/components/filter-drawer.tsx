@@ -3,7 +3,7 @@
 import type { Facets, MetricSpec } from "@mf/shared";
 import { useState } from "react";
 import type { ScreenFilters } from "@/lib/screen-query";
-import { Button, Field, PercentInput, inputClass } from "./ui";
+import { Button, Field, PercentInput, drawerClass, inputClass } from "./ui";
 
 const FILTERABLE_GROUPS: { title: string; metrics: string[] }[] = [
   { title: "Trailing returns", metrics: ["cagr_1y", "cagr_3y", "cagr_5y", "cagr_10y"] },
@@ -102,7 +102,7 @@ export function FilterDrawer({
   return (
     <aside
       aria-label="Filters"
-      className="fixed inset-y-0 right-0 z-40 flex w-[420px] flex-col border-l border-ink-200 bg-surface shadow-2xl"
+      className={drawerClass}
     >
       <header className="flex items-center justify-between border-b border-ink-200 px-4 py-3">
         <h2 className="text-sm font-semibold">Filters</h2>

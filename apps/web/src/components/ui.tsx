@@ -123,6 +123,10 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 export const inputClass =
   "rounded-lg border border-ink-200 bg-surface px-3 py-2 text-sm shadow-sm outline-none placeholder:text-ink-500 focus:border-accent-500 focus:ring-3 focus:ring-accent-500/15";
 
+/** A panel over the right edge; it fills a phone narrower than its width instead of overflowing. */
+export const drawerClass =
+  "fixed inset-y-0 right-0 z-40 flex w-full max-w-[420px] flex-col border-l border-ink-200 bg-surface shadow-2xl";
+
 /**
  * A percent field that reads and writes whole percents while the filter state, the
  * query string and the API all keep the decimal they already agree on. The screener
