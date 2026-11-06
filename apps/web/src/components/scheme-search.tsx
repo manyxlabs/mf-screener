@@ -81,45 +81,52 @@ export function SchemeSearch({ size = "compact" }: { size?: "compact" | "large" 
   return (
     <div
       ref={containerRef}
-      className={`relative ${size === "large" ? "w-full" : "w-full max-w-64 min-w-0"}`}
+      // Below sm the header's box is just an input's width, too narrow for a fund name, so
+      // the panel is placed against the header bar instead: its backdrop-filter makes that
+      // bar the containing block, 13px in from the screen edge (gutter and border).
+      className={size === "large" ? "relative w-full" : "w-full max-w-64 min-w-0 sm:relative"}
     >
-      <input
-        type="text"
-        role="combobox"
-        aria-expanded={showPanel}
-        aria-controls="scheme-search-listbox"
-        aria-autocomplete="list"
-        aria-activedescendant={activeIndex >= 0 ? `scheme-search-option-${activeIndex}` : undefined}
-        placeholder={size === "large" ? "Search any fund by name or AMC…" : "Search funds…"}
-        className={`${inputClass} w-full pl-9 ${size === "large" ? "rounded-xl py-3.5 pl-11 text-base" : ""}`}
-        value={query}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          setActiveIndex(-1);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={onKeyDown}
-      />
-      <svg
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-ink-500 ${
-          size === "large" ? "left-4 size-5" : "left-3 size-4"
-        }`}
-      >
-        <circle cx="11" cy="11" r="7" />
-        <path d="m20 20-3.5-3.5" />
-      </svg>
+      <div className="relative">
+        <input
+          type="text"
+          role="combobox"
+          aria-expanded={showPanel}
+          aria-controls="scheme-search-listbox"
+          aria-autocomplete="list"
+          aria-activedescendant={
+            activeIndex >= 0 ? `scheme-search-option-${activeIndex}` : undefined
+          }
+          placeholder={size === "large" ? "Search any fund by name or AMC…" : "Search funds…"}
+          className={`${inputClass} w-full pl-9 ${size === "large" ? "rounded-xl py-3.5 pl-11 text-base" : ""}`}
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setActiveIndex(-1);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={onKeyDown}
+        />
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-ink-500 ${
+            size === "large" ? "left-4 size-5" : "left-3 size-4"
+          }`}
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+      </div>
       {showPanel ? (
         <ul
           id="scheme-search-listbox"
           role="listbox"
-          className="absolute left-0 right-0 z-20 mt-1.5 max-h-80 overflow-y-auto rounded-xl border border-ink-200 bg-surface p-1 text-left shadow-xl"
+          className={`absolute right-0 left-0 z-20 mt-1.5 ${size === "large" ? "" : "max-sm:inset-x-[3px]"}  max-h-80 overflow-y-auto rounded-xl border border-ink-200 bg-surface p-1 text-left shadow-xl`}
         >
           {items === null ? (
             <li className="px-3 py-2 text-sm text-ink-500">Searching…</li>
