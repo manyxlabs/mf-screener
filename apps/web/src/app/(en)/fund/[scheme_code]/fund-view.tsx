@@ -498,7 +498,7 @@ export function FundView({ detail, rolling }: { detail: SchemeDetail; rolling: R
             computedAgainst={metrics.benchmark_id}
           />
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-sm">
+            <table className="w-full min-w-[40rem] text-sm [&_td]:pr-3">
               <thead className="text-left text-xs uppercase tracking-wide text-ink-500 [&_th]:pr-3">
                 <tr>
                   <th className="py-1">{t.fund.returns.horizon}</th>
@@ -578,7 +578,7 @@ export function FundView({ detail, rolling }: { detail: SchemeDetail; rolling: R
 
         <Card id="rolling" title={t.fund.rolling.title} subtitle={t.fund.rolling.subtitle}>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-sm">
+            <table className="w-full min-w-[40rem] text-sm [&_td]:pr-3">
               <thead className="text-left text-xs uppercase tracking-wide text-ink-500 [&_th]:pr-3">
                 <tr>
                   <th className="py-1">{t.fund.returns.horizon}</th>
@@ -629,7 +629,7 @@ export function FundView({ detail, rolling }: { detail: SchemeDetail; rolling: R
             computedAgainst={metrics.benchmark_id}
           />
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-sm">
+            <table className="w-full min-w-[40rem] text-sm [&_td]:pr-3">
               <thead className="text-left text-xs uppercase tracking-wide text-ink-500 [&_th]:pr-3">
                 <tr>
                   <th className="py-1">{t.fund.risk.metric}</th>
