@@ -334,9 +334,9 @@ export function ScreenerClient({
             onToggleSelect={toggleSelect}
           />
 
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="text-ink-500">{s.page(data.page, Math.max(data.pages, 1))}</span>
-            <div className="flex items-center gap-2">
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               <select
                 className={`${inputClass} w-28`}
                 aria-label={s.rowsPerPage}

@@ -140,6 +140,13 @@ html[data-locale-pending] body {
   }
 }
 
+/* Recharts parks its hidden tooltip at a default offset, which on a phone can reach past
+   the screen and scroll the page sideways. A tooltip it shows is kept inside the chart, so
+   clipping the chart hides nothing. */
+.recharts-wrapper {
+  overflow: hidden;
+}
+
 /* Tells the browser to draw form controls and scrollbars in the matching theme. */
 html {
   color-scheme: light;
