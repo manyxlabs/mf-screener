@@ -54,7 +54,7 @@ async function enter(card: Locator, rows: Row[]) {
 }
 
 const stat = (year: Locator, label: string) =>
-  year.locator("div.rounded-xl", { hasText: label }).locator("div.text-xl");
+  year.locator("div.panel", { hasText: label }).locator("div.text-xl");
 
 test("works out a multi-year set of trades and keeps them across a reload", async ({ page }) => {
   await page.goto("/capital-gains");
