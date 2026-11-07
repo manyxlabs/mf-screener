@@ -2,19 +2,24 @@ import type { Messages } from "@/messages/en";
 
 /**
  * Every language the site ships, each named in its own script for the switcher. A new
- * language is its catalogue in src/messages plus one entry here.
+ * language is its catalogue in src/messages plus one entry here. `reviewed` turns on a
+ * language's disclaimers and methodology wording once a native speaker has checked them
+ * (see src/messages/review.ts); until then those show in English.
  */
 export const LANGUAGES = {
-  en: { name: "English", load: () => import("@/messages/en") },
-  hi: { name: "हिन्दी", load: () => import("@/messages/hi") },
-  bn: { name: "বাংলা", load: () => import("@/messages/bn") },
-  mr: { name: "मराठी", load: () => import("@/messages/mr") },
-  te: { name: "తెలుగు", load: () => import("@/messages/te") },
-  ta: { name: "தமிழ்", load: () => import("@/messages/ta") },
-  gu: { name: "ગુજરાતી", load: () => import("@/messages/gu") },
-  kn: { name: "ಕನ್ನಡ", load: () => import("@/messages/kn") },
-  ml: { name: "മലയാളം", load: () => import("@/messages/ml") },
-} satisfies Record<string, { name: string; load: () => Promise<{ default: Messages }> }>;
+  en: { name: "English", reviewed: true, load: () => import("@/messages/en") },
+  hi: { name: "हिन्दी", reviewed: false, load: () => import("@/messages/hi") },
+  bn: { name: "বাংলা", reviewed: false, load: () => import("@/messages/bn") },
+  mr: { name: "मराठी", reviewed: false, load: () => import("@/messages/mr") },
+  te: { name: "తెలుగు", reviewed: false, load: () => import("@/messages/te") },
+  ta: { name: "தமிழ்", reviewed: false, load: () => import("@/messages/ta") },
+  gu: { name: "ગુજરાતી", reviewed: false, load: () => import("@/messages/gu") },
+  kn: { name: "ಕನ್ನಡ", reviewed: false, load: () => import("@/messages/kn") },
+  ml: { name: "മലയാളം", reviewed: false, load: () => import("@/messages/ml") },
+} satisfies Record<
+  string,
+  { name: string; reviewed: boolean; load: () => Promise<{ default: Messages }> }
+>;
 
 export type Locale = keyof typeof LANGUAGES;
 
