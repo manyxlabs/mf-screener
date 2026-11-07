@@ -168,9 +168,11 @@ def metadata() -> dict[str, Any]:
             "SELECT count(DISTINCT coalesce(fund_family_id, scheme_code)) FROM scheme_master"
         )
     )
+    # The date most schemes' NAVs reach, not the latest: overnight funds publish Saturday's
+    # and Sunday's NAVs on Friday, which would date the whole data set in the future.
     coverage = query_df(
         "SELECT min(first_nav_date) AS first_nav_date, max(last_nav_date) AS last_nav_date, "
-        "max(latest_nav_date) AS latest_nav_date FROM scheme_master"
+        "mode(latest_nav_date) AS latest_nav_date FROM scheme_master"
     )
     as_of = query_scalar("SELECT max(as_of_date) FROM scheme_metrics_snapshot")
     log = query_df(
