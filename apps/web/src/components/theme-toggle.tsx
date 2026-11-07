@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/lib/i18n/client";
 
 export type Theme = "light" | "dark";
 
@@ -24,6 +25,7 @@ function apply(theme: Theme) {
 }
 
 export function ThemeToggle() {
+  const { t } = useI18n();
   const [theme, setTheme] = useState<Theme | null>(null);
 
   // The server cannot know the stored choice, so the button reads it after mount and
@@ -35,7 +37,7 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      aria-label={theme === "dark" ? t.theme.toLight : t.theme.toDark}
       aria-pressed={theme === "dark"}
       onClick={() => {
         const next: Theme = theme === "dark" ? "light" : "dark";

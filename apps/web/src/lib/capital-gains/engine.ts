@@ -10,7 +10,6 @@ import {
   GRANDFATHER_BEFORE,
   indexedCost,
   longTermFrom,
-  sectionName,
   type FundType,
   type TaxHead,
 } from "./rules";
@@ -64,7 +63,7 @@ export type OpenLot = {
 /** Gains under one head and rate. Slab gains carry a null rate. */
 export type Bucket = {
   key: string;
-  label: string;
+  head: TaxHead;
   term: "short" | "long";
   rate: number | null;
   /** After set-off of losses. */
@@ -103,26 +102,36 @@ export type GainsResult =
       /** This year's 112A exemption left after realised equity LTCG. */
       exemptionLeft: { fyStart: number; limit: number; left: number };
     }
-  | { ok: false; errors: string[] };
+  | { ok: false; errors: EntryError[] };
+
+export type EntryError =
+  | {
+      problem: "invalidDate" | "futureDate" | "units" | "amount";
+      fund: string;
+      side: Trade["side"];
+      date: string;
+    }
+  | { problem: "nav31Jan2018"; fund: string }
+  | { problem: "slabRate" }
+  | { problem: "oversold"; fund: string; date: IsoDate; units: number; held: number };
 
 // Statements print units to three or four decimals, so a full redemption can differ from
 // the lots it empties by rounding; anything smaller than this is that rounding.
 const UNIT_EPSILON = 1e-4;
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
-function validate(h: Holding, asOf: IsoDate): string[] {
-  const errors: string[] = [];
+function validate(h: Holding, asOf: IsoDate): EntryError[] {
+  const errors: EntryError[] = [];
   for (const t of h.trades) {
-    const at = `${h.name}, ${t.side} on ${t.date}`;
-    if (!ISO.test(t.date) || Number.isNaN(Date.parse(t.date)))
-      errors.push(`${at}: not a valid date`);
-    else if (t.date > asOf) errors.push(`${at}: the date is in the future`);
-    if (!(t.units > 0) || !Number.isFinite(t.units)) errors.push(`${at}: units must be above zero`);
-    if (!(t.amount >= 0) || !Number.isFinite(t.amount))
-      errors.push(`${at}: the amount cannot be negative`);
+    const at = (problem: "invalidDate" | "futureDate" | "units" | "amount") =>
+      errors.push({ problem, fund: h.name, side: t.side, date: t.date });
+    if (!ISO.test(t.date) || Number.isNaN(Date.parse(t.date))) at("invalidDate");
+    else if (t.date > asOf) at("futureDate");
+    if (!(t.units > 0) || !Number.isFinite(t.units)) at("units");
+    if (!(t.amount >= 0) || !Number.isFinite(t.amount)) at("amount");
   }
   if (h.nav31Jan2018 !== null && !(h.nav31Jan2018 > 0))
-    errors.push(`${h.name}: the 31 Jan 2018 NAV must be above zero`);
+    errors.push({ problem: "nav31Jan2018", fund: h.name });
   return errors;
 }
 
@@ -149,7 +158,7 @@ function taxCostOf(
 function matchHolding(
   h: Holding,
   asOf: IsoDate,
-): { realised: RealisedLot[]; open: OpenLot[] } | { error: string } {
+): { realised: RealisedLot[]; open: OpenLot[] } | { error: EntryError } {
   type Lot = { bought: IsoDate; units: number; cost: number };
   const lots: Lot[] = [];
   const realised: RealisedLot[] = [];
@@ -165,9 +174,7 @@ function matchHolding(
     }
     const held = lots.reduce((sum, lot) => sum + lot.units, 0);
     if (t.units > held + UNIT_EPSILON) {
-      return {
-        error: `${h.name}: the sale on ${t.date} is ${t.units} units but only ${+held.toFixed(4)} are held then`,
-      };
+      return { error: { problem: "oversold", fund: h.name, date: t.date, units: t.units, held } };
     }
     let left = Math.min(t.units, held);
     while (left > UNIT_EPSILON) {
@@ -215,21 +222,6 @@ function matchHolding(
 
 const headKey = (head: TaxHead) => `${head.section}@${head.rate ?? "slab"}`;
 
-function headLabel(key: string, fy: number) {
-  // The first day of the year picks the Act whose section numbers apply to it.
-  const at = (section: string) => `section ${sectionName(section, `${fy}-04-01`)}`;
-  const labels: Record<string, string> = {
-    "111A@0.15": `Equity STCG at 15% (${at("111A")})`,
-    "111A@0.2": `Equity STCG at 20% (${at("111A")})`,
-    "112A@0.1": `Equity LTCG at 10% (${at("112A")})`,
-    "112A@0.125": `Equity LTCG at 12.5% (${at("112A")})`,
-    "112@0.2": `Non-equity LTCG at 20% with indexation (${at("112")})`,
-    "112@0.125": `Non-equity LTCG at 12.5% (${at("112")})`,
-    "slab@slab": "Short-term, taxed at your slab rate",
-  };
-  return labels[key] ?? key;
-}
-
 /**
  * Sections 70 and 74 let a short-term loss reduce any gain and a long-term loss only a
  * long-term gain. The order across rates is the taxpayer's, so losses go to the highest
@@ -268,7 +260,7 @@ function summarise(fy: number, lots: RealisedLot[], slabRate: number | null): Ye
     const key = headKey(lot.head);
     const bucket = net.get(key) ?? {
       key,
-      label: headLabel(key, fy),
+      head: lot.head,
       term: lot.head.term,
       rate: lot.head.rate,
       gain: 0,
@@ -319,8 +311,7 @@ export function computeGains(
   { asOf, slabRate }: { asOf: IsoDate; slabRate: number | null },
 ): GainsResult {
   const errors = holdings.flatMap((h) => validate(h, asOf));
-  if (slabRate !== null && !(slabRate >= 0 && slabRate <= 1))
-    errors.push("The slab rate must be between 0% and 100%");
+  if (slabRate !== null && !(slabRate >= 0 && slabRate <= 1)) errors.push({ problem: "slabRate" });
   if (errors.length) return { ok: false, errors };
   const realised: RealisedLot[] = [];
   const open: OpenLot[] = [];

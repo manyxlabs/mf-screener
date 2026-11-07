@@ -1,8 +1,9 @@
 "use client";
 
 import type { MetricSpec } from "@mf/shared";
-import Link from "next/link";
 import { useMemo, useState } from "react";
+import Link from "@/components/link";
+import { useI18n } from "@/lib/i18n/client";
 import { Button, drawerClass, inputClass } from "./ui";
 
 // Mirrors PINNED_COLUMNS in the API: the fund name leads the table and stays pinned,
@@ -23,8 +24,6 @@ const GROUP_ORDER = [
   "Fund basics",
 ];
 
-const UNGROUPED = "Other";
-
 export function ColumnPicker({
   open,
   onClose,
@@ -44,6 +43,7 @@ export function ColumnPicker({
   defaults: string[];
   starter: string[];
 }) {
+  const { t, td } = useI18n();
   const [query, setQuery] = useState("");
 
   const groups = useMemo(() => {
@@ -51,15 +51,18 @@ export function ColumnPicker({
     const matches = (name: string) => {
       if (!q) return true;
       const spec = metrics[name];
-      return (
-        name.toLowerCase().includes(q) ||
-        (spec?.label ?? "").toLowerCase().includes(q) ||
-        (spec?.plain_label ?? "").toLowerCase().includes(q)
-      );
+      // English matches too, since the technical labels are what other sites print.
+      return [
+        name,
+        spec?.label,
+        spec?.plain_label,
+        td(spec?.label ?? ""),
+        td(spec?.plain_label ?? ""),
+      ].some((text) => text?.toLowerCase().includes(q));
     };
     const byGroup = new Map<string, string[]>();
     for (const name of selectable.filter(matches)) {
-      const key = metrics[name]?.group || UNGROUPED;
+      const key = metrics[name]?.group || "";
       byGroup.set(key, [...(byGroup.get(key) ?? []), name]);
     }
     return [...byGroup.entries()].sort((a, b) => {
@@ -67,7 +70,7 @@ export function ColumnPicker({
       const bi = GROUP_ORDER.indexOf(b[0]);
       return (ai < 0 ? GROUP_ORDER.length : ai) - (bi < 0 ? GROUP_ORDER.length : bi);
     });
-  }, [selectable, metrics, query]);
+  }, [selectable, metrics, query, td]);
 
   if (!open) return null;
 
@@ -76,29 +79,29 @@ export function ColumnPicker({
   };
 
   return (
-    <aside aria-label="Columns" className={drawerClass}>
+    <aside aria-label={t.columnPicker.label} className={drawerClass}>
       <header className="flex items-center justify-between border-b border-ink-200 px-4 py-3">
-        <h2 className="text-sm font-semibold">Columns ({selected.length})</h2>
-        <Button onClick={onClose}>Done</Button>
+        <h2 className="text-sm font-semibold">{t.columnPicker.title(selected.length)}</h2>
+        <Button onClick={onClose}>{t.common.done}</Button>
       </header>
       <div className="space-y-3 border-b border-ink-200 px-4 py-3">
         {/* Three named sets rather than a Reset button, so the 168-column list is a
             place you choose to go rather than the only alternative to the default. */}
         <div className="flex gap-2 text-xs">
           <Button variant="ghost" onClick={() => onChange(starter)}>
-            Starter
+            {t.columnPicker.starter}
           </Button>
           <Button variant="ghost" onClick={() => onChange(defaults)}>
-            Standard
+            {t.columnPicker.standard}
           </Button>
           <Button variant="ghost" onClick={() => onChange(selectable)}>
-            Everything
+            {t.columnPicker.everything}
           </Button>
         </div>
         <input
           className={`${inputClass} w-full`}
-          placeholder="Search columns"
-          aria-label="Search columns"
+          placeholder={t.columnPicker.search}
+          aria-label={t.columnPicker.search}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -107,11 +110,11 @@ export function ColumnPicker({
         {groups.map(([group, names]) => (
           <section key={group} className="mb-4">
             <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-500">
-              {group}
+              {group ? td(group) : t.columnPicker.other}
             </h3>
             {names.map((name) => {
               const spec = metrics[name];
-              const plain = spec?.plain_label || spec?.label || name;
+              const plain = td(spec?.plain_label || spec?.label || name);
               return (
                 <div
                   key={name}
@@ -127,8 +130,8 @@ export function ColumnPicker({
                     />
                     <span>
                       <span className="block">{plain}</span>
-                      {spec && spec.label !== plain ? (
-                        <span className="block text-[11px] text-ink-500">{spec.label}</span>
+                      {spec && spec.label !== (spec.plain_label || spec.label) ? (
+                        <span className="block text-[11px] text-ink-500">{td(spec.label)}</span>
                       ) : null}
                       <span className="block font-mono text-[11px] text-ink-500">{name}</span>
                     </span>
@@ -137,7 +140,7 @@ export function ColumnPicker({
                     <Link
                       href={`/glossary#metric-${name}`}
                       className="mt-0.5 text-[11px] text-accent-600 underline"
-                      aria-label={`What ${plain} means`}
+                      aria-label={t.columnPicker.whatItMeans(plain)}
                     >
                       ?
                     </Link>

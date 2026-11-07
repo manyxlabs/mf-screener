@@ -14,6 +14,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useI18n } from "@/lib/i18n/client";
 
 // A fixed categorical palette, not the semantic accent/good/warn/bad tokens: a style
 // factor is not "good" or "bad", and the basis can hold more series than those tokens
@@ -71,12 +72,9 @@ export function RollingReturnChart({
   benchmarkLabel?: string;
   height?: number;
 }) {
+  const { t } = useI18n();
   if (fund.length === 0) {
-    return (
-      <p className="py-10 text-center text-sm text-ink-500">
-        Not enough NAV history to draw a rolling series at this horizon.
-      </p>
-    );
+    return <p className="py-10 text-center text-sm text-ink-500">{t.charts.noRolling}</p>;
   }
   const data = mergeSeries([
     { key: "fund", points: fund },
@@ -92,13 +90,13 @@ export function RollingReturnChart({
         <Tooltip
           {...TOOLTIP}
           formatter={(value: number, name: string) => [formatPercent(value), name]}
-          labelFormatter={(label: string) => `Window ending ${label}`}
+          labelFormatter={(label: string) => t.charts.windowEnding(label)}
         />
         <Legend verticalAlign="top" height={28} />
         <Line
           type="monotone"
           dataKey="fund"
-          name="Fund"
+          name={t.charts.fund}
           stroke="var(--color-accent-500)"
           dot={false}
           strokeWidth={1.8}
@@ -107,7 +105,7 @@ export function RollingReturnChart({
           <Line
             type="monotone"
             dataKey="category"
-            name={benchmarkLabel ?? "Sub-category average"}
+            name={benchmarkLabel ?? t.charts.subCategoryAverage}
             stroke="var(--color-bad-700)"
             strokeDasharray="4 3"
             dot={false}
@@ -126,8 +124,9 @@ export function NavChart({
   points: { date: string; nav: number }[];
   height?: number;
 }) {
+  const { t } = useI18n();
   if (points.length === 0) {
-    return <p className="py-10 text-center text-sm text-ink-500">No NAV history stored.</p>;
+    return <p className="py-10 text-center text-sm text-ink-500">{t.charts.noNav}</p>;
   }
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -166,12 +165,9 @@ export function StyleDriftChart({
   points: StyleDriftPoint[];
   height?: number;
 }) {
+  const { t } = useI18n();
   if (points.length === 0) {
-    return (
-      <p className="py-10 text-center text-sm text-ink-500">
-        Not enough fitted rolling windows to chart a style mix over time.
-      </p>
-    );
+    return <p className="py-10 text-center text-sm text-ink-500">{t.charts.noStyle}</p>;
   }
   const names = [...new Set(points.flatMap((p) => p.weights.map((w) => w.benchmark_name)))];
   const data = points.map((p) => {
@@ -194,7 +190,7 @@ export function StyleDriftChart({
         <Tooltip
           {...TOOLTIP}
           formatter={(value: number, name: string) => [formatPercent(value), name]}
-          labelFormatter={(label: string) => `Window ending ${label}`}
+          labelFormatter={(label: string) => t.charts.windowEnding(label)}
         />
         <Legend verticalAlign="top" height={28} />
         {names.map((name, i) => (
