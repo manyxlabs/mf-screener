@@ -36,6 +36,7 @@ const ml: Messages = {
     capitalGains: "ക്യാപിറ്റൽ ഗെയിൻ",
     glossary: "പദാവലി",
     methodology: "രീതി",
+    menu: "മെനു",
   },
   footer: {
     blurb:

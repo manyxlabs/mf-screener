@@ -18,13 +18,15 @@ const NAV = [
   ["/methodology", "methodology"],
 ] as const;
 
-export function SiteNav() {
+/** The navbar menu's links; `onNavigate` closes the menu. */
+export function SiteNav({ id, onNavigate }: { id: string; onNavigate: () => void }) {
   const { t } = useI18n();
   const pathname = splitLocale(usePathname()).path;
   return (
     <nav
+      id={id}
       aria-label={t.nav.label}
-      className="-mx-1 order-last flex w-full gap-1 overflow-x-auto text-sm lg:order-none lg:mx-0 lg:w-auto"
+      className="glass mx-auto mt-2 grid max-w-5xl gap-1 rounded-3xl p-2 sm:grid-cols-2 lg:grid-cols-4"
     >
       {NAV.map(([href, key]) => {
         const current = pathname === href || pathname.startsWith(`${href}/`);
@@ -33,13 +35,13 @@ export function SiteNav() {
             key={href}
             href={href}
             aria-current={current ? "page" : undefined}
-            className={`shrink-0 rounded-full px-3 py-1.5 whitespace-nowrap transition-colors ${
-              current
-                ? "bg-accent-500/10 font-medium text-accent-600"
-                : "text-ink-700 hover:bg-ink-900/5 hover:text-ink-900"
+            onClick={onNavigate}
+            className={`flex items-center gap-2 rounded-2xl px-4 py-3 transition-colors hover:bg-ink-900/5 hover:text-ink-900 ${
+              current ? "font-medium text-ink-900" : "text-ink-500"
             }`}
           >
             {t.nav[key]}
+            {current ? <span aria-hidden className="size-1.5 rounded-full bg-accent-500" /> : null}
           </Link>
         );
       })}

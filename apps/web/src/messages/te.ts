@@ -37,6 +37,7 @@ const te: Messages = {
     capitalGains: "మూలధన లాభాలు",
     glossary: "పదకోశం",
     methodology: "పద్ధతి",
+    menu: "మెనూ",
   },
   footer: {
     blurb:
