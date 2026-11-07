@@ -58,7 +58,7 @@ export function GlossaryClient({ metrics }: { metrics: MetricSpec[] }) {
   return (
     <div className="space-y-8">
       <header className="max-w-3xl space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-ink-900">{t.glossary.title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t.glossary.title}</h1>
         <p className="text-base text-ink-500">
           {t.glossary.introBefore}
           <Link className="text-accent-600 hover:underline" href="/methodology">
@@ -81,7 +81,7 @@ export function GlossaryClient({ metrics }: { metrics: MetricSpec[] }) {
           <nav aria-label={t.glossary.sections} className="hidden text-sm lg:block">
             <a
               href="#concepts"
-              className="block rounded-lg px-3 py-1.5 font-medium text-ink-900 hover:bg-ink-900/5"
+              className="block rounded-full px-3 py-1.5 font-medium text-ink-900 hover:bg-ink-900/5"
             >
               {t.glossary.conceptsTitle}
             </a>
@@ -89,7 +89,7 @@ export function GlossaryClient({ metrics }: { metrics: MetricSpec[] }) {
               <a
                 key={group}
                 href={`#${groupId(group)}`}
-                className="flex justify-between rounded-lg px-3 py-1.5 text-ink-700 hover:bg-ink-900/5 hover:text-ink-900"
+                className="flex justify-between rounded-full px-3 py-1.5 text-ink-700 hover:bg-ink-900/5 hover:text-ink-900"
               >
                 {td(group)}
                 <span className="text-ink-500 numeric">{list.length}</span>
@@ -113,7 +113,7 @@ export function GlossaryClient({ metrics }: { metrics: MetricSpec[] }) {
                 <section
                   key={c.slug}
                   id={c.slug}
-                  className="flex flex-col rounded-xl border border-ink-200 bg-surface p-5 shadow-card target:border-accent-500 target:ring-3 target:ring-accent-500/15"
+                  className="panel flex flex-col rounded-3xl p-6 target:outline-2 target:outline-accent-500/70"
                 >
                   <h3 className="text-base font-semibold tracking-tight text-ink-900">
                     {t.glossary.concepts[c.slug].term}
@@ -152,7 +152,7 @@ export function GlossaryClient({ metrics }: { metrics: MetricSpec[] }) {
                   <div
                     key={m.name}
                     id={`metric-${m.name}`}
-                    className="rounded-xl border border-ink-200 bg-surface p-5 shadow-card target:border-accent-500 target:ring-3 target:ring-accent-500/15"
+                    className="panel rounded-3xl p-6 target:outline-2 target:outline-accent-500/70"
                   >
                     <dt className="text-base font-semibold tracking-tight text-ink-900">
                       {td(m.plain_label)}

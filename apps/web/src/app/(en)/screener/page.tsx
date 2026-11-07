@@ -26,7 +26,7 @@ export default async function ScreenerPage({ params }: LocaleParams) {
   // static export renders only the fallback for it.
   return (
     <div className="space-y-1">
-      <h1 className="text-2xl font-semibold tracking-tight">{t.screener.title}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t.screener.title}</h1>
       <Suspense fallback={<p className="text-sm text-ink-500">{t.screener.loadingScreener}</p>}>
         <ScreenerClient columnsMeta={columns} presets={presets} facets={facets} />
       </Suspense>

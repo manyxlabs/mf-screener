@@ -78,7 +78,7 @@ export default async function CategoryPage({ params }: Params) {
         ]}
       />
       <header className="max-w-3xl space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl text-balance">
           {t.category.title(page.subCategory)}
         </h1>
         <p className="text-sm text-ink-700">

@@ -48,7 +48,7 @@ export function SchemeAttributesPanel({ attributes }: { attributes: SchemeAttrib
         {FIELD_SPECS.map(({ key, unit }) => {
           const cell = attributes?.fields[key];
           return (
-            <div key={key} className="rounded-md border border-ink-200 px-3 py-2">
+            <div key={key} className="rounded-xl border border-ink-200 px-3 py-2">
               <dt className="text-[11px] uppercase tracking-wide text-ink-500">
                 {words.fields[key]}
               </dt>

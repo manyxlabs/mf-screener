@@ -255,7 +255,7 @@ export function CapitalGainsClient() {
           ))}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-ink-300 px-6 py-14 text-center">
+        <div className="rounded-3xl border border-dashed border-ink-300 px-6 py-14 text-center">
           <p className="text-base font-semibold text-ink-900">{c.emptyTitle}</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-ink-500">{c.emptyHint}</p>
         </div>
@@ -361,7 +361,7 @@ function CasImport({ onImport }: { onImport: (funds: Fund[]) => void }) {
           <input
             type="file"
             accept="application/pdf,.pdf"
-            className="block w-full text-sm text-ink-700 file:mr-3 file:rounded-lg file:border-0 file:bg-ink-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-ink-900"
+            className="block w-full text-sm text-ink-700 file:mr-3 file:rounded-full file:border-0 file:bg-ink-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-ink-900"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
         </Field>
@@ -418,7 +418,7 @@ function CasImport({ onImport }: { onImport: (funds: Fund[]) => void }) {
 function Disclaimer() {
   const { c } = useWords();
   return (
-    <p className="rounded-xl border-l-2 border-warn-300 bg-warn-50 p-4 text-sm text-warn-900">
+    <p className="rounded-2xl border-l-2 border-warn-300 bg-warn-50 p-4 text-sm text-warn-900">
       <strong>{c.disclaimerLead}</strong> {c.disclaimer}
     </p>
   );

@@ -169,7 +169,7 @@ export function DataTable({
       // layout overflow escapes onto the root document and the whole page scrolls sideways.
       // Height is capped to the viewport (see the hook), so the sideways scrollbar stays on
       // screen instead of sitting below fifty rows; rows scroll under the pinned header.
-      className="scroll-x @container relative overflow-auto rounded-xl border border-ink-200 bg-surface shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
+      className="scroll-x @container relative overflow-auto rounded-3xl border border-ink-900/10 bg-surface shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500"
     >
       <table className="min-w-full border-collapse text-sm">
         <thead>
@@ -234,7 +234,7 @@ export function DataTable({
             return (
               // The pinned cells inherit this background, so every state of it has to be
               // opaque or the scrolling columns show through them.
-              <tr key={row.id} className="bg-surface hover:bg-accent-50">
+              <tr key={row.id} className="bg-surface hover:bg-ink-100">
                 {onToggleSelect ? (
                   <td className="sticky left-0 z-10 w-10 max-w-10 min-w-10 border-b border-ink-100 bg-inherit px-3 py-2.5">
                     <input
