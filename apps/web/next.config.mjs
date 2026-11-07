@@ -14,7 +14,9 @@ const nextConfig = (phase) => ({
   // Page-data collection forks one full Node worker per core. On a 16-core laptop that
   // outruns available RAM and a worker gets SIGTERMed part-way, which surfaces as an
   // intermittent "Cannot find module for page" on an otherwise clean build.
-  experimental: { cpus: 4 },
+  // globalNotFound: with a root layout per language, no single not-found can render
+  // the 404.html Pages serves for every unknown URL.
+  experimental: { cpus: 4, globalNotFound: true },
 });
 
 export default nextConfig;

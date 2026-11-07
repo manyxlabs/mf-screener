@@ -33,7 +33,13 @@
   --color-bad-700: #a3341f;
   --color-bad-800: #991b1b;
   --color-bad-900: #7f1d1d;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Latin first, so digits and English names keep the system face inside Indic text. Each
+     Noto face covers only its own script's range, so only that script's file is fetched. */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Devanagari Variable",
+    "Noto Sans Bengali Variable", "Noto Sans Telugu Variable", "Noto Sans Tamil Variable",
+    "Noto Sans Gujarati Variable", "Noto Sans Kannada Variable", "Noto Sans Malayalam Variable",
+    sans-serif;
   --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -16px rgb(15 23 42 / 0.18);
   --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 }
@@ -115,6 +121,23 @@ body::before {
 /* In-page links land below the sticky header and the fund page's section bar. */
 [id] {
   scroll-margin-top: 9rem;
+}
+
+/*
+ * LOCALE_INIT_SCRIPT marks a fund page whose reader prefers another language, so its
+ * English render stays hidden until the translation lands. The delayed reveal shows the
+ * page anyway if that catalogue never arrives.
+ */
+html[data-locale-pending] body {
+  animation: locale-reveal 0s linear 3s both;
+}
+@keyframes locale-reveal {
+  from {
+    visibility: hidden;
+  }
+  to {
+    visibility: visible;
+  }
 }
 
 /* Tells the browser to draw form controls and scrollbars in the matching theme. */
