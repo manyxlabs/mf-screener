@@ -35,6 +35,7 @@ const en = {
     capitalGains: "Capital gains",
     glossary: "Glossary",
     methodology: "Methodology",
+    menu: "Menu",
   },
   footer: {
     blurb:

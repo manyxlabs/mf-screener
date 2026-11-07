@@ -100,7 +100,7 @@ export function SchemeSearch({ size = "compact" }: { size?: "compact" | "large" 
           }
           placeholder={size === "large" ? t.search.placeholderLarge : t.search.placeholder}
           aria-label={t.search.label}
-          className={`${inputClass} w-full pl-9 ${size === "large" ? "rounded-xl py-3.5 pl-11 text-base" : ""}`}
+          className={`${inputClass} w-full pl-9 ${size === "large" ? "py-3.5 pl-11 text-base" : ""}`}
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
@@ -129,7 +129,7 @@ export function SchemeSearch({ size = "compact" }: { size?: "compact" | "large" 
         <ul
           id="scheme-search-listbox"
           role="listbox"
-          className={`absolute right-0 left-0 z-20 mt-1.5 ${size === "large" ? "" : "max-sm:inset-x-[3px]"}  max-h-80 overflow-y-auto rounded-xl border border-ink-200 bg-surface p-1 text-left shadow-xl`}
+          className={`absolute right-0 left-0 z-20 mt-1.5 ${size === "large" ? "" : "max-sm:inset-x-[3px]"}  panel max-h-80 overflow-y-auto rounded-2xl p-1.5 text-left`}
         >
           {items === null ? (
             <li className="px-3 py-2 text-sm text-ink-500">{t.search.searching}</li>
@@ -142,8 +142,8 @@ export function SchemeSearch({ size = "compact" }: { size?: "compact" | "large" 
                 id={`scheme-search-option-${index}`}
                 role="option"
                 aria-selected={index === activeIndex}
-                className={`cursor-pointer rounded-lg px-3 py-2 text-sm ${
-                  index === activeIndex ? "bg-accent-500 text-on-accent" : "hover:bg-ink-100"
+                className={`cursor-pointer rounded-xl px-3 py-2 text-sm hover:bg-ink-100 ${
+                  index === activeIndex ? "bg-ink-100" : ""
                 }`}
                 onMouseEnter={() => setActiveIndex(index)}
                 onMouseDown={(event) => {
@@ -153,11 +153,7 @@ export function SchemeSearch({ size = "compact" }: { size?: "compact" | "large" 
                 }}
               >
                 <div className="font-medium">{item.scheme_name}</div>
-                <div
-                  className={`text-xs ${
-                    index === activeIndex ? "text-on-accent/80" : "text-ink-500"
-                  }`}
-                >
+                <div className="text-xs text-ink-500">
                   {item.amc ?? t.search.unknownAmc} · {item.clean_plan ?? "-"} ·{" "}
                   {item.clean_option ?? "-"}
                 </div>

@@ -28,6 +28,7 @@ const gu: Messages = {
     capitalGains: "કેપિટલ ગેઇન",
     glossary: "શબ્દકોશ",
     methodology: "પદ્ધતિ",
+    menu: "મેનૂ",
   },
   footer: {
     blurb:

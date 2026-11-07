@@ -30,6 +30,7 @@ const ta: Messages = {
     capitalGains: "மூலதன ஆதாயம்",
     glossary: "சொற்களஞ்சியம்",
     methodology: "கணக்கீட்டு முறை",
+    menu: "மெனு",
   },
   footer: {
     blurb:
