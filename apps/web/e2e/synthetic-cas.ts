@@ -4,11 +4,12 @@
  * description wrapped below its row, stamp duty rows and a closing footer. The funds are
  * taken from public/data so the join to the site's data is exercised.
  */
-import { readFileSync } from "node:fs";
 import { PDFDocument, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
+import { siteData } from "./site-data";
 
 const column = (name: string): unknown[] => {
-  const raw = JSON.parse(readFileSync(`public/data/screen/${name}.json`, "utf8"));
+  const raw = siteData(`screen/${name}.json`) as
+    unknown[] | { rows: number[]; distinct: unknown[] };
   return Array.isArray(raw) ? raw : raw.rows.map((i: number) => raw.distinct[i]);
 };
 
@@ -22,7 +23,9 @@ export type Fund = {
 
 const styled = (code: string) => {
   try {
-    const bundle = JSON.parse(readFileSync(`public/data/fund/${code}.json`, "utf8"));
+    const bundle = siteData(`fund/${code}.json`) as {
+      exposure?: { reason: string | null; weights: unknown[] };
+    };
     return bundle.exposure?.reason === null && bundle.exposure.weights.length > 0;
   } catch {
     return false;
@@ -69,7 +72,7 @@ export function pickFunds(): { regular: Fund; direct: Fund } {
     if (styled(c.scheme_code![i] as string) && styled(c.scheme_code![j] as string))
       return { regular: fund(i), direct: fund(j) };
   }
-  throw new Error("No regular/direct pair with expense ratios and style fits in public/data");
+  throw new Error("No regular/direct pair with expense ratios and style fits in the site data");
 }
 
 type Txn = { date: string; description: string[]; amount?: number; nav?: number; tax?: number };
