@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { siteData } from "./site-data";
 import { buildCas, CLOSED_FUND, pickFunds } from "./synthetic-cas";
 
 const ARTIFACTS = "test-results/artifacts";
@@ -10,7 +11,7 @@ const EQUITY = "122639"; // Parag Parikh Flexi Cap Fund - Direct Plan - Growth
 const DEBT = "120692"; // ICICI Prudential Corporate Bond Fund - Direct Plan - Growth
 
 const scheme = (code: string) =>
-  JSON.parse(readFileSync(`public/data/fund/${code}.json`, "utf8")).scheme.scheme as {
+  (siteData(`fund/${code}.json`) as { scheme: { scheme: unknown } }).scheme.scheme as {
     scheme_name: string;
     latest_nav: number;
   };
