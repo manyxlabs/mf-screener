@@ -7,7 +7,7 @@ import { THEME_KEY } from "./theme-script";
 export type Theme = "light" | "dark";
 
 function apply(theme: Theme) {
-  document.documentElement.dataset.theme = theme;
+  document.documentElement.classList.toggle("dark", theme === "dark");
   try {
     localStorage.setItem(THEME_KEY, theme);
   } catch {
@@ -22,7 +22,7 @@ export function ThemeToggle() {
   // The server cannot know the stored choice, so the button reads it after mount and
   // renders a fixed-width placeholder until then rather than guessing and shifting.
   useEffect(() => {
-    setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+    setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
   }, []);
 
   return (
@@ -35,13 +35,13 @@ export function ThemeToggle() {
         apply(next);
         setTheme(next);
       }}
-      className="grid size-9 shrink-0 place-items-center rounded-full border border-ink-200 bg-surface/60 text-ink-500 transition-colors hover:text-ink-900"
+      className="btn-icon"
     >
       {theme === null ? null : (
         <svg
           viewBox="0 0 24 24"
-          width="18"
-          height="18"
+          width="20"
+          height="20"
           aria-hidden="true"
           fill="none"
           stroke="currentColor"
