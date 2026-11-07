@@ -96,7 +96,7 @@ function CaptureStat({
   hint: string;
 }) {
   return (
-    <div className="rounded-md border border-ink-200 px-3 py-2">
+    <div className="rounded-xl border border-ink-200 px-3 py-2">
       <div className="text-[11px] uppercase tracking-wide text-ink-500">{label}</div>
       <div className="mt-0.5 text-lg font-semibold numeric">
         {value === null ? MISSING_DASH : value.toFixed(2)}
@@ -224,7 +224,7 @@ function Figure({
   const toneClass =
     tone === "good" ? "text-good-700" : tone === "bad" ? "text-bad-700" : "text-ink-900";
   return (
-    <div className="rounded-md border border-ink-200 px-3 py-2">
+    <div className="rounded-xl border border-ink-200 px-3 py-2">
       <div className="flex min-h-[2.4em] text-[11px] uppercase tracking-wide text-ink-500">
         {label}
       </div>
@@ -244,7 +244,7 @@ export function ExposurePanel({ exposure }: { exposure: Exposure }) {
   return (
     <Card title={words.title} subtitle={words.subtitle}>
       {exposure.weights.length === 0 ? (
-        <div className="rounded-md border border-warn-300 bg-warn-50 p-3 text-sm text-warn-900">
+        <div className="rounded-xl border border-warn-300 bg-warn-50 p-3 text-sm text-warn-900">
           <strong>{words.none}</strong>{" "}
           {exposure.reason === "style_basis_does_not_describe_this_fund"
             ? words.basisMismatch(fit === null ? null : fit.toFixed(2))

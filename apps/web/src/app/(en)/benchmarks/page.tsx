@@ -46,12 +46,12 @@ export default async function BenchmarksPage({ params }: LocaleParams) {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-lg font-semibold tracking-tight">{copy.title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{copy.title}</h1>
         <p className="mt-1 max-w-3xl text-sm text-ink-700">{copy.lede}</p>
       </header>
 
       {foreign.length ? (
-        <div className="rounded-lg border border-bad-300 bg-bad-50 p-4">
+        <div className="rounded-2xl border border-bad-300 bg-bad-50 p-4">
           <h2 className="text-sm font-semibold text-bad-900">
             {copy.foreignHeading(foreign.length, number(foreign.length), data.fund_currency)}
           </h2>

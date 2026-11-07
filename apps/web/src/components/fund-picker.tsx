@@ -67,11 +67,11 @@ export function FundPicker({
           <path d="M12 5v14M5 12h14" />
         </svg>
         {results.length ? (
-          <ul className="absolute right-0 left-0 z-20 mt-1.5 max-h-80 overflow-y-auto rounded-xl border border-ink-200 bg-surface p-1 shadow-xl">
+          <ul className="absolute right-0 left-0 z-20 mt-1.5 panel max-h-80 overflow-y-auto rounded-2xl p-1.5">
             {results.map((scheme) => (
               <li key={scheme.scheme_code}>
                 <button
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-ink-100 disabled:opacity-40"
+                  className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-ink-100 disabled:opacity-40"
                   disabled={chosen.includes(scheme.scheme_code) || full}
                   onClick={() => {
                     onPick(scheme);

@@ -18,7 +18,7 @@ export default async function ComparePage({ params }: LocaleParams) {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.compareView.title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t.compareView.title}</h1>
         <p className="max-w-3xl text-sm text-ink-500">{t.compareView.intro(number(MAX_FUNDS))}</p>
       </header>
       <Suspense fallback={<p className="text-sm text-ink-500">{t.compareView.loading}</p>}>

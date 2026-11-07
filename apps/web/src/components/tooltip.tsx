@@ -57,7 +57,7 @@ export function InfoTooltip({
             role="tooltip"
             // `whitespace-normal` undoes the nowrap that table headers set: without it the
             // text runs straight out of the panel and over the rows behind it.
-            className="block w-72 rounded-md border border-ink-300 bg-surface p-3 text-xs leading-relaxed font-normal whitespace-normal text-ink-700 shadow-lg"
+            className="panel block w-72 rounded-2xl p-3 text-xs leading-relaxed font-normal whitespace-normal text-ink-700"
           >
             {children}
           </span>
