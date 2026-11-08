@@ -17,6 +17,33 @@ importers:
 
   apps/web:
     dependencies:
+      '@fontsource-variable/geist':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/geist-mono':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/noto-sans-bengali':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/noto-sans-devanagari':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/noto-sans-gujarati':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/noto-sans-kannada':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/noto-sans-malayalam':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/noto-sans-tamil':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/noto-sans-telugu':
+        specifier: 5.3.0
+        version: 5.3.0
       '@mf/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -427,6 +454,33 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@fontsource-variable/geist-mono@5.3.0':
+    resolution: {integrity: sha512-vBbuwDEo9AkrqADMXOrlAR3DFcJi4/JxeuU43FoiQERnNwsfXNnvxvReZG02cQKmyk4DZkZdBZX3oTDvy2zBAw==}
+
+  '@fontsource-variable/geist@5.3.0':
+    resolution: {integrity: sha512-j0m+vLQuG5XAYoHtGCVu0spvlGreR3EzpECUVzkFmI1mTVnAO38l/NEPDCFgZ177JxzYJCLSmTQibIiYPilGrA==}
+
+  '@fontsource-variable/noto-sans-bengali@5.3.0':
+    resolution: {integrity: sha512-035m0mzOcsVC1GHFH1ioeXjIFqVhuflGvnn8Xvr6esaZlGErNe1d+Jx2sEN/2WGPhjrT+5wwKPPSO8rbBeQo3w==}
+
+  '@fontsource-variable/noto-sans-devanagari@5.3.0':
+    resolution: {integrity: sha512-52XBcJS3jRvZ5ugFXJvdKgffXPYnN08LeodXkgCbepOdMKVRVTQu1yj071cq8S3zmUwT6w6XKKXRSQlQkwwNNg==}
+
+  '@fontsource-variable/noto-sans-gujarati@5.3.0':
+    resolution: {integrity: sha512-fmQPxALCXOCe6FKaI9ZRu3R28BkhhEWQ3H8QMVCB3xRo6I7iwCZ2KunlIDPAfIDee3cYwucus5ORRqAFa62Ekg==}
+
+  '@fontsource-variable/noto-sans-kannada@5.3.0':
+    resolution: {integrity: sha512-Vywk0r0v6GBEp+smJbSEEdUSebQb1hLsTOWqt/yHcABhkTRphga67hgtUhAenNtgLoFWAw/OV/cuN5Trdzpg5w==}
+
+  '@fontsource-variable/noto-sans-malayalam@5.3.0':
+    resolution: {integrity: sha512-SKo5dwznLLyLC97M3d8FVmgUylNzI3TkVUshjFM1InaRvRI9S/GGRfWzSs2DlL/9tZU1/fU1GsQi+PjkQlMQGQ==}
+
+  '@fontsource-variable/noto-sans-tamil@5.3.0':
+    resolution: {integrity: sha512-zyyajkRVJb7Uy6T2+ws2hR+0U7FnJqMfzakls3WgWNZ4ia0EFHLyFAHLZdUV5yiFzHufc701KOxktrwrI3J7FQ==}
+
+  '@fontsource-variable/noto-sans-telugu@5.3.0':
+    resolution: {integrity: sha512-dxmjmdqbAeRYppM94/3zJLQm1sT88n6N56JKMMpxlEobrbv7SmIjnAzMF0LOge5+iVcInqmdQLuJQwiWT1YBcg==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -3307,6 +3361,24 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
+
+  '@fontsource-variable/geist-mono@5.3.0': {}
+
+  '@fontsource-variable/geist@5.3.0': {}
+
+  '@fontsource-variable/noto-sans-bengali@5.3.0': {}
+
+  '@fontsource-variable/noto-sans-devanagari@5.3.0': {}
+
+  '@fontsource-variable/noto-sans-gujarati@5.3.0': {}
+
+  '@fontsource-variable/noto-sans-kannada@5.3.0': {}
+
+  '@fontsource-variable/noto-sans-malayalam@5.3.0': {}
+
+  '@fontsource-variable/noto-sans-tamil@5.3.0': {}
+
+  '@fontsource-variable/noto-sans-telugu@5.3.0': {}
 
   '@humanfs/core@0.19.2':
     dependencies:

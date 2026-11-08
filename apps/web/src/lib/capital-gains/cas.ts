@@ -1,4 +1,4 @@
-import type { CasScheme, CasTransactionKind } from "@/lib/cas/types";
+import type { CasScheme, CasTransactionKind, IsoDate } from "@/lib/cas/types";
 import type { Trade } from "./engine";
 
 const BUY: ReadonlySet<CasTransactionKind> = new Set([
@@ -17,17 +17,22 @@ const IGNORED: ReadonlySet<CasTransactionKind> = new Set([
   "tds",
 ]);
 
+/** Kinds whose units arrive with history the statement does not show. */
+export type UnhandledKind = "merger_in" | "merger_out" | "other";
+
+export type Unsupported =
+  { reason: "openingUnits" } | { reason: "unhandled"; kind: UnhandledKind; date: IsoDate };
+
 /**
  * The trades of one folio's scheme, or why they cannot be matched. A merger carries the
  * old scheme's cost and dates (section 47(xviii)) and an opening balance hides them, so
  * either leaves the lots unknown.
  */
-export function tradesFromCas(scheme: CasScheme): { trades: Trade[] } | { unsupported: string } {
+export function tradesFromCas(
+  scheme: CasScheme,
+): { trades: Trade[] } | { unsupported: Unsupported } {
   if (Math.abs(scheme.openingUnits) > 1e-4) {
-    return {
-      unsupported:
-        "the statement starts with units already held, so their cost and dates are unknown",
-    };
+    return { unsupported: { reason: "openingUnits" } };
   }
   const trades: Trade[] = [];
   for (const t of scheme.transactions) {
@@ -49,7 +54,7 @@ export function tradesFromCas(scheme: CasScheme): { trades: Trade[] } | { unsupp
       });
     else
       return {
-        unsupported: `a ${t.kind.replace("_", " ")} transaction on ${t.date} is not handled`,
+        unsupported: { reason: "unhandled", kind: t.kind as UnhandledKind, date: t.date },
       };
   }
   return { trades };

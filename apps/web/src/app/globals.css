@@ -1,24 +1,65 @@
 @import "tailwindcss";
 
 /*
- * Colours are named by role, not by shade, and every role is a variable the dark block
- * below redefines. The ink ramp runs light-to-dark in both themes - ink-50 is always the
- * page behind the cards and ink-900 always the strongest text - so inverting it here
- * flips the whole app without a `dark:` prefix on a single component.
+ * The Manyx family's design tokens, copied from the portfolio
+ * (github.com/manishonai/Simple-Portfolio, src/index.css): RGB channels, used as
+ * rgb(var(--x) / alpha), swapped by the `dark` class on <html>. Change them there first.
+ * --surface and --accent-text are the screener's own: an opaque ground for tables, forms
+ * and long text, and an emerald dark enough for small text to pass WCAG AA on it.
+ */
+:root {
+  --ink: 245 245 247;
+  --fg: 29 29 31;
+  --muted: 99 99 102;
+  --accent: 5 150 105;
+  --accent-text: 4 120 87;
+  --surface: 255 255 255;
+  --glass-bg: linear-gradient(180deg, rgb(255 255 255 / 0.6), rgb(255 255 255 / 0.25));
+  --glass-shadow: 0 8px 32px -8px rgb(0 0 0 / 0.12);
+  --rim-hi: rgb(255 255 255 / 0.95);
+  --rim-lo: rgb(0 0 0 / 0.07);
+  --dot: rgb(0 0 0 / 0.16);
+  --halo: rgb(255 255 255 / 0.9);
+  --spot: rgb(0 0 0 / 0.04);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: light;
+}
+
+.dark {
+  --ink: 5 5 6;
+  --fg: 245 245 247;
+  --muted: 161 161 166;
+  --accent: 52 211 153;
+  --accent-text: 52 211 153;
+  --surface: 22 22 24;
+  --glass-bg: linear-gradient(180deg, rgb(44 44 48 / 0.55), rgb(24 24 26 / 0.4));
+  --glass-shadow: 0 8px 32px -8px rgb(0 0 0 / 0.5);
+  --rim-hi: rgb(255 255 255 / 0.22);
+  --rim-lo: rgb(255 255 255 / 0.04);
+  --dot: rgb(255 255 255 / 0.09);
+  --halo: rgb(255 255 255 / 0.07);
+  --spot: rgb(255 255 255 / 0.06);
+  color-scheme: dark;
+}
+
+/*
+ * Colours are named by role, not by shade, and every role resolves to a token above. The
+ * ink ramp runs light-to-dark in both themes - ink-50 is always the page behind the cards
+ * and ink-900 always the strongest text - so the `dark` class flips the whole app without
+ * a `dark:` prefix on a single component. The greys between are fg mixed into the surface,
+ * opaque so a sticky cell or a border over the dot grid never shows the dots through.
  */
 @theme {
-  --color-ink-50: #f5f6f8;
-  --color-ink-100: #eceef2;
-  --color-ink-200: #e0e3e9;
-  --color-ink-300: #c5cbd6;
-  --color-ink-500: #6b7280;
-  --color-ink-700: #3c4250;
-  --color-ink-900: #15181f;
-  --color-surface: #ffffff;
-  --color-on-accent: #ffffff;
-  --color-accent-50: #eef3fe;
-  --color-accent-500: #2f62e0;
-  --color-accent-600: #2149b0;
+  --color-ink-50: rgb(var(--ink));
+  --color-ink-100: color-mix(in srgb, rgb(var(--fg)) 5%, rgb(var(--surface)));
+  --color-ink-200: color-mix(in srgb, rgb(var(--fg)) 10%, rgb(var(--surface)));
+  --color-ink-300: color-mix(in srgb, rgb(var(--fg)) 22%, rgb(var(--surface)));
+  --color-ink-500: rgb(var(--muted));
+  --color-ink-700: color-mix(in srgb, rgb(var(--fg)) 70%, rgb(var(--muted)));
+  --color-ink-900: rgb(var(--fg));
+  --color-surface: rgb(var(--surface));
+  --color-accent-500: rgb(var(--accent));
+  --color-accent-600: rgb(var(--accent-text));
   --color-good-100: #d1fae0;
   --color-good-700: #0f6b45;
   --color-good-900: #064e34;
@@ -33,30 +74,32 @@
   --color-bad-700: #a3341f;
   --color-bad-800: #991b1b;
   --color-bad-900: #7f1d1d;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -16px rgb(15 23 42 / 0.18);
-  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  /* Geist first, so digits and English names keep it inside Indic text. Each Noto face
+     covers only its own script's range, so only that script's file is fetched. */
+  --font-sans:
+    "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Noto Sans Devanagari Variable", "Noto Sans Bengali Variable", "Noto Sans Telugu Variable",
+    "Noto Sans Tamil Variable", "Noto Sans Gujarati Variable", "Noto Sans Kannada Variable",
+    "Noto Sans Malayalam Variable", sans-serif;
+  /* Eyebrows and chips carry translated words too, so the Noto faces follow here as well. */
+  --font-mono:
+    "Geist Mono Variable", "Noto Sans Devanagari Variable", "Noto Sans Bengali Variable",
+    "Noto Sans Telugu Variable", "Noto Sans Tamil Variable", "Noto Sans Gujarati Variable",
+    "Noto Sans Kannada Variable", "Noto Sans Malayalam Variable", ui-monospace, monospace;
+  --shadow-card: var(--glass-shadow);
+  --animate-shimmer: shimmer 6s linear infinite;
+  @keyframes shimmer {
+    to {
+      background-position: 200% 50%;
+    }
+  }
 }
 
 /*
  * The status tints are lifted rather than darkened: at these small sizes a dark amber on
  * a dark ground fails contrast, so the fill stays dim and the text carries the hue.
  */
-[data-theme="dark"] {
-  --color-ink-50: #0b0c10;
-  --color-ink-100: #1a1c22;
-  --color-ink-200: #262931;
-  --color-ink-300: #3a3e48;
-  --color-ink-500: #8e94a1;
-  --color-ink-700: #c6cad3;
-  --color-ink-900: #f2f3f6;
-  --color-surface: #131419;
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -18px rgb(0 0 0 / 0.7);
-  /* The dark accent is a light blue, so its foreground has to invert with it. */
-  --color-on-accent: #0d1117;
-  --color-accent-50: #1c2740;
-  --color-accent-500: #6f9bff;
-  --color-accent-600: #9bbaff;
+.dark {
   --color-good-100: #10331f;
   --color-good-700: #58d39a;
   --color-good-900: #7fe0b4;
@@ -73,42 +116,239 @@
   --color-bad-900: #ffb3a1;
 }
 
-html,
-body {
-  background: var(--color-ink-50);
-  color: var(--color-ink-900);
+/* On html alone: a body background would paint over the fixed backdrop layer. */
+html {
+  background: rgb(var(--ink));
+  color: rgb(var(--fg));
+  transition: background-color 0.3s;
 }
 
-/* The colour field the glass header frosts; the same one manyxlabs.com uses. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(42rem 30rem at 10% 0%, rgb(59 130 246 / 0.14), transparent 70%),
-    radial-gradient(36rem 28rem at 92% 12%, rgb(16 185 129 / 0.1), transparent 70%),
-    radial-gradient(44rem 32rem at 55% 100%, rgb(139 92 246 / 0.1), transparent 70%);
+::selection {
+  background: rgb(var(--accent) / 0.4);
+  color: rgb(var(--fg));
 }
 
-@utility glass {
-  border: 1px solid rgb(255 255 255 / 0.7);
-  background: rgb(255 255 255 / 0.6);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.9),
-    0 10px 36px -18px rgb(15 23 42 / 0.25);
-  backdrop-filter: blur(20px) saturate(170%);
-  [data-theme="dark"] & {
-    border-color: rgb(255 255 255 / 0.08);
-    background: rgb(24 25 31 / 0.6);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.06),
-      0 12px 40px -18px rgb(0 0 0 / 0.7);
+/* An outline, not the portfolio's ring: a ring is a box-shadow and would replace a card's. */
+:focus-visible {
+  outline: 2px solid rgb(var(--accent) / 0.7);
+  outline-offset: 2px;
+}
+
+@layer components {
+  /* Every glass surface must sit over the fixed backdrop in RootLayout; an ancestor with
+     opacity < 1 or a filter becomes the backdrop root and the blur goes flat. In this layer,
+     so a utility such as `fixed` or `sticky` overrides its `position`. */
+  .glass,
+  .btn-glass {
+    position: relative;
+    background: var(--glass-bg);
+    box-shadow: var(--glass-shadow);
+    /* Unprefixed only: given both, the build keeps just -webkit-, which Chrome ignores. It
+       adds the prefix Safari needs by itself. */
+    backdrop-filter: blur(24px) saturate(180%);
   }
+
+  /* Specular rim: a 1px gradient border, brightest where light would catch the top-left
+     and bottom-right edges. .panel shares it: the same card, opaque, for reading. */
+  .glass::after,
+  .btn-glass::after,
+  .panel::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      var(--rim-hi),
+      var(--rim-lo) 35%,
+      var(--rim-lo) 65%,
+      var(--rim-hi)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  /* Tables, forms and long text: blur over a large scrolling area is slow on phones, and the
+     dots would show through a translucent one. */
+  .panel {
+    position: relative;
+    border: 1px solid rgb(var(--fg) / 0.1);
+    background: rgb(var(--surface));
+    box-shadow: var(--glass-shadow);
+  }
+
   @media (prefers-reduced-transparency: reduce) {
-    background: var(--color-surface);
-    backdrop-filter: none;
+    .glass,
+    .btn-glass {
+      background: rgb(var(--surface));
+      backdrop-filter: none;
+    }
+  }
+
+  .chip {
+    border-radius: 9999px;
+    border: 1px solid rgb(var(--fg) / 0.1);
+    background: rgb(var(--fg) / 0.05);
+    padding: 0.25rem 0.75rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+    color: rgb(var(--fg) / 0.8);
+  }
+
+  /* A monochrome sheen; symmetric stops with a 200% size make the shimmer loop seamless. */
+  .text-sheen {
+    background: linear-gradient(90deg, rgb(var(--fg)), rgb(var(--muted)), rgb(var(--fg))) 0 50% /
+      200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    @media (prefers-reduced-motion: no-preference) {
+      animation: var(--animate-shimmer);
+    }
+  }
+
+  .btn,
+  .btn-primary,
+  .btn-glass {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 9999px;
+    padding: 0.625rem 1.25rem;
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+    font-weight: 500;
+    transition-property: color, background-color, scale, translate;
+    transition-duration: 200ms;
+    &:active:not(:disabled) {
+      scale: 0.95;
+    }
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  }
+
+  .btn {
+    color: rgb(var(--fg));
+    &:hover:not(:disabled) {
+      background: rgb(var(--fg) / 0.1);
+    }
+  }
+
+  .btn-primary {
+    background: rgb(var(--fg));
+    color: rgb(var(--ink));
+    &:hover:not(:disabled) {
+      background: rgb(var(--fg) / 0.85);
+    }
+  }
+
+  /* The material's gradient is a background-image, so the hover tint goes on as a colour
+     beneath it, as the portfolio's hover:bg-fg/10 does. */
+  .btn-glass {
+    color: rgb(var(--fg));
+    &:hover:not(:disabled) {
+      background-color: rgb(var(--fg) / 0.1);
+    }
+  }
+
+  /* A navbar control: round, 40px, the portfolio's theme and menu buttons. */
+  .btn-icon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 9999px;
+    color: rgb(var(--fg));
+    transition: background-color 0.2s;
+    &:hover {
+      background: rgb(var(--fg) / 0.1);
+    }
+  }
+
+  /* --x/--y are set by the pointer listener in MotionEffects. backdrop-filter makes .glass a
+     stacking context, so z-index -1 keeps the glow above the card background but under its
+     content. */
+  .spotlight {
+    transition: rotate 0.4s var(--ease);
+  }
+
+  :has(> .spotlight) {
+    perspective: 1200px;
+  }
+
+  .spotlight::before {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.3s;
+    background: radial-gradient(350px circle at var(--x) var(--y), var(--spot), transparent 60%);
+  }
+
+  .spotlight:hover::before {
+    opacity: 1;
+  }
+
+  .halo {
+    background: radial-gradient(closest-side, var(--halo), transparent);
+  }
+
+  /* Glass needs texture behind it to frost; on a flat light background it would read as a
+     plain white card. */
+  .bg-dots {
+    background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+    background-size: 22px 22px;
+    mask-image: radial-gradient(ellipse 90% 80% at 50% 30%, black, transparent);
+  }
+
+  /* The portfolio's Reveal: MotionEffects adds .revealed as each one scrolls into view, and
+     --i staggers siblings. Hidden only once that script has marked the page, so a page
+     without it, and a reader who asks for less motion, see everything at once. */
+  @media (prefers-reduced-motion: no-preference) {
+    html[data-reveal] [data-reveal] {
+      opacity: 0;
+      translate: 0 16px;
+      scale: 0.98;
+      transition:
+        opacity 0.45s var(--ease),
+        translate 0.45s var(--ease),
+        scale 0.45s var(--ease);
+      transition-delay: calc(min(var(--i, 0), 6) * 50ms);
+    }
+    html[data-reveal] [data-reveal].revealed {
+      opacity: 1;
+      translate: none;
+      scale: none;
+    }
+  }
+
+  /* Scroll-linked, so it needs no script; a browser without scroll timelines shows none. */
+  .scroll-progress {
+    display: none;
+    @supports (animation-timeline: scroll()) {
+      display: block;
+      transform-origin: left;
+      animation: scroll-progress linear both;
+      animation-timeline: scroll(root);
+    }
+  }
+  @keyframes scroll-progress {
+    from {
+      scale: 0 1;
+    }
   }
 }
 
@@ -117,12 +357,28 @@ body::before {
   scroll-margin-top: 9rem;
 }
 
-/* Tells the browser to draw form controls and scrollbars in the matching theme. */
-html {
-  color-scheme: light;
+/*
+ * LOCALE_INIT_SCRIPT marks a fund page whose reader prefers another language, so its
+ * English render stays hidden until the translation lands. The delayed reveal shows the
+ * page anyway if that catalogue never arrives.
+ */
+html[data-locale-pending] body {
+  animation: locale-reveal 0s linear 3s both;
 }
-[data-theme="dark"] {
-  color-scheme: dark;
+@keyframes locale-reveal {
+  from {
+    visibility: hidden;
+  }
+  to {
+    visibility: visible;
+  }
+}
+
+/* Recharts parks its hidden tooltip at a default offset, which on a phone can reach past
+   the screen and scroll the page sideways. A tooltip it shows is kept inside the chart, so
+   clipping the chart hides nothing. */
+.recharts-wrapper {
+  overflow: hidden;
 }
 
 /*

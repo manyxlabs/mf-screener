@@ -1,21 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/lib/i18n/client";
+import { THEME_KEY } from "./theme-script";
 
 export type Theme = "light" | "dark";
 
-export const THEME_KEY = "mf-theme";
-
-/**
- * Runs before the first paint, from a blocking inline script, so the page never renders
- * light and then flips. It is inlined as a string because a React effect runs too late.
- */
-export const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem(${JSON.stringify(
-  THEME_KEY,
-)});if(!t)t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=t}catch(e){}})()`;
-
 function apply(theme: Theme) {
-  document.documentElement.dataset.theme = theme;
+  document.documentElement.classList.toggle("dark", theme === "dark");
   try {
     localStorage.setItem(THEME_KEY, theme);
   } catch {
@@ -24,31 +16,32 @@ function apply(theme: Theme) {
 }
 
 export function ThemeToggle() {
+  const { t } = useI18n();
   const [theme, setTheme] = useState<Theme | null>(null);
 
   // The server cannot know the stored choice, so the button reads it after mount and
   // renders a fixed-width placeholder until then rather than guessing and shifting.
   useEffect(() => {
-    setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+    setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
   }, []);
 
   return (
     <button
       type="button"
-      aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      aria-label={theme === "dark" ? t.theme.toLight : t.theme.toDark}
       aria-pressed={theme === "dark"}
       onClick={() => {
         const next: Theme = theme === "dark" ? "light" : "dark";
         apply(next);
         setTheme(next);
       }}
-      className="grid size-9 shrink-0 place-items-center rounded-full border border-ink-200 bg-surface/60 text-ink-500 transition-colors hover:text-ink-900"
+      className="btn-icon"
     >
       {theme === null ? null : (
         <svg
           viewBox="0 0 24 24"
-          width="18"
-          height="18"
+          width="20"
+          height="20"
           aria-hidden="true"
           fill="none"
           stroke="currentColor"
