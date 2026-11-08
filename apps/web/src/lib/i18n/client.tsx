@@ -14,35 +14,31 @@ import {
 } from "react";
 import en from "@/messages/en";
 import { makeI18n, type I18n } from "./core";
-import {
-  DEFAULT_LOCALE,
-  isLocale,
-  isSingleUrlPath,
-  LANGUAGES,
-  LOCALES,
-  SINGLE_URL_PREFIX,
-  type Locale,
-} from "./locales";
-
-export const LOCALE_KEY = "mf-lang";
+import { LOCALE_KEY } from "./locale-script";
+import { DEFAULT_LOCALE, isLocale, isSingleUrlPath, LANGUAGES, type Locale } from "./locales";
 
 // English is bundled, so the ~9,000 English-only pages hydrate without waiting on a
 // chunk. Every other catalogue is its own chunk, fetched by the pages that need it.
 const english = makeI18n(DEFAULT_LOCALE, en);
-const ready = new Map<Locale, I18n>([[DEFAULT_LOCALE, english]]);
-const pending = new Map<Locale, Promise<I18n>>();
+
+// React's `use` reads a promise marked fulfilled without suspending, so a catalogue already
+// here never suspends a render again. It must be called on every render: calling it only
+// for a missing catalogue changes the hooks a replayed render runs (React error 310/467).
+const fulfilled = (i18n: I18n): Promise<I18n> =>
+  Object.assign(Promise.resolve(i18n), { status: "fulfilled", value: i18n });
+const pending = new Map<Locale, Promise<I18n>>([[DEFAULT_LOCALE, fulfilled(english)]]);
 
 export function loadI18n(locale: Locale): Promise<I18n> {
   let hit = pending.get(locale);
   if (!hit) {
-    hit = LANGUAGES[locale].load().then(({ default: messages }) => {
+    const loading: Promise<I18n> = LANGUAGES[locale].load().then(({ default: messages }) => {
       const i18n = makeI18n(locale, messages);
-      ready.set(locale, i18n);
+      Object.assign(loading, { status: "fulfilled", value: i18n });
       return i18n;
     });
     // A failed chunk is not remembered, so the next attempt can succeed.
-    hit.catch(() => pending.delete(locale));
-    pending.set(locale, hit);
+    loading.catch(() => pending.delete(locale));
+    pending.set(locale, (hit = loading));
   }
   return hit;
 }
@@ -70,17 +66,6 @@ export function storeLocale(locale: Locale) {
   }
 }
 
-/**
- * Runs before first paint on a single-URL page whose reader prefers another language,
- * and hides the English render until the translation replaces it. The CSS that hides it
- * also reveals the page after a few seconds, so a failed chunk never leaves it blank.
- */
-export const LOCALE_INIT_SCRIPT = `(function(){try{if(!location.pathname.startsWith(${JSON.stringify(SINGLE_URL_PREFIX)}))return;var s=${JSON.stringify(
-  LOCALES,
-)},l=localStorage.getItem(${JSON.stringify(LOCALE_KEY)});if(s.indexOf(l)<0){l=null;for(var i=0;i<navigator.languages.length&&!l;i++){var p=navigator.languages[i].split("-")[0].toLowerCase();if(s.indexOf(p)>=0)l=p}}if(l&&l!==${JSON.stringify(
-  DEFAULT_LOCALE,
-)})document.documentElement.dataset.localePending=""}catch(e){}})()`;
-
 const reveal = () => delete document.documentElement.dataset.localePending;
 
 type Value = { i18n: I18n; switchInPlace: ((locale: Locale) => void) | null };
@@ -99,7 +84,7 @@ export function I18nProvider({ locale, children }: { locale: Locale; children: R
   const active = single ? chosen : locale;
   // Suspends only for a catalogue not yet fetched: the server render waits for it, and
   // in the browser hydration keeps the server's HTML until it arrives.
-  const i18n = ready.get(active) ?? use(loadI18n(active));
+  const i18n = use(loadI18n(active));
 
   const switchInPlace = useCallback((next: Locale) => {
     storeLocale(next);
