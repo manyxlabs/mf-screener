@@ -112,8 +112,12 @@ const sideways = (page: Page) =>
   });
 
 async function openPage(browser: Browser, options: { width: number; dark?: boolean }) {
-  const page = await browser.newPage({ viewport: { width: options.width, height: 800 } });
-  if (options.dark) await page.addInitScript(() => localStorage.setItem("mf-theme", "dark"));
+  // Reduced motion shows every reveal at once, so a full-page screenshot has no blank cards.
+  const page = await browser.newPage({
+    viewport: { width: options.width, height: 800 },
+    reducedMotion: "reduce",
+  });
+  if (options.dark) await page.addInitScript(() => localStorage.setItem("theme", "dark"));
   return page;
 }
 
@@ -225,11 +229,14 @@ test("the switcher keeps the page, its query and hash, from the keyboard", async
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
 });
 
-/** The header's Screener link, in the language of `t`. */
-const screenerLink = (page: Page, t: Messages) =>
-  page
+/** The navbar menu's Screener link, in the language of `t`, with the menu opened. */
+async function screenerLink(page: Page, t: Messages) {
+  const menu = page.getByRole("banner").getByRole("button", { name: t.nav.menu });
+  if ((await menu.getAttribute("aria-expanded")) !== "true") await menu.click();
+  return page
     .getByRole("navigation", { name: t.nav.label })
     .getByRole("link", { name: t.nav.screener, exact: true });
+}
 
 test("a fund page switches language in place and keeps it across a reload", async ({ page }) => {
   const { code } = publishedFund();
@@ -238,15 +245,15 @@ test("a fund page switches language in place and keeps it across a reload", asyn
   await page.getByRole("button", { name: LANGUAGES.bn.name }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "bn");
   await expect(page).toHaveURL(new RegExp(`/fund/${code}/$`));
-  await expect(screenerLink(page, bn)).toBeVisible();
+  await expect(await screenerLink(page, bn)).toBeVisible();
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "bn");
-  await expect(screenerLink(page, bn)).toBeVisible();
+  await expect(await screenerLink(page, bn)).toBeVisible();
   await expect(page.locator("body")).toBeVisible();
 
   // A link out of the fund page leads to that language's copy of the next page.
-  await screenerLink(page, bn).click();
+  await (await screenerLink(page, bn)).click();
   await expect(page).toHaveURL(/\/bn\/screener\//);
 });
 
@@ -258,7 +265,7 @@ test("a fund page opens in the browser's language when no choice is stored", asy
   const page = await context.newPage();
   await page.goto(`/fund/${code}/`);
   await expect(page.locator("html")).toHaveAttribute("lang", "hi");
-  await expect(screenerLink(page, hi)).toBeVisible();
+  await expect(await screenerLink(page, hi)).toBeVisible();
   await context.close();
 });
 
