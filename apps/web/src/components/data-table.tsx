@@ -2,8 +2,10 @@
 
 import type { MetricSpec, ScreenRow } from "@mf/shared";
 import { flexRender, getCoreRowModel, useReactTable, type ColumnDef } from "@tanstack/react-table";
-import Link from "next/link";
 import { useEffect, useMemo, useRef } from "react";
+import Link from "@/components/link";
+import { useI18n } from "@/lib/i18n/client";
+import type { Messages } from "@/messages/en";
 import { MetricHeader, MetricValue } from "./metric-cell";
 
 // The pinned name column: narrow on a phone so the figures scrolled beside it stay readable,
@@ -11,26 +13,11 @@ import { MetricHeader, MetricValue } from "./metric-cell";
 const NAME_COLUMN = "w-38 min-w-38 max-w-38 sm:w-[280px] sm:min-w-[280px] sm:max-w-[280px]";
 
 // The non-metric columns. Metric headers get their plain label from the API's
-// catalogue; these have no spec, so their wording lives here.
-const TEXT_LABELS: Record<string, string> = {
-  scheme_code: "Code",
-  scheme_name: "Fund",
-  amc: "Fund house",
-  clean_category: "Category",
-  clean_sub_category: "Fund type",
-  clean_plan: "Plan",
-  clean_option: "Option",
-  benchmark_id: "Measured against",
-  is_active: "Active",
-  first_nav_date: "First NAV",
-  last_nav_date: "Last NAV",
-  latest_nav_date: "NAV date",
-  aum_quarter: "AUM quarter",
-  cap_band: "Company size focus",
-  style: "Investing style",
-  riskometer: "SEBI risk label",
-  data_quality_flags: "Data warnings",
-};
+// catalogue; these have no spec, so their wording lives in the site's.
+export const textLabel = (t: Messages, name: string): string | undefined =>
+  Object.hasOwn(t.table.columns, name)
+    ? t.table.columns[name as keyof Messages["table"]["columns"]]
+    : undefined;
 
 const HIDDEN_COLUMNS = new Set(["missing_reasons"]);
 
@@ -93,6 +80,7 @@ export function DataTable({
   selected,
   onToggleSelect,
 }: DataTableProps) {
+  const { t, td } = useI18n();
   const visible = useMemo(() => columns.filter((c) => !HIDDEN_COLUMNS.has(c)), [columns]);
   const scroller = useFittedToViewport();
 
@@ -105,7 +93,7 @@ export function DataTable({
           metrics[name] ? (
             <MetricHeader spec={metrics[name]} name={name} />
           ) : (
-            <span>{TEXT_LABELS[name] ?? name}</span>
+            <span>{textLabel(t, name) ?? name}</span>
           ),
         cell: (ctx) => {
           const row = ctx.row.original;
@@ -131,7 +119,7 @@ export function DataTable({
                     key={flag}
                     className="rounded bg-warn-100 px-1 py-0.5 text-[10px] text-warn-900"
                   >
-                    {flag.replaceAll("_", " ")}
+                    {td(flag.replaceAll("_", " "))}
                   </span>
                 ))}
               </span>
@@ -148,7 +136,7 @@ export function DataTable({
           );
         },
       })),
-    [visible, metrics, reasonDescriptions],
+    [visible, metrics, reasonDescriptions, t, td],
   );
 
   // TanStack Table's API cannot be memoised by the React Compiler, which is not in use.
@@ -175,7 +163,7 @@ export function DataTable({
       // A scroll region a mouse can only reach by dragging a hairline overlay bar is one
       // most people never find, so it is focusable: arrow keys scroll it once tabbed to.
       role="region"
-      aria-label="Results table, scrolls sideways"
+      aria-label={t.table.region}
       tabIndex={0}
       // `relative` makes this the containing block for the sticky cells; without it their
       // layout overflow escapes onto the root document and the whole page scrolls sideways.
@@ -215,9 +203,13 @@ export function DataTable({
                         <button
                           type="button"
                           onClick={(event) => onSort(name, event.shiftKey)}
-                          aria-label={`Sort by ${metrics[name]?.plain_label || metrics[name]?.label || TEXT_LABELS[name] || name}`}
+                          aria-label={t.table.sortBy(
+                            td(metrics[name]?.plain_label || metrics[name]?.label || "") ||
+                              textLabel(t, name) ||
+                              name,
+                          )}
                           className="rounded px-1 text-ink-500 hover:bg-ink-200"
-                          title="Sort. Hold shift to add a secondary sort."
+                          title={t.table.sortHint}
                         >
                           {active ? (
                             <span className="numeric">
@@ -247,7 +239,7 @@ export function DataTable({
                   <td className="sticky left-0 z-10 w-10 max-w-10 min-w-10 border-b border-ink-100 bg-inherit px-3 py-2.5">
                     <input
                       type="checkbox"
-                      aria-label={`Select ${String(row.original["scheme_name"] ?? code)}`}
+                      aria-label={t.table.select(String(row.original["scheme_name"] ?? code))}
                       checked={selected?.has(code) ?? false}
                       onChange={() => onToggleSelect(code)}
                     />
@@ -278,9 +270,7 @@ export function DataTable({
               >
                 {/* Centred in the visible width, not the table's, which on a phone is
                     mostly scrolled off to the right. */}
-                <p className="sticky left-0 w-[100cqw] px-3">
-                  No funds match these filters. Loosen a range, or widen the plan/option universe.
-                </p>
+                <p className="sticky left-0 w-[100cqw] px-3">{t.table.empty}</p>
               </td>
             </tr>
           ) : null}

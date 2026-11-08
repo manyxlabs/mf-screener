@@ -70,7 +70,7 @@ const holding = (type: FundType, trades: Trade[], extra: Partial<Holding> = {}):
 
 function run(holdings: Holding[], slabRate: number | null = null, asOf = "2026-11-02") {
   const result = computeGains(holdings, { asOf, slabRate });
-  if (!result.ok) throw new Error(result.errors.join("; "));
+  if (!result.ok) throw new Error(JSON.stringify(result.errors));
   return result;
 }
 
@@ -112,7 +112,7 @@ describe("FIFO matching", () => {
     );
     expect(r).toEqual({
       ok: false,
-      errors: ["B: the sale on 2023-03-01 is 5 units but only 0 are held then"],
+      errors: [{ problem: "oversold", fund: "B", date: "2023-03-01", units: 5, held: 0 }],
     });
   });
 

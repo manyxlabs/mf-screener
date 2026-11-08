@@ -2,13 +2,15 @@
 
 import type { Facets, MetricSpec } from "@mf/shared";
 import { useId, useState } from "react";
+import { useI18n } from "@/lib/i18n/client";
 import type { ScreenFilters } from "@/lib/screen-query";
+import type { Messages } from "@/messages/en";
 import { Button, Field, PercentInput, drawerClass, inputClass } from "./ui";
 
-const FILTERABLE_GROUPS: { title: string; metrics: string[] }[] = [
-  { title: "Trailing returns", metrics: ["cagr_1y", "cagr_3y", "cagr_5y", "cagr_10y"] },
+const FILTERABLE_GROUPS: { title: keyof Messages["filters"]["groups"]; metrics: string[] }[] = [
+  { title: "trailing", metrics: ["cagr_1y", "cagr_3y", "cagr_5y", "cagr_10y"] },
   {
-    title: "Rolling returns",
+    title: "rolling",
     metrics: [
       "rolling_1y_median",
       "rolling_3y_median",
@@ -21,7 +23,7 @@ const FILTERABLE_GROUPS: { title: string; metrics: string[] }[] = [
     ],
   },
   {
-    title: "Versus sub-category",
+    title: "subCategory",
     metrics: [
       "fund_minus_category_3y",
       "fund_minus_category_5y",
@@ -31,7 +33,7 @@ const FILTERABLE_GROUPS: { title: string; metrics: string[] }[] = [
     ],
   },
   {
-    title: "Versus benchmark",
+    title: "benchmark",
     metrics: [
       "fund_minus_benchmark_5y",
       "information_ratio_vs_benchmark_5y",
@@ -43,7 +45,7 @@ const FILTERABLE_GROUPS: { title: string; metrics: string[] }[] = [
     ],
   },
   {
-    title: "Risk",
+    title: "risk",
     metrics: [
       "sharpe_5y",
       "sortino_5y",
@@ -54,7 +56,7 @@ const FILTERABLE_GROUPS: { title: string; metrics: string[] }[] = [
     ],
   },
   {
-    title: "Fund basics",
+    title: "basics",
     metrics: ["fund_age_years", "latest_aum", "latest_nav", "expense_ratio"],
   },
 ];
@@ -74,6 +76,8 @@ export function FilterDrawer({
   metrics: Record<string, MetricSpec>;
   facets: Facets;
 }) {
+  const { t, td } = useI18n();
+  const f = t.filters;
   const lastTickedHint = useId();
   if (!open) return null;
 
@@ -101,9 +105,9 @@ export function FilterDrawer({
   };
 
   return (
-    <aside aria-label="Filters" className={drawerClass}>
+    <aside aria-label={f.title} className={drawerClass}>
       <header className="flex items-center justify-between border-b border-ink-200 px-4 py-3">
-        <h2 className="text-sm font-semibold">Filters</h2>
+        <h2 className="text-sm font-semibold">{f.title}</h2>
         <div className="flex gap-2">
           <Button
             variant="ghost"
@@ -119,19 +123,19 @@ export function FilterDrawer({
               })
             }
           >
-            Clear
+            {f.clear}
           </Button>
-          <Button onClick={onClose}>Done</Button>
+          <Button onClick={onClose}>{t.common.done}</Button>
         </div>
       </header>
 
       <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
         <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-500">Universe</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-500">
+            {f.universe}
+          </h3>
           <p className="text-xs text-ink-500">
-            Direct and Growth only by default. Direct and Regular plans of one fund have different
-            NAVs, and IDCW options pay out of NAV, so mixing them corrupts every comparison.{" "}
-            <span id={lastTickedHint}>At least one plan and one option stay ticked.</span>
+            {f.universeHint} <span id={lastTickedHint}>{f.lastTicked}</span>
           </p>
           {(
             [
@@ -157,7 +161,7 @@ export function FilterDrawer({
                       aria-describedby={last ? lastTickedHint : undefined}
                       onChange={() => toggleList(field, value)}
                     />
-                    {value}
+                    {f.planOption[value]}
                   </label>
                 );
               })}
@@ -171,25 +175,18 @@ export function FilterDrawer({
                 onChange({ ...filters, dedupeFamilies: !filters.dedupeFamilies, page: 1 })
               }
             />
-            One row per fund
+            {f.onePerFund}
           </label>
           {!filters.dedupeFamilies ? (
-            <p className="rounded bg-warn-50 p-2 text-xs text-warn-900">
-              Direct and Regular, Growth and IDCW are separate scheme codes for one fund. Showing
-              them all inflates every count and lets one fund occupy several places in a ranking.
-            </p>
+            <p className="rounded bg-warn-50 p-2 text-xs text-warn-900">{f.onePerFundWarning}</p>
           ) : null}
         </section>
 
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-500">
-            Shortlist attributes
+            {f.attributes}
           </h3>
-          <p className="text-xs text-ink-500">
-            Riskometer, exit load, lock-in, minimums, SID benchmark and fund manager are third-party
-            facts, not computed from NAV. A fund the source has not published these for cannot
-            satisfy either filter below - it is left out, not assumed to qualify.
-          </p>
+          <p className="text-xs text-ink-500">{f.attributesHint}</p>
           <label className="flex items-center gap-1.5 text-sm">
             <input
               type="checkbox"
@@ -201,17 +198,17 @@ export function FilterDrawer({
                 onChange({ ...filters, ranges, page: 1 });
               }}
             />
-            No exit load
+            {f.noExitLoad}
           </label>
           <div className="grid grid-cols-[1fr_auto] items-end gap-2">
-            <Field label="Manager tenure at least (years)">
+            <Field label={f.tenure}>
               <input
                 className={`${inputClass} w-24`}
                 type="number"
                 min={0}
                 step="any"
-                placeholder="e.g. 3"
-                aria-label="Manager tenure minimum, in years"
+                placeholder={f.tenurePlaceholder}
+                aria-label={f.tenureLabel}
                 value={filters.ranges.manager_tenure_years_min ?? ""}
                 onChange={(e) => setRange("manager_tenure_years_min", e.target.value)}
               />
@@ -220,33 +217,33 @@ export function FilterDrawer({
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-500">Style box</h3>
-          <p className="text-xs text-ink-500">
-            The mandate each scheme declares, read from its SEBI sub-category and its own name. A
-            holdings-based style box needs the price-to-book of the portfolio, which AMFI does not
-            publish, so this is what the fund says it does, not what it currently owns.
-          </p>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-500">
+            {f.styleBox}
+          </h3>
+          <p className="text-xs text-ink-500">{f.styleBoxHint}</p>
         </section>
         <CheckboxList
-          title="Cap band"
+          title={f.capBand}
           values={facets.cap_bands}
+          label={td}
           selected={filters.capBands}
           onToggle={(value) => toggleList("capBands", value)}
         />
         <CheckboxList
-          title="Style"
+          title={f.style}
           values={facets.styles}
+          label={td}
           selected={filters.styles}
           onToggle={(value) => toggleList("styles", value)}
         />
         <CheckboxList
-          title="Sub-category"
+          title={f.subCategory}
           values={facets.sub_categories}
           selected={filters.subCategories}
           onToggle={(value) => toggleList("subCategories", value)}
         />
         <CheckboxList
-          title="AMC"
+          title={f.amc}
           values={facets.amcs}
           selected={filters.amcs}
           onToggle={(value) => toggleList("amcs", value)}
@@ -255,7 +252,7 @@ export function FilterDrawer({
         {FILTERABLE_GROUPS.map((group) => (
           <section key={group.title} className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-500">
-              {group.title}
+              {f.groups[group.title]}
             </h3>
             {group.metrics.map((name) => {
               const spec = metrics[name];
@@ -265,11 +262,11 @@ export function FilterDrawer({
               const hint = isPercent
                 ? ""
                 : spec.unit === "inr_crore"
-                  ? "in crore"
+                  ? f.inCrore
                   : spec.unit === "ratio"
-                    ? "a plain number"
+                    ? f.plainNumber
                     : "";
-              const fieldLabel = spec.plain_label || spec.label;
+              const fieldLabel = td(spec.plain_label || spec.label);
               return (
                 <div key={name} className="grid grid-cols-[1fr_auto_auto] items-end gap-2">
                   <Field label={fieldLabel}>
@@ -278,8 +275,8 @@ export function FilterDrawer({
                   {isPercent ? (
                     <PercentInput
                       className="w-24"
-                      placeholder="min"
-                      ariaLabel={`${fieldLabel} minimum, in percent`}
+                      placeholder={f.min}
+                      ariaLabel={f.minPercent(fieldLabel)}
                       value={filters.ranges[`${name}_min`]}
                       onChange={(decimal) => setRange(`${name}_min`, decimal)}
                     />
@@ -288,8 +285,8 @@ export function FilterDrawer({
                       className={`${inputClass} w-24`}
                       type="number"
                       step="any"
-                      placeholder="min"
-                      aria-label={`${fieldLabel} minimum`}
+                      placeholder={f.min}
+                      aria-label={f.minOf(fieldLabel)}
                       value={filters.ranges[`${name}_min`] ?? ""}
                       onChange={(e) => setRange(`${name}_min`, e.target.value)}
                     />
@@ -297,8 +294,8 @@ export function FilterDrawer({
                   {isPercent ? (
                     <PercentInput
                       className="w-24"
-                      placeholder="max"
-                      ariaLabel={`${fieldLabel} maximum, in percent`}
+                      placeholder={f.max}
+                      ariaLabel={f.maxPercent(fieldLabel)}
                       value={filters.ranges[`${name}_max`]}
                       onChange={(decimal) => setRange(`${name}_max`, decimal)}
                     />
@@ -307,8 +304,8 @@ export function FilterDrawer({
                       className={`${inputClass} w-24`}
                       type="number"
                       step="any"
-                      placeholder="max"
-                      aria-label={`${fieldLabel} maximum`}
+                      placeholder={f.max}
+                      aria-label={f.maxOf(fieldLabel)}
                       value={filters.ranges[`${name}_max`] ?? ""}
                       onChange={(e) => setRange(`${name}_max`, e.target.value)}
                     />
@@ -316,9 +313,9 @@ export function FilterDrawer({
                 </div>
               );
             })}
-            {group.title === "Versus benchmark" && alphaFilterActive ? (
+            {group.title === "benchmark" && alphaFilterActive ? (
               <p className="rounded bg-warn-50 p-2 text-xs text-warn-900">
-                {metrics.alpha_pvalue_5y?.caveat ?? metrics.alpha_tstat_5y?.caveat}
+                {td(metrics.alpha_pvalue_5y?.caveat ?? metrics.alpha_tstat_5y?.caveat ?? "")}
               </p>
             ) : null}
           </section>
@@ -328,25 +325,33 @@ export function FilterDrawer({
   );
 }
 
+/** `label` shows a value; the filter itself always carries the value as published. */
 function CheckboxList({
   title,
   values,
   selected,
   onToggle,
+  label = (value) => value,
 }: {
   title: string;
   values: string[];
   selected: string[];
   onToggle: (value: string) => void;
+  label?: (value: string) => string;
 }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
-  const filtered = values.filter((v) => v.toLowerCase().includes(query.toLowerCase()));
+  const q = query.toLowerCase();
+  const filtered = values.filter(
+    (v) => v.toLowerCase().includes(q) || label(v).toLowerCase().includes(q),
+  );
   return (
     <section className="space-y-2">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-500">{title}</h3>
       <input
         className={`${inputClass} w-full`}
-        placeholder={`Search ${title.toLowerCase()}`}
+        placeholder={t.filters.searchIn(title)}
+        aria-label={t.filters.searchIn(title)}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
@@ -358,10 +363,12 @@ function CheckboxList({
               checked={selected.includes(value)}
               onChange={() => onToggle(value)}
             />
-            {value}
+            {label(value)}
           </label>
         ))}
-        {filtered.length === 0 ? <p className="text-xs text-ink-500">No matches.</p> : null}
+        {filtered.length === 0 ? (
+          <p className="text-xs text-ink-500">{t.filters.noMatches}</p>
+        ) : null}
       </div>
     </section>
   );

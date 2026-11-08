@@ -1,4 +1,7 @@
-import Link from "next/link";
+"use client";
+
+import Link from "@/components/link";
+import { useI18n } from "@/lib/i18n/client";
 import { SITE_URL } from "@/lib/site";
 
 /** `<` is escaped so a scheme name can never close the script element early. */
@@ -16,10 +19,15 @@ export function JsonLd({ data }: { data: Record<string, unknown> }) {
   );
 }
 
-/** The visible trail and its BreadcrumbList; the last entry is the current page. */
-export function Breadcrumbs({ trail }: { trail: [name: string, path: string][] }) {
+/**
+ * The visible trail and its BreadcrumbList, after the home page; the last entry is the
+ * current page. Paths are English: each is served in the page's language.
+ */
+export function Breadcrumbs({ trail: rest }: { trail: [name: string, path: string][] }) {
+  const { t, href } = useI18n();
+  const trail: [string, string][] = [[t.common.home, "/"], ...rest];
   return (
-    <nav aria-label="Breadcrumb" className="text-sm text-ink-500">
+    <nav aria-label={t.common.breadcrumb} className="text-sm text-ink-500">
       <JsonLd
         data={{
           "@type": "BreadcrumbList",
@@ -27,7 +35,7 @@ export function Breadcrumbs({ trail }: { trail: [name: string, path: string][] }
             "@type": "ListItem",
             position: index + 1,
             name,
-            item: `${SITE_URL}${path}`,
+            item: `${SITE_URL}${href(path)}`,
           })),
         }}
       />

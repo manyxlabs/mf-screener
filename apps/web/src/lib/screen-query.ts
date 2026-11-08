@@ -127,9 +127,16 @@ export function sortDirection(sort: string, column: string): "asc" | "desc" | nu
  * results. Falls back to the raw token for a column the metric catalogue does not
  * carry, so an unknown sort degrades to today's output rather than to nothing.
  */
+export const SORT_WORDS = {
+  lowestFirst: "lowest first",
+  highestFirst: "highest first",
+  then: "then",
+};
+
 export function describeSort(
   sort: string,
   labelOf: (column: string) => string | undefined,
+  words = SORT_WORDS,
 ): string {
   const parts = sort
     .split(",")
@@ -138,7 +145,7 @@ export function describeSort(
       const [column = "", direction] = token.split(":");
       const label = labelOf(column);
       if (!label) return token;
-      return `${label}, ${direction === "asc" ? "lowest first" : "highest first"}`;
+      return `${label}, ${direction === "asc" ? words.lowestFirst : words.highestFirst}`;
     });
-  return parts.join(", then ");
+  return parts.join(`, ${words.then} `);
 }
