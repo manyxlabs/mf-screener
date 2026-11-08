@@ -409,7 +409,9 @@ export function FundView({ detail, rolling }: { detail: SchemeDetail; rolling: R
 
         <nav
           aria-label={t.fund.onThisPage}
-          className="glass flex gap-1 overflow-x-auto rounded-full p-1 text-sm lg:sticky lg:top-24 lg:z-30"
+          // As wide as its links and never wider than the navbar pill, centred under it, so the two
+          // read as one system rather than a second, wider header.
+          className="glass mx-auto flex w-fit max-w-full gap-1 overflow-x-auto rounded-full p-1 text-sm lg:sticky lg:top-24 lg:z-30 lg:max-w-5xl"
         >
           {SECTIONS.filter((id) => id !== "missing" || missingByReason.size).map((id) => (
             <a
