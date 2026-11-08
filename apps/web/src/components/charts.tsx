@@ -36,8 +36,12 @@ const AXIS = { stroke: "var(--color-ink-500)", fontSize: 11 };
 
 // Recharts hardcodes a white tooltip panel, which in dark mode leaves light text on
 // light. Both charts take their surface and text from the same tokens as everything else.
+// It also never wraps the panel, so a long translated label ran wider than a phone's chart:
+// the panel is capped at the chart's width and wraps instead.
 const TOOLTIP = {
+  wrapperStyle: { maxWidth: "100%" },
   contentStyle: {
+    whiteSpace: "normal",
     background: "var(--color-surface)",
     border: "1px solid var(--color-ink-200)",
     borderRadius: 6,
@@ -92,7 +96,7 @@ export function RollingReturnChart({
           formatter={(value: number, name: string) => [formatPercent(value), name]}
           labelFormatter={(label: string) => t.charts.windowEnding(label)}
         />
-        <Legend verticalAlign="top" height={28} />
+        <Legend verticalAlign="top" />
         <Line
           type="monotone"
           dataKey="fund"
@@ -192,7 +196,7 @@ export function StyleDriftChart({
           formatter={(value: number, name: string) => [formatPercent(value), name]}
           labelFormatter={(label: string) => t.charts.windowEnding(label)}
         />
-        <Legend verticalAlign="top" height={28} />
+        <Legend verticalAlign="top" />
         {names.map((name, i) => (
           <Area
             key={name}
