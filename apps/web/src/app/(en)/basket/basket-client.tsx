@@ -76,7 +76,7 @@ export function BasketClient() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{b.title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{b.title}</h1>
         <p className="max-w-3xl text-sm text-ink-500">{b.intro(number(MAX_FUNDS))}</p>
       </header>
 
@@ -146,13 +146,13 @@ export function BasketClient() {
           </button>
         </Card>
       ) : (
-        <div className="rounded-2xl border border-dashed border-ink-300 px-6 py-14 text-center">
+        <div className="rounded-3xl border border-dashed border-ink-300 px-6 py-14 text-center">
           <p className="text-base font-semibold text-ink-900">{b.emptyTitle}</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-ink-500">{b.emptyBody}</p>
         </div>
       )}
 
-      <p className="rounded-xl border-l-2 border-warn-300 bg-warn-50 p-4 text-sm text-warn-900">
+      <p className="rounded-2xl border-l-2 border-warn-300 bg-warn-50 p-4 text-sm text-warn-900">
         <strong>{b.notOverlap}</strong> {b.notOverlapBody}
       </p>
 
@@ -333,7 +333,7 @@ function BasketResults({ result, picked }: { result: BasketResponse; picked: Pic
               </tr>
             </thead>
             <tbody className="[&_td]:px-3 [&_td]:py-2.5">
-              <tr className="border-t border-ink-200 bg-accent-50 font-semibold">
+              <tr className="border-t border-ink-200 bg-ink-100 font-semibold">
                 <td>{b.blendRow}</td>
                 <td className="numeric">{formatPercent(1)}</td>
                 <td>

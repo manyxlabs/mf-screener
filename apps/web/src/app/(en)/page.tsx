@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import Link from "@/components/link";
 import { JsonLd } from "@/components/json-ld";
 import { SchemeSearch } from "@/components/scheme-search";
@@ -32,13 +33,6 @@ const PRESET_ICONS: Record<string, string> = {
     "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18",
 };
 const SEARCH_ICON = "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-3.5-3.5";
-const TINTS = [
-  "bg-gradient-to-br from-sky-500 to-blue-600",
-  "bg-gradient-to-br from-amber-400 to-orange-600",
-  "bg-gradient-to-br from-emerald-400 to-teal-600",
-  "bg-gradient-to-br from-rose-400 to-pink-600",
-  "bg-gradient-to-br from-violet-400 to-indigo-600",
-];
 
 /**
  * The three things that most change how a beginner reads every other page, each one
@@ -50,11 +44,13 @@ const READ_FIRST = [
   { id: "blankValues", href: "/glossary#blank-values" },
 ] as const;
 
-const chip =
-  "rounded-full border border-ink-200 bg-surface/70 px-3 py-1 text-sm text-ink-700 shadow-sm transition-colors hover:border-accent-500 hover:text-accent-600";
-const tile =
-  "group flex h-full flex-col rounded-xl border border-ink-200 bg-surface p-5 shadow-card transition-[border-color,translate] hover:-translate-y-0.5 hover:border-accent-500";
-const heading = "text-xl font-semibold tracking-tight text-ink-900";
+const chip = "btn-glass";
+// Reveal and the spotlight go on the glass itself: an ancestor fading in would flatten its blur.
+const tile = "glass spotlight group flex h-full flex-col rounded-3xl p-6 sm:p-8";
+const iconTile =
+  "grid size-10 shrink-0 place-items-center rounded-2xl border border-ink-900/10 bg-ink-900/5 text-ink-900";
+const eyebrow = "font-mono text-sm text-accent-600";
+const heading = "mt-3 text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl";
 
 function Icon({ d }: { d: string }) {
   return (
@@ -101,7 +97,7 @@ export default async function StartPage({ params }: LocaleParams) {
   const { coverage } = metadata;
 
   return (
-    <div className="space-y-16">
+    <div className="mx-auto max-w-6xl space-y-24 sm:space-y-32">
       <JsonLd
         data={{
           "@graph": [
@@ -140,20 +136,24 @@ export default async function StartPage({ params }: LocaleParams) {
           ],
         }}
       />
-      <section className="mx-auto max-w-3xl space-y-6 pt-4 text-center sm:pt-10">
-        <p className="inline-flex flex-wrap justify-center gap-x-2 rounded-full border border-ink-200 bg-surface/70 px-3 py-1 text-xs text-ink-500 shadow-sm">
-          <span className="font-medium text-ink-700">
+      <section className="mx-auto max-w-3xl space-y-8 pt-8 text-center sm:pt-16">
+        <p className="glass inline-flex flex-wrap items-center justify-center gap-x-2 rounded-full px-4 py-1.5 text-sm text-ink-500">
+          <span aria-hidden="true" className="size-2 rounded-full bg-accent-500" />
+          <span className="font-medium text-ink-900">
             {t.home.activeFunds(number(screen.count))}
           </span>
           <span aria-hidden="true">·</span>
           <span>{t.home.navTo(coverage.latest_nav_date ?? "-")}</span>
-          <span aria-hidden="true">·</span>
-          <span>{t.home.rebuiltDaily}</span>
+          {/* Two of the three fit one line on a phone; a wrapped pill reads as a blob. */}
+          <span aria-hidden="true" className="max-sm:hidden">
+            ·
+          </span>
+          <span className="max-sm:hidden">{t.home.rebuiltDaily}</span>
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-balance text-ink-900 sm:text-5xl">
+        <h1 className="text-sheen text-4xl font-semibold tracking-tight text-balance sm:text-6xl sm:leading-tight">
           {t.home.title}
         </h1>
-        <p className="mx-auto max-w-2xl text-base text-pretty text-ink-500 sm:text-lg">
+        <p className="mx-auto max-w-2xl text-lg leading-relaxed text-pretty text-ink-500">
           {t.home.lede}
         </p>
         <div className="mx-auto max-w-xl">
@@ -185,18 +185,23 @@ export default async function StartPage({ params }: LocaleParams) {
         </div>
       </section>
 
-      <section className="space-y-5">
+      <section className="space-y-8">
         <div>
+          <p className={eyebrow}>01 / {t.nav.screener}</p>
           <h2 className={heading}>{t.home.presetsHeading}</h2>
-          <p className="mt-1 text-sm text-ink-500">{t.home.presetsLede}</p>
+          <p className="mt-2 leading-relaxed text-ink-500">{t.home.presetsLede}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {presets.map((preset, index) => (
-            <Link key={preset.id} href={`/screener?preset=${preset.id}`} className={tile}>
+            <Link
+              key={preset.id}
+              href={`/screener?preset=${preset.id}`}
+              className={tile}
+              data-reveal
+              style={{ "--i": index % 3 } as CSSProperties}
+            >
               <span className="flex items-center gap-3">
-                <span
-                  className={`grid size-10 shrink-0 place-items-center rounded-xl text-white shadow-sm ${TINTS[index % TINTS.length]}`}
-                >
+                <span className={iconTile}>
                   <Icon d={PRESET_ICONS[preset.id] ?? SEARCH_ICON} />
                 </span>
                 <span className="text-xs leading-snug text-ink-500">{td(preset.subtitle)}</span>
@@ -204,7 +209,7 @@ export default async function StartPage({ params }: LocaleParams) {
               <span className="mt-4 text-base font-semibold tracking-tight text-ink-900">
                 {td(preset.question)}
               </span>
-              <span className="mt-2 line-clamp-3 text-sm leading-relaxed text-ink-700">
+              <span className="mt-2 line-clamp-3 text-sm leading-relaxed text-ink-500">
                 {td(preset.plain_description)}
               </span>
               {/* The screener shows the caution in full above the results; here it only has to be noticed. */}
@@ -218,34 +223,49 @@ export default async function StartPage({ params }: LocaleParams) {
           ))}
           <Link
             href="/screener"
-            className="group flex h-full flex-col rounded-xl bg-gradient-to-br from-accent-500 to-accent-600 p-5 text-on-accent shadow-card transition-[translate] hover:-translate-y-0.5"
+            className={tile}
+            data-reveal
+            style={{ "--i": presets.length % 3 } as CSSProperties}
           >
-            <span className="grid size-10 place-items-center rounded-xl bg-white/20">
+            <span className={iconTile}>
               <Icon d="M3 5h18l-7 8v6l-4 2v-8z" />
             </span>
-            <span className="mt-4 text-base font-semibold tracking-tight">
+            <span className="mt-4 text-base font-semibold tracking-tight text-ink-900">
               {t.home.ownScreen.title}
             </span>
-            <span className="mt-2 text-sm leading-relaxed opacity-90">{t.home.ownScreen.body}</span>
-            <span className="mt-auto pt-5 text-sm font-semibold">
-              {t.home.ownScreen.cta} <Arrow />
+            <span className="mt-2 text-sm leading-relaxed text-ink-500">
+              {t.home.ownScreen.body}
+            </span>
+            <span className="mt-auto pt-6">
+              <span className="btn-primary">
+                {t.home.ownScreen.cta} <Arrow />
+              </span>
             </span>
           </Link>
         </div>
       </section>
 
-      <section className="space-y-5">
-        <h2 className={heading}>{t.home.toolsHeading}</h2>
+      <section className="space-y-8">
+        <div>
+          <p className={eyebrow}>02 / {t.footer.tools}</p>
+          <h2 className={heading}>{t.home.toolsHeading}</h2>
+        </div>
         <div className="grid gap-4 md:grid-cols-3">
-          {TOOLS.map((tool) => (
-            <Link key={tool.href} href={tool.href} className={tile}>
-              <span className="grid size-10 place-items-center rounded-xl bg-accent-500/10 text-accent-600">
+          {TOOLS.map((tool, index) => (
+            <Link
+              key={tool.href}
+              href={tool.href}
+              className={tile}
+              data-reveal
+              style={{ "--i": index } as CSSProperties}
+            >
+              <span className={iconTile}>
                 <Icon d={tool.icon} />
               </span>
               <span className="mt-4 text-base font-semibold tracking-tight text-ink-900">
                 {t.home.tools[tool.id].title}
               </span>
-              <span className="mt-2 text-sm leading-relaxed text-ink-700">
+              <span className="mt-2 text-sm leading-relaxed text-ink-500">
                 {t.home.tools[tool.id].body}
               </span>
               <span className="mt-auto pt-5 text-sm font-medium text-accent-600">
@@ -256,23 +276,28 @@ export default async function StartPage({ params }: LocaleParams) {
         </div>
       </section>
 
-      <section className="space-y-5">
-        <h2 className={heading}>{t.home.readFirstHeading}</h2>
-        <ol className="grid overflow-hidden rounded-2xl border border-ink-200 bg-surface shadow-card md:grid-cols-3">
+      <section className="space-y-8">
+        <div>
+          <p className={eyebrow}>03 / {t.footer.learn}</p>
+          <h2 className={heading}>{t.home.readFirstHeading}</h2>
+        </div>
+        <ol className="grid gap-4 md:grid-cols-3">
           {READ_FIRST.map((item, index) => (
-            <li
-              key={item.href}
-              className="border-ink-200 not-first:border-t md:not-first:border-t-0 md:not-first:border-l"
-            >
-              <Link href={item.href} className="group block h-full p-6 hover:bg-ink-900/[0.03]">
-                <span className="text-sm font-semibold text-accent-600 numeric">0{index + 1}</span>
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className={tile}
+                data-reveal
+                style={{ "--i": index } as CSSProperties}
+              >
+                <span className="font-mono text-sm text-ink-500 numeric">0{index + 1}</span>
                 <span className="mt-2 block text-base font-semibold tracking-tight text-ink-900">
                   {t.home.readFirst[item.id].heading}
                 </span>
-                <span className="mt-2 block text-sm leading-relaxed text-ink-700">
+                <span className="mt-2 block text-sm leading-relaxed text-ink-500">
                   {t.home.readFirst[item.id].body}
                 </span>
-                <span className="mt-4 block text-sm font-medium text-accent-600">
+                <span className="mt-auto block pt-5 text-sm font-medium text-accent-600">
                   {t.home.readMore} <Arrow />
                 </span>
               </Link>

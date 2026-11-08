@@ -289,7 +289,7 @@ export function FundView({ detail, rolling }: { detail: SchemeDetail; rolling: R
 
   const header = (
     <>
-      <header className="grid gap-6 rounded-2xl border border-ink-200 bg-surface p-5 shadow-card sm:p-6 lg:grid-cols-[1fr_auto]">
+      <header className="panel grid gap-6 rounded-3xl p-6 sm:p-8 lg:grid-cols-[1fr_auto]">
         <div className="min-w-0 space-y-3">
           <p className="text-sm text-ink-500">{scheme.amc}</p>
           <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
@@ -320,10 +320,7 @@ export function FundView({ detail, rolling }: { detail: SchemeDetail; rolling: R
             </p>
           ) : null}
           <div className="flex flex-wrap gap-2 pt-1 print:hidden">
-            <Link
-              href={`/compare?codes=${code}`}
-              className="rounded-lg bg-accent-500 px-3.5 py-2 text-sm font-medium text-on-accent shadow-sm hover:bg-accent-600"
-            >
+            <Link href={`/compare?codes=${code}`} className="btn-primary">
               {t.fund.header.compare}
             </Link>
             <Button disabled={!data} onClick={() => window.print()}>
@@ -378,7 +375,7 @@ export function FundView({ detail, rolling }: { detail: SchemeDetail; rolling: R
 
         <section aria-label={t.fund.glance.label} className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[1, 3, 5, 10].map((h) => (
-            <div key={h} className="rounded-xl border border-ink-200 bg-surface p-4 shadow-card">
+            <div key={h} className="panel rounded-2xl p-4">
               <p className="text-xs text-ink-500">
                 {h === 1 ? t.fund.glance.oneYear : t.fund.glance.perYear(h)}
               </p>
@@ -412,7 +409,7 @@ export function FundView({ detail, rolling }: { detail: SchemeDetail; rolling: R
 
         <nav
           aria-label={t.fund.onThisPage}
-          className="glass -mx-1 flex gap-1 overflow-x-auto rounded-full p-1 text-sm lg:sticky lg:top-24 lg:z-30"
+          className="glass flex gap-1 overflow-x-auto rounded-full p-1 text-sm lg:sticky lg:top-24 lg:z-30"
         >
           {SECTIONS.filter((id) => id !== "missing" || missingByReason.size).map((id) => (
             <a

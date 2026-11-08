@@ -214,14 +214,14 @@ export function ScreenerClient({
 
       <div className="flex flex-wrap items-center gap-2">
         <input
-          className={`${inputClass} w-full sm:w-72`}
+          className={`${inputClass} w-full sm:w-64`}
           placeholder={s.search}
           value={searchDraft}
           onChange={(e) => setSearchDraft(e.target.value)}
           aria-label={s.search}
         />
         <select
-          className={`${inputClass} w-full sm:w-auto sm:max-w-sm`}
+          className={`${inputClass} w-full sm:w-60`}
           aria-label={s.preset}
           value={appliedPreset?.id ?? ""}
           onChange={(e) => {
@@ -265,7 +265,7 @@ export function ScreenerClient({
       <div className="flex flex-wrap items-center gap-2 text-xs text-ink-500">
         {selected.size ? (
           <Link
-            className="rounded-full bg-accent-500 px-3 py-1 font-medium text-on-accent"
+            className="rounded-full bg-ink-900 px-3 py-1 font-medium text-ink-50"
             href={`/compare?codes=${[...selected].join(",")}`}
           >
             {s.compareSelected(selected.size)}
@@ -274,7 +274,7 @@ export function ScreenerClient({
           <span>{s.selectToCompare}</span>
         )}
         <button
-          className="rounded-full border border-ink-200 bg-surface px-3 py-1 text-ink-700 hover:border-ink-300"
+          className="rounded-full border border-ink-900/10 bg-ink-900/5 px-3 py-1 text-ink-900 transition-colors hover:bg-ink-900/10"
           onClick={() => {
             const name = window.prompt(s.nameScreen);
             if (name) setSaved(saveScreen(name, filters));
@@ -300,7 +300,7 @@ export function ScreenerClient({
       </div>
 
       {appliedPreset ? (
-        <section className="rounded-xl border border-accent-500/25 bg-accent-50 p-4">
+        <section className="panel rounded-3xl p-6">
           <h2 className="text-sm font-semibold">{td(appliedPreset.name)}</h2>
           <p className="mt-1 text-sm text-ink-700">{td(appliedPreset.plain_description)}</p>
           <p className="mt-2 text-xs text-ink-500">{td(appliedPreset.caution)}</p>

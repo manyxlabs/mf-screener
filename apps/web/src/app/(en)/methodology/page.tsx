@@ -113,7 +113,7 @@ export default async function MethodologyPage({ params }: LocaleParams) {
   return (
     <div className="space-y-8">
       <header className="max-w-3xl space-y-3">
-        <h1 className="text-3xl font-semibold tracking-tight">{m.title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{m.title}</h1>
         <p className="text-base text-ink-500">
           {m.introBefore}
           <Link className="text-accent-600 hover:underline" href="/glossary">
@@ -150,7 +150,7 @@ export default async function MethodologyPage({ params }: LocaleParams) {
             <a
               key={id}
               href={`#${id}`}
-              className="block rounded-lg px-3 py-1.5 text-ink-700 hover:bg-ink-900/5 hover:text-ink-900"
+              className="block rounded-full px-3 py-1.5 text-ink-700 hover:bg-ink-900/5 hover:text-ink-900"
             >
               {m.sections[id]}
             </a>
@@ -160,7 +160,7 @@ export default async function MethodologyPage({ params }: LocaleParams) {
         <div className="min-w-0 space-y-5">
           <Card id="frequency" title={m.cards.frequency}>
             <KeyValues entries={methodology.frequency} i18n={i18n} />
-            <p className="mt-4 rounded-lg bg-ink-100 p-3 text-sm text-ink-700">
+            <p className="mt-4 rounded-2xl bg-ink-100 p-4 text-sm text-ink-700">
               {td(methodology.month_end_rule)}
             </p>
           </Card>
@@ -186,7 +186,7 @@ export default async function MethodologyPage({ params }: LocaleParams) {
                 <div
                   key={key}
                   id={FORMULA_ANCHORS[key]}
-                  className="min-w-0 rounded-xl border border-ink-200 p-4 target:border-accent-500 target:ring-3 target:ring-accent-500/15"
+                  className="min-w-0 rounded-2xl border border-ink-200 p-4 target:outline-2 target:outline-accent-500/70"
                 >
                   <h3 className="text-sm font-semibold text-ink-900">
                     {formulaLabels[key] ?? td(humanise(key))}
@@ -234,14 +234,14 @@ export default async function MethodologyPage({ params }: LocaleParams) {
 
           <Card id="minimums" title={m.cards.minimums}>
             <KeyValues entries={methodology.minimum_observations} i18n={i18n} />
-            <p className="mt-4 rounded-lg bg-ink-100 p-3 text-sm text-ink-700">{m.minimumsNote}</p>
+            <p className="mt-4 rounded-2xl bg-ink-100 p-4 text-sm text-ink-700">{m.minimumsNote}</p>
           </Card>
 
           <Card id="alpha-significance" title={m.cards["alpha-significance"]}>
             <div className="space-y-3 text-sm leading-relaxed text-ink-700">
               <p>{td(alphaSignificance.problem)}</p>
               <p>{td(alphaSignificance.no_correction_applied)}</p>
-              <p className="rounded-lg border-l-2 border-warn-300 bg-warn-50 p-3 font-medium text-warn-900">
+              <p className="rounded-2xl border-l-2 border-warn-300 bg-warn-50 p-4 font-medium text-warn-900">
                 {td(alphaSignificance.expected_false_positives_at_p05)}
               </p>
               <p>{td(alphaSignificance.how_to_read_it)}</p>
@@ -275,7 +275,7 @@ export default async function MethodologyPage({ params }: LocaleParams) {
             <p className="mb-4 text-sm text-ink-500">{m.reasonsIntro}</p>
             <dl className="grid gap-3 xl:grid-cols-2">
               {Object.entries(methodology.data_quality_reasons).map(([reason, description]) => (
-                <div key={reason} className="rounded-xl border border-ink-200 p-4">
+                <div key={reason} className="rounded-2xl border border-ink-200 p-4">
                   <dt>
                     <code className={`${code} text-ink-700`}>{reason}</code>
                   </dt>

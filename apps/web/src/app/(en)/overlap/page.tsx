@@ -19,7 +19,7 @@ export default async function OverlapPage({ params }: LocaleParams) {
   return (
     <div className="space-y-4">
       <header className="max-w-3xl space-y-2">
-        <h1 className="text-xl font-semibold text-ink-900">{o.title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{o.title}</h1>
         <p className="text-sm text-ink-700">{o.intro}</p>
         <p className="text-xs text-ink-500">
           {o.measure}

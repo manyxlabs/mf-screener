@@ -14,7 +14,9 @@ export default async function CapitalGainsPage({ params }: LocaleParams) {
   return (
     <div className="space-y-6">
       <header className="max-w-3xl space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.capitalGains.title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          {t.capitalGains.title}
+        </h1>
         <p className="text-sm text-ink-700">{t.capitalGains.intro}</p>
         <p className="text-xs text-ink-500">{t.capitalGains.privacy}</p>
       </header>
