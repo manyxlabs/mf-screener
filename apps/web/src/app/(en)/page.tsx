@@ -137,14 +137,17 @@ export default async function StartPage({ params }: LocaleParams) {
         }}
       />
       <section className="mx-auto max-w-3xl space-y-8 pt-8 text-center sm:pt-16">
-        <p className="glass inline-flex flex-wrap items-center justify-center gap-x-2 rounded-full px-4 py-1.5 text-sm text-ink-500">
-          <span aria-hidden="true" className="size-2 rounded-full bg-accent-500" />
-          <span className="font-medium text-ink-900">
+        {/* On a phone the facts stack: wrapped, a row would leave a separator dangling at a
+            line end in the longer scripts. */}
+        <p className="glass inline-flex flex-wrap items-center justify-center gap-x-2 rounded-full px-4 py-1.5 text-sm text-ink-500 max-sm:flex-col max-sm:rounded-2xl max-sm:py-2">
+          <span className="inline-flex items-center gap-2 font-medium text-ink-900">
+            <span aria-hidden="true" className="size-2 rounded-full bg-accent-500" />
             {t.home.activeFunds(number(screen.count))}
           </span>
-          <span aria-hidden="true">·</span>
+          <span aria-hidden="true" className="max-sm:hidden">
+            ·
+          </span>
           <span>{t.home.navTo(coverage.latest_nav_date ?? "-")}</span>
-          {/* Two of the three fit one line on a phone; a wrapped pill reads as a blob. */}
           <span aria-hidden="true" className="max-sm:hidden">
             ·
           </span>
