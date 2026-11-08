@@ -22,7 +22,7 @@ export default async function CategoriesPage({ params }: LocaleParams) {
     <div className="space-y-6">
       <Breadcrumbs trail={[[t.footer.categories, "/category/"]]} />
       <header className="max-w-3xl space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.footer.categories}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t.footer.categories}</h1>
         <p className="text-sm text-ink-700">{t.categories.lede}</p>
       </header>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

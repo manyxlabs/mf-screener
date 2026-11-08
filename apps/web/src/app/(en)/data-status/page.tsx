@@ -34,7 +34,7 @@ export default async function DataStatusPage({ params }: LocaleParams) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">{t.footer.dataStatus}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t.footer.dataStatus}</h1>
         <p className="mt-1 max-w-3xl text-sm text-ink-500">{copy.lede}</p>
       </div>
 

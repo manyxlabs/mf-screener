@@ -79,7 +79,7 @@ export function PortfolioClient() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{p.title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{p.title}</h1>
         <p className="max-w-3xl text-sm text-ink-500">{p.intro}</p>
       </header>
 
@@ -87,7 +87,7 @@ export function PortfolioClient() {
         <Card title={p.yourStatement}>
           <form className="space-y-4" onSubmit={read}>
             <label
-              className="flex cursor-pointer flex-col items-center gap-1 rounded-xl border border-dashed border-ink-300 px-4 py-8 text-center hover:border-accent-500 hover:bg-accent-50 focus-within:border-accent-500"
+              className="flex cursor-pointer flex-col items-center gap-1 rounded-3xl border border-dashed border-ink-300 px-4 py-8 text-center hover:border-ink-500 hover:bg-ink-100 focus-within:border-accent-500"
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
@@ -132,13 +132,13 @@ export function PortfolioClient() {
             {state.status === "error" ? (
               <p
                 role="alert"
-                className="rounded-lg border border-bad-300 bg-bad-50 p-3 text-sm text-bad-900"
+                className="rounded-2xl border border-bad-300 bg-bad-50 p-3 text-sm text-bad-900"
               >
                 {state.message}
               </p>
             ) : null}
           </form>
-          <p className="mt-4 rounded-xl border-l-2 border-accent-500 bg-accent-50 p-3 text-xs leading-relaxed text-ink-700">
+          <p className="mt-4 rounded-2xl border-l-2 border-accent-500 bg-ink-100 p-3 text-xs leading-relaxed text-ink-700">
             <strong className="text-ink-900">{p.private}</strong> {p.privateBody}
           </p>
         </Card>
@@ -300,7 +300,7 @@ function Results({ statement, result }: { statement: CasStatement; result: Check
 
       <StyleOverlap holdings={result.holdings} />
 
-      <p className="rounded-xl border-l-2 border-warn-300 bg-warn-50 p-4 text-sm text-warn-900">
+      <p className="rounded-2xl border-l-2 border-warn-300 bg-warn-50 p-4 text-sm text-warn-900">
         {p.notAdvice}
       </p>
     </div>

@@ -126,7 +126,7 @@ export function CompareClient({ columnsMeta }: { columnsMeta: ColumnsResponse })
       {error ? <p className="text-sm text-bad-700">{error}</p> : null}
 
       {entries.length > 1 && (subCategories.size > 1 || plans.size > 1 || options.size > 1) ? (
-        <div className="rounded-xl border border-warn-300 bg-warn-50 p-4 text-sm text-warn-900">
+        <div className="rounded-2xl border border-warn-300 bg-warn-50 p-4 text-sm text-warn-900">
           <strong>{c.notComparable}</strong>{" "}
           {[
             subCategories.size > 1 &&
@@ -140,13 +140,10 @@ export function CompareClient({ columnsMeta }: { columnsMeta: ColumnsResponse })
       ) : null}
 
       {entries.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-ink-300 px-6 py-14 text-center">
+        <div className="rounded-3xl border border-dashed border-ink-300 px-6 py-14 text-center">
           <p className="text-base font-semibold text-ink-900">{c.emptyTitle}</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-ink-500">{c.emptyBody}</p>
-          <Link
-            href="/screener"
-            className="mt-5 inline-block rounded-lg bg-accent-500 px-4 py-2 text-sm font-medium text-on-accent shadow-sm hover:bg-accent-600"
-          >
+          <Link href="/screener" className="btn-primary mt-5">
             {c.emptyCta}
           </Link>
         </div>
@@ -154,7 +151,7 @@ export function CompareClient({ columnsMeta }: { columnsMeta: ColumnsResponse })
         <div
           // `relative` makes this the containing block for the sticky cells; without it their
           // layout overflow escapes onto the root document and the whole page scrolls sideways.
-          className="scroll-x relative overflow-x-auto rounded-xl border border-ink-200 bg-surface shadow-card"
+          className="scroll-x relative overflow-x-auto rounded-3xl border border-ink-900/10 bg-surface shadow-card"
         >
           <table className="min-w-full text-sm">
             <thead>
@@ -214,10 +211,7 @@ export function CompareClient({ columnsMeta }: { columnsMeta: ColumnsResponse })
                     const plain = specs[key]?.plain_label && td(specs[key].plain_label);
                     const label = specs[key] ? td(specs[key].label) : key;
                     return (
-                      <tr
-                        key={key}
-                        className="border-t border-ink-100 bg-surface hover:bg-accent-50"
-                      >
+                      <tr key={key} className="border-t border-ink-100 bg-surface hover:bg-ink-100">
                         <th
                           scope="row"
                           className="sticky left-0 z-10 bg-inherit px-4 py-2.5 text-left font-normal"

@@ -50,7 +50,7 @@ export function FundCharts({
         <div
           role="group"
           aria-label={words.windowLength}
-          className="mb-4 inline-flex rounded-lg bg-ink-100 p-1"
+          className="mb-4 inline-flex rounded-full bg-ink-100 p-1"
         >
           {ROLLING_HORIZONS.map((h) => (
             <button
@@ -58,7 +58,7 @@ export function FundCharts({
               type="button"
               aria-pressed={h === horizon}
               onClick={() => setHorizon(h)}
-              className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+              className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
                 h === horizon
                   ? "bg-surface text-ink-900 shadow-sm"
                   : "text-ink-500 hover:text-ink-900"
@@ -74,7 +74,7 @@ export function FundCharts({
             <RollingReturnChart fund={rolling.points} category={rolling.category_points} />
             <dl className="mt-3 grid grid-cols-3 gap-2 text-xs sm:grid-cols-6">
               {STATS.map((stat) => (
-                <div key={stat} className="rounded-lg bg-ink-100 px-2.5 py-2">
+                <div key={stat} className="rounded-xl bg-ink-100 px-2.5 py-2">
                   <dt className="text-ink-500">{words.stats[stat]}</dt>
                   <dd className="mt-0.5 text-sm font-medium numeric">
                     {formatPercent(rolling.summary[stat])}
