@@ -17,13 +17,10 @@ export function Card({
   return (
     // min-w-0: as a grid or flex item a card would otherwise grow to fit a wide table
     // or formula and push the page sideways on a phone.
-    <section
-      id={id}
-      className={`min-w-0 rounded-xl border border-ink-200 bg-surface p-5 shadow-card ${className}`}
-    >
+    <section id={id} className={`panel min-w-0 rounded-3xl p-6 ${className}`}>
       {title ? (
         <header className="mb-4">
-          <h2 className="text-[15px] font-semibold tracking-tight text-ink-900">{title}</h2>
+          <h2 className="text-base font-semibold tracking-tight text-ink-900">{title}</h2>
           {subtitle ? <p className="mt-0.5 text-xs text-ink-500">{subtitle}</p> : null}
         </header>
       ) : null}
@@ -49,7 +46,7 @@ export function Stat({
   // would sit lower than one without.
   const labelClass = "flex min-h-[2.4em] items-start text-xs text-ink-500";
   return (
-    <div className="rounded-xl border border-ink-200 bg-surface px-3.5 py-3 shadow-card">
+    <div className="panel rounded-2xl px-3.5 py-3">
       <div className={labelClass}>
         {tooltip ? (
           <InfoTooltip label={<span className="underline decoration-dotted">{label}</span>}>
@@ -72,16 +69,9 @@ export function Button({
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost";
 }) {
-  const styles = {
-    primary: "bg-accent-500 text-on-accent hover:bg-accent-600 border-accent-500 shadow-sm",
-    secondary: "bg-surface text-ink-900 hover:bg-ink-100 border-ink-200 shadow-sm",
-    ghost: "bg-transparent text-ink-700 hover:bg-ink-100 border-transparent",
-  }[variant];
+  const styles = { primary: "btn-primary", secondary: "btn-glass", ghost: "btn" }[variant];
   return (
-    <button
-      {...props}
-      className={`rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${styles} ${props.className ?? ""}`}
-    >
+    <button {...props} className={`${styles} ${props.className ?? ""}`}>
       {children}
     </button>
   );
@@ -95,13 +85,13 @@ export function Badge({
   tone?: "neutral" | "warn" | "good" | "bad";
 }) {
   const styles = {
-    neutral: "bg-ink-100 text-ink-700",
-    warn: "bg-warn-100 text-warn-900",
-    good: "bg-good-100 text-good-900",
-    bad: "bg-bad-100 text-bad-900",
+    neutral: "border-ink-900/10 bg-ink-900/5 font-mono text-ink-900/80",
+    warn: "border-transparent bg-warn-100 font-medium text-warn-900",
+    good: "border-transparent bg-good-100 font-medium text-good-900",
+    bad: "border-transparent bg-bad-100 font-medium text-bad-900",
   }[tone];
   return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${styles}`}>
+    <span className={`inline-block rounded-full border px-2 py-0.5 text-[11px] ${styles}`}>
       {children}
     </span>
   );
@@ -121,11 +111,11 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 // Width is the caller's: two width utilities in one class string resolve by stylesheet
 // order, not by the order they are written, so this must not ship one of its own.
 export const inputClass =
-  "rounded-lg border border-ink-200 bg-surface px-3 py-2 text-sm shadow-sm outline-none placeholder:text-ink-500 focus:border-accent-500 focus:ring-3 focus:ring-accent-500/15";
+  "rounded-full border border-ink-900/10 bg-surface px-3.5 py-2 text-sm outline-none placeholder:text-ink-500 focus:border-accent-500 focus:ring-3 focus:ring-accent-500/20";
 
 /** A panel over the right edge; it fills a phone narrower than its width instead of overflowing. */
 export const drawerClass =
-  "fixed inset-y-0 right-0 z-40 flex w-full max-w-[420px] flex-col border-l border-ink-200 bg-surface shadow-2xl";
+  "fixed inset-y-0 right-0 z-[55] flex w-full max-w-[420px] flex-col border-l border-ink-900/10 bg-surface shadow-2xl";
 
 /**
  * A percent field that reads and writes whole percents while the filter state, the

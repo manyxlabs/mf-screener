@@ -165,5 +165,8 @@ const ACT_2025: Record<string, string> = {
   "112A": "198",
   "50AA": "76",
 };
-export const sectionName = (section: string, sold: IsoDate) =>
-  sold >= "2026-04-01" ? `${ACT_2025[section] ?? section} (2025 Act)` : section;
+export const sectionName = (
+  section: string,
+  sold: IsoDate,
+  act2025: (section: string) => string,
+) => (sold >= "2026-04-01" ? act2025(ACT_2025[section] ?? section) : section);

@@ -3,6 +3,7 @@
 import type { Scheme } from "@mf/shared";
 import { useEffect, useState } from "react";
 import { getSchemes } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/client";
 import { inputClass } from "./ui";
 
 /**
@@ -21,6 +22,7 @@ export function FundPicker({
   max: number;
   onPick: (scheme: Scheme) => void;
 }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Scheme[]>([]);
   const full = chosen.length >= max;
@@ -47,11 +49,7 @@ export function FundPicker({
       <div className="relative">
         <input
           className={`${inputClass} w-full py-2.5 pl-10`}
-          placeholder={
-            full
-              ? `${max} funds chosen: remove one to add another`
-              : "Add a fund: name, AMC or scheme code"
-          }
+          placeholder={full ? t.picker.full(max) : t.picker.placeholder}
           disabled={full}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -69,11 +67,11 @@ export function FundPicker({
           <path d="M12 5v14M5 12h14" />
         </svg>
         {results.length ? (
-          <ul className="absolute right-0 left-0 z-20 mt-1.5 max-h-80 overflow-y-auto rounded-xl border border-ink-200 bg-surface p-1 shadow-xl">
+          <ul className="absolute right-0 left-0 z-20 mt-1.5 panel max-h-80 overflow-y-auto rounded-2xl p-1.5">
             {results.map((scheme) => (
               <li key={scheme.scheme_code}>
                 <button
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-ink-100 disabled:opacity-40"
+                  className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-ink-100 disabled:opacity-40"
                   disabled={chosen.includes(scheme.scheme_code) || full}
                   onClick={() => {
                     onPick(scheme);
@@ -90,9 +88,7 @@ export function FundPicker({
           </ul>
         ) : null}
       </div>
-      <p className="mt-1.5 text-xs text-ink-500">
-        {chosen.length} of {max} chosen
-      </p>
+      <p className="mt-1.5 text-xs text-ink-500">{t.picker.count(chosen.length, max)}</p>
     </div>
   );
 }

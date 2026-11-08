@@ -1,40 +1,44 @@
 "use client";
 
 import { comparisonLabel, formatByUnit, MISSING, type MetricSpec } from "@mf/shared";
-import Link from "next/link";
+import Link from "@/components/link";
+import { useI18n } from "@/lib/i18n/client";
 import { InfoTooltip } from "./tooltip";
 
 export function MetricHeader({ spec, name }: { spec?: MetricSpec; name: string }) {
+  const { t, td } = useI18n();
   if (!spec) return <span>{name}</span>;
   // Two thirds of the catalog is higher-is-better, so as a sentence of its own this
   // said nothing on most columns and buried the cases where it matters. It rides the
   // metadata line instead, where "lower" and "neither" stand out against the default.
   const desirable =
     spec.direction === "higher_is_better"
-      ? "Better: higher"
+      ? t.metric.higherBetter
       : spec.direction === "lower_is_better"
-        ? "Better: lower"
-        : "Neither direction is better";
+        ? t.metric.lowerBetter
+        : t.metric.neitherBetter;
   // The plain label leads and the technical one stays underneath it, never replaced:
   // a reader who does not know the term needs the first, and one who does needs to
   // find the column they came for.
-  const plain = spec.plain_label || spec.label;
-  const showTechnical = plain !== spec.label;
+  const showTechnical = (spec.plain_label || spec.label) !== spec.label;
+  const plain = td(spec.plain_label || spec.label);
   return (
     <InfoTooltip label={<span className="underline decoration-dotted">{plain}</span>}>
       <span className="block font-semibold text-ink-900">{plain}</span>
       {showTechnical ? (
         <span className="mt-0.5 block text-[11px] uppercase tracking-wide text-ink-500">
-          {spec.label}
+          {td(spec.label)}
         </span>
       ) : null}
-      {spec.plain_definition ? <span className="mt-1 block">{spec.plain_definition}</span> : null}
-      <span className="mt-1 block text-ink-500">{spec.definition}</span>
+      {spec.plain_definition ? (
+        <span className="mt-1 block">{td(spec.plain_definition)}</span>
+      ) : null}
+      <span className="mt-1 block text-ink-500">{td(spec.definition)}</span>
       <span className="mt-1.5 block text-ink-500">
-        Frequency: {spec.frequency} · Period: {spec.period} · {desirable}
+        {t.metric.frequency(td(spec.frequency))} · {t.metric.period(td(spec.period))} · {desirable}
       </span>
       <span className="mt-1.5 block border-t border-ink-200 pt-1.5 text-ink-500">
-        Caveat: {spec.caveat}
+        {t.metric.caveat(td(spec.caveat))}
       </span>
       {/* Reachable with a mouse only because InfoTooltip keeps the panel open while
           the pointer is inside it. */}
@@ -42,7 +46,7 @@ export function MetricHeader({ spec, name }: { spec?: MetricSpec; name: string }
         href={`/glossary#metric-${spec.name}`}
         className="mt-1.5 inline-block text-accent-600 underline"
       >
-        Full explanation
+        {t.metric.fullExplanation}
       </Link>
     </InfoTooltip>
   );
@@ -50,15 +54,16 @@ export function MetricHeader({ spec, name }: { spec?: MetricSpec; name: string }
 
 /** A dash is never bare: clicking it says exactly why the value is unavailable. */
 export function MissingValue({ reason, description }: { reason?: string; description?: string }) {
+  const { t, td } = useI18n();
   if (!reason) return <span className="text-ink-300">{MISSING}</span>;
   return (
     <InfoTooltip
       align="right"
-      name="Explain why this value is missing"
+      name={t.metric.explainMissing}
       label={<span className="text-ink-500 underline decoration-dotted">{MISSING}</span>}
     >
-      <span className="block font-semibold text-ink-900">Not available</span>
-      <span className="mt-1 block">{description ?? reason}</span>
+      <span className="block font-semibold text-ink-900">{t.metric.notAvailable}</span>
+      <span className="mt-1 block">{td(description ?? reason)}</span>
       {description ? (
         <span className="mt-1.5 block font-mono text-[11px] text-ink-500">{reason}</span>
       ) : null}
@@ -77,11 +82,12 @@ export function MetricValue({
   reason?: string;
   reasonDescription?: string;
 }) {
+  const { t } = useI18n();
   if (value === null || value === undefined) {
     return <MissingValue reason={reason} description={reasonDescription} />;
   }
   const unit = spec?.unit ?? "text";
-  const text = formatByUnit(value, unit);
+  const text = formatByUnit(value, unit, t.units);
   if (
     typeof value === "number" &&
     spec &&
@@ -94,7 +100,7 @@ export function MetricValue({
       <span className={`numeric ${toneClass}`}>
         <span aria-hidden="true">{marker} </span>
         {text}
-        {label ? <span className="sr-only"> ({label} peers)</span> : null}
+        {label ? <span className="sr-only"> ({t.metric.vsPeers[label]})</span> : null}
       </span>
     );
   }
