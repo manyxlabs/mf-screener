@@ -80,6 +80,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @mf/web exec playwright install --with-deps chromium
+      # The portfolio suite encrypts its synthetic statement with qpdf; without it the
+      # password test is skipped, and a skipped test proves nothing.
+      - run: sudo apt-get install -y --no-install-recommends qpdf
       - name: Build the static site and test it end to end
         # The suite's web server runs `npm run build`, so `out` is what it tested.
         run: make e2e PNPM=pnpm
