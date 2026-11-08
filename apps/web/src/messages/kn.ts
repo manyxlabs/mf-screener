@@ -28,6 +28,7 @@ const kn: Messages = {
     capitalGains: "ಕ್ಯಾಪಿಟಲ್ ಗೇನ್ಸ್",
     glossary: "ಪದಕೋಶ",
     methodology: "ವಿಧಾನ",
+    menu: "ಮೆನು",
   },
   footer: {
     blurb:

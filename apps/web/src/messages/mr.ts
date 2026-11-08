@@ -35,6 +35,7 @@ const mr: Messages = {
     capitalGains: "भांडवली नफा",
     glossary: "शब्दसूची",
     methodology: "कार्यपद्धती",
+    menu: "मेनू",
   },
   footer: {
     blurb:

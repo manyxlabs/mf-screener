@@ -28,6 +28,7 @@ const hi: Messages = {
     capitalGains: "कैपिटल गेन",
     glossary: "शब्दावली",
     methodology: "कार्यप्रणाली",
+    menu: "मेन्यू",
   },
   footer: {
     blurb:

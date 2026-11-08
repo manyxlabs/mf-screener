@@ -28,6 +28,7 @@ const bn: Messages = {
     capitalGains: "ক্যাপিটাল গেইন",
     glossary: "শব্দকোষ",
     methodology: "পদ্ধতি",
+    menu: "মেনু",
   },
   footer: {
     blurb:

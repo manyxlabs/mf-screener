@@ -6,7 +6,7 @@ import { useI18n, useSwitchInPlace } from "@/lib/i18n/client";
 import { LANGUAGES, localePath, LOCALES, splitLocale } from "@/lib/i18n/locales";
 
 const item =
-  "block w-full rounded-lg px-3 py-1.5 text-left text-sm whitespace-nowrap hover:bg-ink-100";
+  "block w-full rounded-xl px-3 py-2 text-left text-sm whitespace-nowrap hover:bg-ink-100";
 
 /**
  * A disclosure of plain links, each to this page in that language; on a single-URL page,
@@ -58,12 +58,12 @@ export function LanguageSwitcher() {
         aria-label={t.language.label}
         title={t.language.label}
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 items-center gap-1.5 rounded-full border border-ink-200 bg-surface/60 px-2.5 text-sm text-ink-700 transition-colors hover:text-ink-900"
+        className="flex h-10 min-w-10 shrink-0 items-center justify-center gap-1.5 rounded-full text-sm text-ink-900 transition-colors hover:bg-ink-900/10 sm:px-3"
       >
         <svg
           viewBox="0 0 24 24"
-          width="18"
-          height="18"
+          width="20"
+          height="20"
           aria-hidden="true"
           fill="none"
           stroke="currentColor"
@@ -79,17 +79,11 @@ export function LanguageSwitcher() {
         </span>
       </button>
       {open ? (
-        <ul
-          id={id}
-          className="absolute right-0 z-40 mt-1.5 min-w-36 rounded-xl border border-ink-200 bg-surface p-1 shadow-xl"
-        >
+        <ul id={id} className="panel absolute right-0 z-40 mt-3 min-w-40 rounded-2xl p-1.5">
           {LOCALES.map((code) => {
             const current = code === locale;
             const label = (
-              <span
-                lang={code}
-                className={current ? "font-medium text-accent-600" : "text-ink-700"}
-              >
+              <span lang={code} className={current ? "font-medium text-ink-900" : "text-ink-500"}>
                 {LANGUAGES[code].name}
               </span>
             );
