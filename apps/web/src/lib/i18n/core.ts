@@ -1,6 +1,7 @@
-import type { Messages } from "@/messages/en";
+import en, { type Messages } from "@/messages/en";
+import { dataNeedsReview, REVIEW_PATHS } from "@/messages/review";
 import { dataKey, NUMBER } from "./data-key";
-import { intlLocale, localePath, type Locale } from "./locales";
+import { intlLocale, LANGUAGES, localePath, type Locale } from "./locales";
 
 const SLOT = /\{(\d+)\}/g;
 
@@ -18,13 +19,28 @@ export type I18n = {
   number: (value: number, options?: Intl.NumberFormatOptions) => string;
 };
 
-export function makeI18n(locale: Locale, t: Messages): I18n {
+type Tree = Record<string, unknown>;
+
+/** `t` with the English value at `path` ("a.b.c"), copying only the objects on the way. */
+const withEnglish = (t: Tree, english: Tree, [key, ...rest]: string[]): Tree => ({
+  ...t,
+  [key!]: rest.length ? withEnglish(t[key!] as Tree, english[key!] as Tree, rest) : english[key!],
+});
+
+export function makeI18n(locale: Locale, messages: Messages): I18n {
+  const { reviewed } = LANGUAGES[locale];
+  const t = reviewed
+    ? messages
+    : (REVIEW_PATHS.reduce<Tree>(
+        (tree, path) => withEnglish(tree, en, path.split(".")),
+        messages,
+      ) as Messages);
   const format = new Intl.NumberFormat(intlLocale(locale));
   return {
     locale,
     t,
     td: (text) => {
-      const translated = t.data[dataKey(text)];
+      const translated = reviewed || !dataNeedsReview(text) ? t.data[dataKey(text)] : undefined;
       if (translated === undefined) return text;
       const numbers = text.match(NUMBER) ?? [];
       return translated.replace(SLOT, (slot, index: string) => numbers[Number(index)] ?? slot);
