@@ -216,7 +216,7 @@ const ml: Messages = {
     page: (page: number, pages: number) => `പേജ് ${page} / ${pages}`,
     rowsPerPage: "ഓരോ പേജിലും വരികൾ",
     rows: (n: number) => `${n} വരികൾ`,
-    previous: "മുമ്പത്തേത്",
+    previous: "മുമ്പ്",
     next: "അടുത്തത്",
     methodology: "ഈ സ്ക്രീനിൽ പ്രയോഗിച്ച രീതി",
     metricsAsOf: (date: string, version: string) => `മെട്രിക്കുകൾ ${date} പ്രകാരം (v${version})`,
