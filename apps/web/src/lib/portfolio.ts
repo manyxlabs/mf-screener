@@ -6,11 +6,17 @@
 import type { CasScheme, CasStatement } from "./cas/types";
 import { loadScreenColumn } from "./static-data";
 import { xirr, type CashFlow } from "./xirr";
+import type { Messages } from "@/messages/en";
 
-export type Figure = { value: number; reason?: undefined } | { value: null; reason: string };
+/** Why a figure is missing, as a code the page words in its language. */
+export type Reason = keyof Messages["portfolio"]["reasons"];
+
+/** `holding` names the holding a portfolio total is missing because of. */
+export type Figure =
+  { value: number; reason?: undefined } | { value: null; reason: Reason; holding?: string };
 
 const known = (value: number): Figure => ({ value });
-const unknown = (reason: string): Figure => ({ value: null, reason });
+const unknown = (reason: Reason, holding?: string): Figure => ({ value: null, reason, holding });
 
 const COLUMNS = [
   "scheme_code",
@@ -78,10 +84,11 @@ export type Holding = {
   expenseRatio: number | null;
   yearlyCost: Figure;
   /** Only for a regular-plan holding: its direct twin, or why none is shown. */
-  direct: DirectPlan | { reason: string } | null;
+  direct: DirectPlan | { reason: Reason } | null;
 };
 
-export type Slice = { name: string; value: number; share: number };
+/** `name` is null for holdings the site's data does not have. */
+export type Slice = { name: string | null; value: number; share: number };
 
 export type Checkup = {
   holdings: Holding[];
@@ -125,7 +132,7 @@ function cashFlows(scheme: CasScheme): CashFlow[] {
 
 /** What was paid for the units still held, oldest units sold first. */
 function heldCost(scheme: CasScheme): Figure {
-  if (scheme.openingUnits > UNITS_TOLERANCE) return unknown(OPENING_REASON);
+  if (scheme.openingUnits > UNITS_TOLERANCE) return unknown("opening");
   const lots: { units: number; cost: number }[] = [];
   for (const t of scheme.transactions) {
     if (t.units > 0)
@@ -133,7 +140,7 @@ function heldCost(scheme: CasScheme): Figure {
     let out = t.units < 0 ? -t.units : 0;
     while (out > UNITS_TOLERANCE) {
       const lot = lots[0];
-      if (!lot) return unknown("More units left this holding than the statement shows coming in.");
+      if (!lot) return unknown("oversold");
       const used = Math.min(lot.units, out);
       lot.cost -= (lot.cost * used) / lot.units;
       lot.units -= used;
@@ -144,45 +151,38 @@ function heldCost(scheme: CasScheme): Figure {
   return known(sum(lots.map((l) => l.cost)));
 }
 
-const OPENING_REASON =
-  "The statement starts after the first purchase, so what the opening units cost is not in it. A statement from 01-Jan-1990 covers every transaction.";
-
 function rate(flows: CashFlow[], openingUnits: number[]): Figure {
-  if (openingUnits.some((u) => u > UNITS_TOLERANCE)) return unknown(OPENING_REASON);
+  if (openingUnits.some((u) => u > UNITS_TOLERANCE)) return unknown("opening");
   const dates = flows.map((f) => f.date).sort();
-  if (!dates.length) return unknown("No cash flows in the statement.");
-  if (days(dates[0]!, dates.at(-1)!) < YEAR_DAYS)
-    return unknown("Invested for under a year, where an annual rate would overstate a short run.");
+  if (!dates.length) return unknown("noFlows");
+  if (days(dates[0]!, dates.at(-1)!) < YEAR_DAYS) return unknown("underYear");
   const r = xirr(flows);
-  return r === null ? unknown("No single rate balances these cash flows.") : known(r);
+  return r === null ? unknown("noRate") : known(r);
 }
 
-function directTwin(row: Row, value: Figure, data: FundData): DirectPlan | { reason: string } {
-  if (row.expense_ratio === null)
-    return { reason: "This plan's expense ratio is not in the data." };
+function directTwin(row: Row, value: Figure, data: FundData): DirectPlan | { reason: Reason } {
+  if (row.expense_ratio === null) return { reason: "noExpenseRatio" };
   const family = (row.fund_family_id && data.byFamily.get(row.fund_family_id)) || [];
   const direct = family.filter((r) => r.clean_plan === "Direct" && r.expense_ratio !== null);
   const twin = direct.find((r) => r.clean_option === row.clean_option) ?? direct[0];
   if (!twin)
     return {
-      reason: family.some((r) => r.clean_plan === "Direct")
-        ? "The direct plan's expense ratio is not in the data."
-        : "No direct plan of this fund is in the data.",
+      reason: family.some((r) => r.clean_plan === "Direct") ? "noDirectRatio" : "noDirectPlan",
     };
   const gap = row.expense_ratio - twin.expense_ratio!;
   return {
     schemeCode: twin.scheme_code!,
     name: twin.scheme_name!,
     expenseRatio: twin.expense_ratio!,
-    difference: value.value === null ? unknown(value.reason) : known(value.value * gap),
+    difference: value.value === null ? value : known(value.value * gap),
   };
 }
 
 function slices(holdings: Holding[], pick: (h: Holding) => string | null): Slice[] {
-  const totals = new Map<string, number>();
+  const totals = new Map<string | null, number>();
   for (const h of holdings)
     if (h.value.value !== null) {
-      const name = pick(h) ?? "Not in the site's data";
+      const name = pick(h);
       totals.set(name, (totals.get(name) ?? 0) + h.value.value);
     }
   const total = sum([...totals.values()]);
@@ -226,7 +226,7 @@ export function checkup(statement: CasStatement, data: FundData): Checkup {
         ? known(units * nav.value)
         : statementValue
           ? known(sum(statementValue.map((v) => v.value)))
-          : unknown("Neither the site's data nor the statement gives a value for this holding.");
+          : unknown("noValue");
     if (value.value !== null && nav) {
       flows.push({ date: nav.date, amount: value.value });
       portfolioFlows.push({ date: nav.date, amount: value.value });
@@ -258,9 +258,7 @@ export function checkup(statement: CasStatement, data: FundData): Checkup {
       expenseRatio,
       yearlyCost:
         expenseRatio === null
-          ? unknown(
-              row ? "This plan's expense ratio is not in the data." : "Not in the site's data.",
-            )
+          ? unknown(row ? "noExpenseRatio" : "notInData")
           : value.value === null
             ? value
             : known(value.value * expenseRatio),
@@ -274,11 +272,9 @@ export function checkup(statement: CasStatement, data: FundData): Checkup {
   const unvaluedCount = holdings.length - valued.length;
   const missingCost = holdings.find((h) => h.cost.value === null);
   const cost = missingCost
-    ? unknown(`${missingCost.name}: ${missingCost.cost.reason}`)
+    ? unknown(missingCost.cost.reason!, missingCost.name)
     : known(sum(holdings.map((h) => h.cost.value!)));
-  const missingValue = unvaluedCount
-    ? unknown("A holding has no value, so the total is incomplete.")
-    : null;
+  const missingValue = unvaluedCount ? unknown("incomplete") : null;
   const directs = holdings.flatMap((h) =>
     h.direct && "schemeCode" in h.direct && h.direct.difference.value !== null
       ? [h.direct.difference.value]

@@ -3,6 +3,7 @@
 import type { Scheme } from "@mf/shared";
 import { useEffect, useState } from "react";
 import { getSchemes } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/client";
 import { inputClass } from "./ui";
 
 /**
@@ -21,6 +22,7 @@ export function FundPicker({
   max: number;
   onPick: (scheme: Scheme) => void;
 }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Scheme[]>([]);
   const full = chosen.length >= max;
@@ -47,11 +49,7 @@ export function FundPicker({
       <div className="relative">
         <input
           className={`${inputClass} w-full py-2.5 pl-10`}
-          placeholder={
-            full
-              ? `${max} funds chosen: remove one to add another`
-              : "Add a fund: name, AMC or scheme code"
-          }
+          placeholder={full ? t.picker.full(max) : t.picker.placeholder}
           disabled={full}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -90,9 +88,7 @@ export function FundPicker({
           </ul>
         ) : null}
       </div>
-      <p className="mt-1.5 text-xs text-ink-500">
-        {chosen.length} of {max} chosen
-      </p>
+      <p className="mt-1.5 text-xs text-ink-500">{t.picker.count(chosen.length, max)}</p>
     </div>
   );
 }
