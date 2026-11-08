@@ -5,6 +5,8 @@ import { makeI18n } from "@/lib/i18n/core";
 import { SITE_NAME } from "@/lib/site";
 import en from "@/messages/en";
 
+export { rootViewport as viewport } from "@/components/root-layout";
+
 // GitHub Pages answers every unknown URL, in any language, with this one 404.html.
 const english = makeI18n("en", en);
 
