@@ -49,46 +49,49 @@ async function topFunds(page: Page): Promise<[Fund, Fund]> {
   return [await read(0), await read(1)];
 }
 
-test("every page renders without errors, broken values or sideways scroll", async ({ browser }) => {
-  const fund = publishedFund();
-  const paths = [
-    "/",
-    "/screener",
-    "/compare",
-    "/basket",
-    "/portfolio",
-    "/capital-gains",
-    "/overlap",
-    "/benchmarks",
-    "/data-status",
-    "/glossary",
-    "/methodology",
-    `/fund/${fund.code}/`,
-  ];
-  for (const [label, viewport] of [
-    ["desktop", { width: 1366, height: 900 }],
-    ["phone", { width: 390, height: 844 }],
-  ] as const) {
-    const page = await browser.newPage({ viewport });
-    const errors: string[] = [];
-    page.on("pageerror", (e) => errors.push(e.message));
-    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
-    for (const path of paths) {
-      await page.goto(path, { waitUntil: "networkidle" });
-      expect(errors, `${label} ${path}`).toEqual([]);
-      // A rendering bug shows up as a bare token where a value belongs; "undefined" in
-      // prose (the methodology says a zero-denominator ratio "is undefined") is fine.
-      const body = await page.locator("main").innerText();
-      expect(body, `${label} ${path}`).not.toMatch(/NaN|\[object Object\]|^(undefined|null)$/m);
-      const overflow = await page.evaluate(
-        () => document.documentElement.scrollWidth - window.innerWidth,
-      );
-      expect(overflow, `${label} ${path} scrolls sideways`).toBeLessThanOrEqual(0);
-      await shot(page, `${label}-${path.replace(/\W+/g, " ").trim().replace(/ /g, "-") || "home"}`);
+// One test per page, since a single test loading them all overran the timeout on a slow machine.
+for (const [label, viewport] of [
+  ["desktop", { width: 1366, height: 900 }],
+  ["phone", { width: 390, height: 844 }],
+] as const) {
+  test.describe(label, () => {
+    test.use({ viewport });
+    for (const path of [
+      "/",
+      "/screener",
+      "/compare",
+      "/basket",
+      "/portfolio",
+      "/capital-gains",
+      "/overlap",
+      "/benchmarks",
+      "/data-status",
+      "/glossary",
+      "/methodology",
+      `/fund/${publishedFund().code}/`,
+    ]) {
+      test(`${path} renders without errors, broken values or sideways scroll`, async ({ page }) => {
+        const errors: string[] = [];
+        page.on("pageerror", (e) => errors.push(e.message));
+        page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+        await page.goto(path, { waitUntil: "networkidle" });
+        expect(errors).toEqual([]);
+        // A rendering bug shows up as a bare token where a value belongs; "undefined" in
+        // prose (the methodology says a zero-denominator ratio "is undefined") is fine.
+        const body = await page.locator("main").innerText();
+        expect(body).not.toMatch(/NaN|\[object Object\]|^(undefined|null)$/m);
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth - window.innerWidth,
+        );
+        expect(overflow, "scrolls sideways").toBeLessThanOrEqual(0);
+        await shot(
+          page,
+          `${label}-${path.replace(/\W+/g, " ").trim().replace(/ /g, "-") || "home"}`,
+        );
+      });
     }
-    await page.close();
-  }
-});
+  });
+}
 
 test("an unknown fund is a 404 page, not a crash", async ({ page }) => {
   const response = await page.goto("/fund/999999999/");
