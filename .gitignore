@@ -27,3 +27,6 @@ playwright-report/
 
 # The static site's data, exported from the local store by `make static-export`.
 apps/web/public/data
+
+# Personal account statements; never commit them.
+cas_detailed_report_*
