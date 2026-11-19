@@ -1,9 +1,8 @@
 @import "tailwindcss";
 
 /*
- * The Manyx family's design tokens, copied from the portfolio
- * (the Manyx Labs design tokens): RGB channels, used as
- * rgb(var(--x) / alpha), swapped by the `dark` class on <html>. Change them there first.
+ * The Manyx family's design tokens, shared with its other sites: RGB channels, used as
+ * rgb(var(--x) / alpha), swapped by the `dark` class on <html>. Change them there too.
  * --surface and --accent-text are the screener's own: an opaque ground for tables, forms
  * and long text, and an emerald dark enough for small text to pass WCAG AA on it.
  */

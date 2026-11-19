@@ -30,7 +30,7 @@ export const rootMetadata = ({ t }: I18n): Metadata => ({
   applicationName: SITE_NAME,
 });
 
-// The system theme picks the browser chrome's colour.
+// The Manyx family's: the system theme picks the browser chrome's colour.
 export const rootViewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f5f5f7" },
